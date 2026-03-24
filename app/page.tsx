@@ -498,7 +498,7 @@ export default function LandingPage() {
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS }}>Trusted by thousands of businesses whose reputation is everything</span>
             </div>
             <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {["✓ 98% SMS open rate", "✓ 5 min setup", "✓ 30-day money back"].map((t) => (
+              {["✓ 98% SMS open rate", "✓ 5 min setup", "✓ 14-day money back"].map((t) => (
                 <span key={t} style={{ background: OW, borderRadius: 9999, padding: "8px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: TS }}>{t}</span>
               ))}
             </div>
@@ -833,7 +833,7 @@ export default function LandingPage() {
           </div>
 
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: TM, textAlign: "center", marginTop: 40 }}>
-            Not seeing more reviews in your first 30 days? Full refund. No forms. No questions.
+            Not seeing more reviews in your first 14 days? Full refund. No forms. No questions.
           </p>
         </div>
       </section>
@@ -855,7 +855,7 @@ export default function LandingPage() {
           >
             Start Today - from £50/month →
           </a>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, marginTop: 16 }}>30-day money back guarantee</p>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, marginTop: 16 }}>14-day money back guarantee</p>
 
         </div>
       </section>
