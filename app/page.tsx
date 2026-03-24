@@ -1,529 +1,877 @@
 "use client";
 
-import Link from "next/link";
-import {
-  Mail,
-  Clock,
-  Star,
-  MessageSquare,
-  Shield,
-  HeartHandshake,
-  BarChart3,
-  Sparkles,
-  Plug,
-  Scissors,
-  UtensilsCrossed,
-  Stethoscope,
-  Pen,
-  Check,
-  ArrowRight,
-  ChevronRight,
-} from "lucide-react";
+import Script from "next/script";
+import { useEffect, useRef, useState } from "react";
 
-export default function LandingPage() {
+declare global {
+  interface Window {
+    gsap: any;
+    ScrollTrigger: any;
+    Chart: any;
+  }
+}
+
+// ─── Color constants ─────────────────────────────────────────────────────────
+const G   = "#00C896";
+const GD  = "#00A87D";
+const N   = "#0A0F1E";
+const OW  = "#F7F8FA";
+const TS  = "#6B7280";
+const TM  = "#9CA3AF";
+const BD  = "#E5E7EB";
+
+// ─── Reusable primitives ─────────────────────────────────────────────────────
+function StarSVG({ size = 20 }: { size?: number }) {
   return (
-    <div className="min-h-screen bg-white text-gray-900">
-      {/* Navigation */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <span className="text-2xl font-bold text-gray-900">Vomni</span>
-          <div className="flex items-center gap-4">
-            <a
-              href="#pricing"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors hidden sm:block"
-            >
-              Pricing
-            </a>
-            <Link
-              href="/demo/kings-cuts"
-              className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors hidden sm:block"
-            >
-              See Demo
-            </Link>
-            <Link
-              href="/signup"
-              className="bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors"
-            >
-              Sign Up
-            </Link>
+    <svg width={size} height={size} viewBox="0 0 20 20" fill={G}>
+      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+    </svg>
+  );
+}
+
+function Stars({ count = 5, size = 20 }: { count?: number; size?: number }) {
+  return (
+    <div style={{ display: "flex", gap: 3 }}>
+      {Array.from({ length: count }).map((_, i) => <StarSVG key={i} size={size} />)}
+    </div>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width={18} height={18} viewBox="0 0 20 20" fill={G} style={{ flexShrink: 0 }}>
+      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+    </svg>
+  );
+}
+
+function BrowserChrome({ url }: { url: string }) {
+  return (
+    <div style={{ height: 44, background: OW, borderBottom: `1px solid ${BD}`, display: "flex", alignItems: "center", padding: "0 20px", gap: 8, flexShrink: 0 }}>
+      <div style={{ display: "flex", gap: 6 }}>
+        {(["#FF5F57", "#FEBC2E", "#28C840"] as string[]).map((c) => (
+          <div key={c} style={{ width: 12, height: 12, borderRadius: "50%", background: c }} />
+        ))}
+      </div>
+      <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
+        <div style={{ background: "#fff", borderRadius: 8, height: 24, width: 300, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: TM, fontFamily: "Inter, sans-serif" }}>
+          {url}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── iPhone mockup ────────────────────────────────────────────────────────────
+function IPhone({ animate = false }: { animate?: boolean }) {
+  return (
+    <div className={`iphone${animate ? " iphone-anim" : ""}`}>
+      <div className="iphone-screen">
+        <div className="iphone-notch" />
+        <div className="iphone-home-indicator" />
+        <div style={{ paddingTop: 56, paddingBottom: 24, paddingLeft: 24, paddingRight: 24, display: "flex", flexDirection: "column", alignItems: "center" }}>
+          {/* Scissors icon */}
+          <svg width={40} height={40} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
+            <line x1="20" y1="4" x2="8.12" y2="15.88" />
+            <line x1="14.47" y1="14.48" x2="20" y2="20" />
+            <line x1="8.12" y1="8.12" x2="12" y2="12" />
+          </svg>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11, letterSpacing: "0.15em", textTransform: "uppercase", color: TM, marginTop: 8, textAlign: "center" }}>
+            KINGS CUTS LONDON
+          </p>
+          <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N, marginTop: 20, textAlign: "center", lineHeight: 1.2 }}>
+            How was your experience?
+          </h3>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM, marginTop: 8, textAlign: "center" }}>
+            Hi James - we&apos;d love to hear your thoughts
+          </p>
+          <div style={{ marginTop: 28 }}>
+            <Stars count={5} size={38} />
           </div>
+          <button style={{ marginTop: 28, width: "100%", background: G, color: "#fff", borderRadius: 14, padding: "16px 0", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, border: "none", cursor: "pointer" }}>
+            Leave a Google Review →
+          </button>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: TM, textAlign: "center", marginTop: 10 }}>
+            Takes 30 seconds · Helps us grow
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: Overview ────────────────────────────────────────────────────────────
+function OverviewTab() {
+  const metrics = [
+    { label: "Requests Sent",   value: "47",     sub: "This month" },
+    { label: "Completion Rate", value: "66%",    sub: "↑ vs 40% avg" },
+    { label: "Avg Rating",      value: "4.3 ★",  sub: "Up 0.4 stars" },
+    { label: "Google Reviews",  value: "28",     sub: "Redirected" },
+    { label: "Negative Caught", value: "3",      sub: "Saved privately", warn: true },
+    { label: "Review Velocity", value: "8.2/wk", sub: "Growing" },
+  ];
+  const activity = [
+    { name: "James Mitchell", status: "Redirected to Google", color: G },
+    { name: "Tyler Brooks",   status: "Private Feedback",      color: "#F59E0B" },
+    { name: "Omar Abdullah",  status: "Redirected to Google", color: G },
+    { name: "Aiden Clarke",   status: "Sent",                  color: TM },
+    { name: "Marcus Lee",     status: "Opened",                color: "#8B5CF6" },
+    { name: "Priya Patel",    status: "Redirected to Google", color: G },
+    { name: "Liam Foster",    status: "Private Feedback",      color: "#F59E0B" },
+    { name: "Ethan Walsh",    status: "Redirected to Google", color: G },
+  ];
+  return (
+    <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
+      <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 20, color: N }}>Kings Cuts London</p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
+        {metrics.map((m, i) => (
+          <div key={i} style={{ background: OW, borderRadius: 12, padding: "14px 18px" }}>
+            <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: TM }}>{m.label}</p>
+            <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 800, color: m.warn ? "#F59E0B" : G, lineHeight: 1.1, marginTop: 4 }}>{m.value}</p>
+            <p style={{ fontSize: 12, color: TM, marginTop: 4 }}>{m.sub}</p>
+          </div>
+        ))}
+      </div>
+      <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: TM, marginBottom: 10 }}>RECENT ACTIVITY</p>
+      <div style={{ marginBottom: 16 }}>
+        {activity.map((a, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < activity.length - 1 ? `1px solid ${BD}` : "none" }}>
+            <span style={{ fontSize: 13, color: N }}>{a.name}</span>
+            <span style={{ fontSize: 12, color: a.color, fontWeight: 500 }}>{a.status}</span>
+          </div>
+        ))}
+      </div>
+      <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: "14px 18px" }}>
+        <p style={{ fontSize: 13, fontWeight: 600, color: "#B45309" }}>⚠ Alert - Isaac Thompson left a 2★ review</p>
+        <p style={{ fontSize: 12, color: "#92400E", marginTop: 4 }}>"The wait time was too long and nobody apologised..." · 2 hours ago</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: Recovery ────────────────────────────────────────────────────────────
+function RecoveryTab() {
+  const cards = [
+    {
+      name: "Tyler Brooks", rating: 2, badge: "new", resolved: false,
+      text: "The fade was uneven on the left side and the neckline wasn't clean. Expected better for the price.",
+      aiReply: "Hi Tyler, I'm really sorry to hear your visit didn't meet the standard you expect from us. An uneven fade is completely unacceptable and I apologise. I'd love to have you back and make this right - your next visit is completely on us. Please reply here or call us directly.",
+    },
+    {
+      name: "Aiden Clarke", rating: 3, badge: "resolved", resolved: true,
+      text: "Service was fine but the shop was busier than expected. Had to wait 25 minutes past my appointment time.",
+      aiReply: "",
+    },
+    {
+      name: "Isaac Thompson", rating: 2, badge: "new", resolved: false,
+      text: "The wait time was too long and nobody apologised for the delay. Won't be coming back.",
+      aiReply: "",
+    },
+  ];
+  return (
+    <div style={{ padding: 24, fontFamily: "Inter, sans-serif", display: "flex", flexDirection: "column", gap: 16 }}>
+      {cards.map((c, i) => (
+        <div key={i} style={{ background: OW, borderRadius: 16, padding: 20, border: `1px solid ${BD}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: N, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 600 }}>{c.name[0]}</div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: N }}>{c.name}</p>
+                <Stars count={c.rating} size={13} />
+              </div>
+            </div>
+            <span style={{
+              background: c.badge === "resolved" ? "rgba(0,200,150,0.1)" : "rgba(245,158,11,0.1)",
+              color: c.badge === "resolved" ? G : "#F59E0B",
+              fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 9999, textTransform: "capitalize",
+            }}>{c.badge}</span>
+          </div>
+          <p style={{ fontSize: 13, color: TS, fontStyle: "italic", lineHeight: 1.5 }}>"{c.text}"</p>
+          {c.aiReply && (
+            <div style={{ marginTop: 14, background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 12, padding: 16 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: G, marginBottom: 8 }}>AI Suggested Reply</p>
+              <p style={{ fontSize: 13, color: N, lineHeight: 1.6 }}>{c.aiReply}</p>
+              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <button style={{ background: G, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Mark In Progress</button>
+                <button style={{ background: "#fff", color: TS, border: `1px solid ${BD}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, cursor: "pointer" }}>Mark Resolved</button>
+              </div>
+            </div>
+          )}
+          {!c.aiReply && !c.resolved && (
+            <button style={{ marginTop: 12, background: G, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+              Generate Reply
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Tab: Analytics ───────────────────────────────────────────────────────────
+function AnalyticsTab({ chartLoaded }: { chartLoaded: boolean }) {
+  const ratingRef    = useRef<HTMLCanvasElement>(null);
+  const requestRef   = useRef<HTMLCanvasElement>(null);
+  const completionRef = useRef<HTMLCanvasElement>(null);
+  const reviewsRef   = useRef<HTMLCanvasElement>(null);
+  const instances    = useRef<any[]>([]);
+
+  useEffect(() => {
+    if (!chartLoaded || typeof window === "undefined" || !window.Chart) return;
+
+    // Destroy previous instances
+    instances.current.forEach((c) => { try { c.destroy(); } catch {} });
+    instances.current = [];
+
+    const Chart = window.Chart;
+    const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+
+    if (ratingRef.current) {
+      instances.current.push(new Chart(ratingRef.current.getContext("2d"), {
+        type: "doughnut",
+        data: {
+          labels: ["5★", "4★", "3★", "2★"],
+          datasets: [{ data: [18, 6, 3, 4], backgroundColor: [G, "#34D399", "#F59E0B", "#EF4444"], borderWidth: 0 }],
+        },
+        options: {
+          responsive: true, cutout: "65%",
+          plugins: { legend: { position: "right", labels: { font: { family: "Inter", size: 11 }, color: N, padding: 12 } } },
+        },
+      }));
+    }
+    if (requestRef.current) {
+      instances.current.push(new Chart(requestRef.current.getContext("2d"), {
+        type: "bar",
+        data: { labels: months, datasets: [{ label: "Sent", data: [28, 32, 30, 35, 43, 47], backgroundColor: G, borderRadius: 6 }] },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { grid: { color: "rgba(0,0,0,0.04)" }, ticks: { color: TM, font: { family: "Inter" } } },
+            x: { grid: { display: false }, ticks: { color: TM, font: { family: "Inter" } } },
+          },
+        },
+      }));
+    }
+    if (completionRef.current) {
+      instances.current.push(new Chart(completionRef.current.getContext("2d"), {
+        type: "line",
+        data: {
+          labels: months,
+          datasets: [{ label: "Completion %", data: [50, 55, 52, 58, 62, 66], borderColor: G, backgroundColor: "rgba(0,200,150,0.08)", fill: true, tension: 0.4, pointBackgroundColor: G, borderWidth: 2 }],
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 40, max: 80, grid: { color: "rgba(0,0,0,0.04)" }, ticks: { color: TM, font: { family: "Inter" } } },
+            x: { grid: { display: false }, ticks: { color: TM, font: { family: "Inter" } } },
+          },
+        },
+      }));
+    }
+    if (reviewsRef.current) {
+      instances.current.push(new Chart(reviewsRef.current.getContext("2d"), {
+        type: "line",
+        data: {
+          labels: months,
+          datasets: [{ label: "Reviews", data: [11, 14, 17, 20, 24, 28], borderColor: G, backgroundColor: "rgba(0,200,150,0.08)", fill: true, tension: 0.4, pointBackgroundColor: G, borderWidth: 2 }],
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { min: 0, grid: { color: "rgba(0,0,0,0.04)" }, ticks: { color: TM, font: { family: "Inter" } } },
+            x: { grid: { display: false }, ticks: { color: TM, font: { family: "Inter" } } },
+          },
+        },
+      }));
+    }
+
+    return () => { instances.current.forEach((c) => { try { c.destroy(); } catch {} }); };
+  }, [chartLoaded]);
+
+  return (
+    <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
+      <div className="analytics-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
+        {[
+          { label: "Rating Distribution", ref: ratingRef },
+          { label: "Requests Sent",       ref: requestRef },
+          { label: "Completion Rate %",   ref: completionRef },
+          { label: "Google Reviews",      ref: reviewsRef },
+        ].map((item, i) => (
+          <div key={i} style={{ background: OW, borderRadius: 12, padding: 16 }}>
+            <p style={{ fontSize: 12, fontWeight: 600, color: N, marginBottom: 12 }}>{item.label}</p>
+            <canvas ref={item.ref} height={160} />
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+        <div style={{ background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 12, padding: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: G }}>Completion Rate Above Average</p>
+          <p style={{ fontSize: 12, color: TS, marginTop: 6, lineHeight: 1.5 }}>Your 66% completion rate is 26pp above the 40% industry average - excellent performance.</p>
+        </div>
+        <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: 16 }}>
+          <p style={{ fontSize: 13, fontWeight: 700, color: "#F59E0B" }}>3 Negative Reviews Caught</p>
+          <p style={{ fontSize: 12, color: TS, marginTop: 6, lineHeight: 1.5 }}>3 complaints were resolved privately this month - protecting your public Google rating.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Tab: Customer view ───────────────────────────────────────────────────────
+function CustomerViewTab() {
+  return (
+    <div style={{ padding: 40, display: "flex", justifyContent: "center", background: OW, minHeight: 500 }}>
+      <IPhone />
+    </div>
+  );
+}
+
+// ─── Main page ────────────────────────────────────────────────────────────────
+export default function LandingPage() {
+  const [scrolled,  setScrolled]  = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [gsapReady, setGsapReady] = useState(false);
+  const [chartLoaded, setChartLoaded] = useState(false);
+  const gsapInited = useRef(false);
+
+  // Nav scroll border
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", onScroll);
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // GSAP init (fires once both GSAP + ScrollTrigger are loaded)
+  useEffect(() => {
+    if (!gsapReady || gsapInited.current) return;
+    gsapInited.current = true;
+
+    const gsap = window.gsap;
+    const ST   = window.ScrollTrigger;
+    gsap.registerPlugin(ST);
+
+    // Hero
+    gsap.from(".hero-headline", { opacity: 0, y: 40, duration: 0.8, ease: "power3.out" });
+    gsap.from(".hero-sub",      { opacity: 0, y: 30, duration: 0.8, delay: 0.2, ease: "power3.out" });
+    gsap.from(".hero-buttons",  { opacity: 0, y: 20, duration: 0.6, delay: 0.4, ease: "power3.out" });
+    gsap.from(".browser-frame", { opacity: 0, x: 60, duration: 1,   delay: 0.3, ease: "power3.out" });
+    gsap.from(".notif-card",    { opacity: 0, y: 20, duration: 0.6, delay: 1.2, ease: "power3.out" });
+
+    // Pain stats
+    gsap.fromTo(".pain-stat",
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.6, stagger: 0.15, ease: "power3.out",
+        scrollTrigger: { trigger: ".pain-section", start: "top 85%", once: true } }
+    );
+
+    // Steps — fromTo so opacity never stays at 0
+    gsap.fromTo(".step-card",
+      { opacity: 0, y: 50 },
+      { opacity: 1, y: 0, duration: 0.7, stagger: 0.2, ease: "power3.out",
+        scrollTrigger: { trigger: ".steps-section", start: "top 85%", once: true } }
+    );
+
+    // iPhone
+    gsap.fromTo(".iphone-anim",
+      { opacity: 0, y: 60, scale: 0.95 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.8,
+        scrollTrigger: { trigger: ".iphone-anim", start: "top 90%", once: true } }
+    );
+
+    // SMS mockup
+    gsap.fromTo(".sms-mockup",
+      { opacity: 0, y: 40, scale: 0.97 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.8,
+        scrollTrigger: { trigger: ".sms-mockup", start: "top 90%", once: true } }
+    );
+
+    // Testimonials
+    gsap.fromTo(".testimonial-card",
+      { opacity: 0, y: 40 },
+      { opacity: 1, y: 0, duration: 0.6, stagger: 0.15,
+        scrollTrigger: { trigger: ".testimonials-section", start: "top 85%", once: true } }
+    );
+
+    // Refresh after a tick to catch elements already in viewport
+    setTimeout(() => ST.refresh(), 200);
+  }, [gsapReady]);
+
+  const tabs = [
+    { id: "overview",  label: "Overview" },
+    { id: "recovery",  label: "Recovery inbox" },
+    { id: "analytics", label: "Analytics" },
+    { id: "customer",  label: "Customer view" },
+  ];
+  const tabUrls: Record<string, string> = {
+    overview:  "app.vomni.app/dashboard",
+    recovery:  "app.vomni.app/feedback",
+    analytics: "app.vomni.app/analytics",
+    customer:  "app.vomni.app/review/james",
+  };
+
+  return (
+    <>
+      {/* CDN scripts */}
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"
+        strategy="afterInteractive"
+      />
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"
+        strategy="afterInteractive"
+        onLoad={() => setGsapReady(true)}
+      />
+      <Script
+        src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"
+        strategy="afterInteractive"
+        onLoad={() => setChartLoaded(true)}
+      />
+
+      {/* ── NAVIGATION ──────────────────────────────────────────────────────── */}
+      <nav style={{
+        position: "sticky", top: 0, zIndex: 100, height: 72,
+        background: "#fff",
+        borderBottom: scrolled ? `1px solid ${BD}` : "1px solid transparent",
+        transition: "border-color 0.2s",
+        display: "flex", alignItems: "center",
+      }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 32, fontWeight: 800, color: N }}>Vomni</span>
+          <div className="nav-links" style={{ display: "flex", gap: 40, alignItems: "center" }}>
+            {[
+              { label: "How it Works", id: "how-it-works" },
+              { label: "See Demo",     id: "demo" },
+              { label: "Pricing",      id: "pricing" },
+              { label: "Login",        href: "/signup" },
+            ].map((item) => (
+              <a
+                key={item.label}
+                href={item.href ?? `#${item.id}`}
+                onClick={item.id ? (e) => { e.preventDefault(); document.querySelector(`#${item.id}`)?.scrollIntoView({ behavior: "smooth" }); } : undefined}
+                style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}
+              >
+                {item.label}
+              </a>
+            ))}
+          </div>
+          <a href="/signup"
+            style={{ background: G, color: "#fff", borderRadius: 9999, padding: "12px 28px", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", transition: "background 0.2s" }}
+            onMouseEnter={e => (e.currentTarget.style.background = GD)}
+            onMouseLeave={e => (e.currentTarget.style.background = G)}
+          >
+            Get Started
+          </a>
         </div>
       </nav>
 
-      {/* Hero — Above the Fold */}
-      <section className="bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-gray-900 leading-tight">
-                Get More 5-Star Google Reviews.{" "}
-                <span className="text-sky-500">On Autopilot.</span>
-              </h1>
-              <p className="mt-6 text-lg sm:text-xl text-gray-600 leading-relaxed max-w-xl">
-                Vomni automatically asks your happy customers for reviews — and
-                catches unhappy ones before they go public. Set up in 10
-                minutes.
-              </p>
-              <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                <Link
-                  href="/signup"
-                  className="inline-flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg shadow-sky-500/25 hover:shadow-sky-500/40"
-                >
-                  Start Getting Reviews — $70/month
-                  <ArrowRight className="w-5 h-5" />
-                </Link>
-              </div>
-              <p className="mt-4 text-sm text-gray-500">
-                30-day money back guarantee. No results, full refund.
-              </p>
-            </div>
+      {/* ── HERO ────────────────────────────────────────────────────────────── */}
+      <section style={{ minHeight: "100vh", position: "relative", display: "flex", alignItems: "center", paddingTop: 120, paddingBottom: 80 }}>
+        <div className="hero-bg" />
+        <div className="container hero-grid" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "grid", gridTemplateColumns: "55% 45%", gap: 64, alignItems: "center", width: "100%", position: "relative", zIndex: 1 }}>
 
-            {/* Dashboard mockup */}
-            <div className="flex justify-center lg:justify-end">
-              <div className="bg-white rounded-2xl shadow-2xl border border-gray-100 p-6 sm:p-8 w-full max-w-sm">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
-                    This Month
-                  </h3>
-                  <span className="text-xs font-medium text-sky-500 bg-sky-50 px-2.5 py-1 rounded-full">
-                    Live
-                  </span>
-                </div>
-                <div className="text-5xl font-extrabold text-gray-900 mb-2">
-                  28
-                </div>
-                <p className="text-gray-600 font-medium mb-6">
-                  Google reviews this month
-                </p>
-                <div className="flex items-center gap-1 mb-4">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star
-                      key={i}
-                      className={`w-6 h-6 ${
-                        i <= 4
-                          ? "fill-amber-400 text-amber-400"
-                          : "fill-amber-400/50 text-amber-400/50"
-                      }`}
-                    />
+          {/* Left */}
+          <div>
+            <h1 className="hero-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 80, fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.03em", color: N }}>
+              More 5-star<br /><span style={{ color: G }}>reviews.</span><br />Fewer surprises.
+            </h1>
+            <p className="hero-sub" style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, lineHeight: 1.6, maxWidth: 460, marginTop: 24 }}>
+              Vomni automatically sends review requests after every appointment and catches unhappy customers privately - before they reach Google.
+            </p>
+            <div className="hero-buttons" style={{ marginTop: 40, display: "flex", gap: 16, alignItems: "center" }}>
+              <a href="/signup" className="cta-primary" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>
+                Start Getting Reviews - £70/month
+              </a>
+              <a href="/demo"
+                style={{ background: "transparent", border: `2px solid ${N}`, color: N, borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", transition: "all 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = N; e.currentTarget.style.color = "#fff"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = N; }}
+              >
+                Watch 2-min demo →
+              </a>
+            </div>
+            <div style={{ marginTop: 32, display: "flex", alignItems: "center", gap: 8 }}>
+              <Stars count={5} size={20} />
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS }}>Trusted by thousands of businesses whose reputation is everything</span>
+            </div>
+            <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {["✓ 98% SMS open rate", "✓ 5 min setup", "✓ 30-day money back"].map((t) => (
+                <span key={t} style={{ background: OW, borderRadius: 9999, padding: "8px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: TS }}>{t}</span>
+              ))}
+            </div>
+          </div>
+
+          {/* Right — browser frame + notification card */}
+          <div style={{ position: "relative" }}>
+            <div className="browser-frame">
+              <BrowserChrome url="app.vomni.app/dashboard" />
+              <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
+                <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 20, color: N }}>Kings Cuts London</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  {[
+                    { label: "Requests Sent",   value: "47",    sub: "This month" },
+                    { label: "Completion Rate", value: "66%",   sub: "↑ vs 40% avg" },
+                    { label: "Avg Rating",      value: "4.3 ★", sub: "Up 0.4 stars" },
+                    { label: "Google Reviews",  value: "28",    sub: "Redirected" },
+                  ].map((m, i) => (
+                    <div key={i} style={{ background: OW, borderRadius: 12, padding: "14px 16px" }}>
+                      <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: TM }}>{m.label}</p>
+                      <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800, color: G, lineHeight: 1.1, marginTop: 4 }}>{m.value}</p>
+                      <p style={{ fontSize: 11, color: TM, marginTop: 3 }}>{m.sub}</p>
+                    </div>
                   ))}
-                  <span className="ml-2 text-lg font-bold text-gray-900">
-                    4.8
-                  </span>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-3">
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Completion rate</span>
-                    <span className="font-semibold text-gray-900">66%</span>
+                <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: TM, marginTop: 16, marginBottom: 10 }}>RECENT ACTIVITY</p>
+                {[
+                  { name: "James Mitchell", status: "Redirected to Google", color: G },
+                  { name: "Tyler Brooks",   status: "Private feedback",      color: "#F59E0B" },
+                  { name: "Omar Abdullah",  status: "Redirected to Google", color: G },
+                ].map((a, i, arr) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: i < arr.length - 1 ? `1px solid ${BD}` : "none" }}>
+                    <span style={{ fontSize: 12, color: N }}>{a.name}</span>
+                    <span style={{ fontSize: 11, color: a.color, fontWeight: 500 }}>{a.status}</span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div
-                      className="bg-sky-500 h-2 rounded-full"
-                      style={{ width: "66%" }}
-                    />
-                  </div>
-                </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Floating notification card */}
+            <div className="notif-card" style={{ position: "absolute", bottom: -20, right: -20, background: "#fff", borderRadius: 14, padding: "14px 18px", boxShadow: "0 8px 32px rgba(0,0,0,0.12)", display: "flex", alignItems: "center", gap: 12, width: 260, zIndex: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(0,200,150,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </div>
+              <div>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>New 5-star review on Google</p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: TM, marginTop: 2 }}>Omar Abdullah · just now</p>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Section 2 — Why Reviews Matter */}
-      <section className="bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="text-center max-w-3xl mx-auto mb-12">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
-              Your Google Rating Is Your Most Valuable Business Asset
-            </h2>
+      {/* ── PAIN SECTION ────────────────────────────────────────────────────── */}
+      <section className="pain-section section-pad" style={{ background: N, padding: "120px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
+          <h2 className="pain-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: "#fff", textAlign: "center", maxWidth: 800, margin: "0 auto", lineHeight: 1.1 }}>
+            Your Google rating is working against you.
+          </h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, textAlign: "center", marginTop: 16 }}>
+            The data may surprise you.
+          </p>
+          <div className="pain-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", marginTop: 80 }}>
+            {[
+              { num: "96%",  label: "of customers read Google reviews before walking through your door" },
+              { num: "1",    label: "bad review sends 30 potential customers straight to your competitor" },
+              { num: null,   label: "and you lose 70% of search clicks before anyone sees your business", mixed: true },
+              { num: "£12k", label: "lost in lifetime customer value from just one complaint that goes public online" },
+            ].map((s, i, arr) => (
+              <div key={i} className="pain-stat" style={{ padding: "60px 40px", position: "relative", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none", textAlign: "center" }}>
+                <div style={{ minHeight: 96, display: "flex", alignItems: "flex-start", justifyContent: "center" }}>
+                  {s.mixed ? (
+                    <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 900, color: G, lineHeight: 1, textShadow: "0 0 80px rgba(0,200,150,0.4), 0 0 160px rgba(0,200,150,0.2)", margin: 0 }}>
+                      <span style={{ fontSize: 96 }}>3.9</span><span style={{ fontSize: 60 }}>★</span>
+                    </p>
+                  ) : (
+                    <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 96, fontWeight: 900, color: G, lineHeight: 1, textShadow: "0 0 80px rgba(0,200,150,0.4), 0 0 160px rgba(0,200,150,0.2)", margin: 0 }}>{s.num}</p>
+                  )}
+                </div>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 17, color: "rgba(255,255,255,0.6)", marginTop: 16, lineHeight: 1.5, maxWidth: 200, margin: "16px auto 0" }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: 80, background: "rgba(0,200,150,0.08)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 16, padding: "40px 60px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 40 }}>
+            <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 32, fontWeight: 700, color: "#fff", lineHeight: 1.3, flex: 1 }}>
+              Every review you don&apos;t collect is a customer your competitor wins instead.
+            </p>
+            <a href="/signup" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
+              Fix it with Vomni →
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* ── PRODUCT SHOWCASE ────────────────────────────────────────────────── */}
+      <section id="demo" className="section-pad" style={{ background: OW, padding: "120px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
+          <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: N, textAlign: "center" }}>
+            Everything you need.
+          </h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, textAlign: "center", marginTop: 16 }}>
+            See the product. All of it.
+          </p>
+
+          {/* Tabs — sticky while browser frame is in view */}
+          <div className="product-tabs tabs-row" style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 48, flexWrap: "wrap", position: "sticky", top: 80, zIndex: 50, background: OW, padding: "16px 0" }}>
+            {tabs.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                style={{
+                  fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500,
+                  padding: "12px 28px", borderRadius: 9999,
+                  border: `1.5px solid ${activeTab === t.id ? N : BD}`,
+                  background: activeTab === t.id ? N : "#fff",
+                  color: activeTab === t.id ? "#fff" : TS,
+                  cursor: "pointer", transition: "all 0.2s",
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {/* Browser frame */}
+          <div style={{ maxWidth: 1000, margin: "48px auto 0", background: "#fff", borderRadius: 20, boxShadow: "0 40px 100px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+            <BrowserChrome url={tabUrls[activeTab]} />
+            <div style={{ minHeight: 500 }}>
+              {activeTab === "overview"  && <OverviewTab />}
+              {activeTab === "recovery"  && <RecoveryTab />}
+              {activeTab === "analytics" && <AnalyticsTab chartLoaded={chartLoaded} />}
+              {activeTab === "customer"  && <CustomerViewTab />}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ────────────────────────────────────────────────────── */}
+      <section id="how-it-works" className="steps-section section-pad" style={{ background: "#fff", padding: "120px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
+          <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: N, textAlign: "center" }}>
+            Three steps. Then it runs itself.
+          </h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, textAlign: "center", marginTop: 16 }}>
+            Setup takes 5 minutes or less.
+          </p>
+          <div className="steps-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 32, marginTop: 80, alignItems: "stretch" }}>
             {[
               {
-                stat: "96%",
-                text: "of consumers read reviews before visiting a local business",
+                num: "01",
+                title: "Set up email forwarding once. That\u2019s it.",
+                body: "Set up one email forward from your booking system to Vomni. That is literally it - you never need to touch it again.",
+                icon: (
+                  <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                    <polyline points="22,6 12,13 2,6" />
+                  </svg>
+                ),
               },
               {
-                stat: "2x",
-                text: "more traffic from Google when going from 3.9 to 4.0 stars",
+                num: "02",
+                title: "We send the perfect review request.",
+                body: "After every appointment your customer gets a personalised SMS at the right time. It reads like it came from you personally.",
+                icon: (
+                  <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                  </svg>
+                ),
               },
               {
-                stat: "22%",
-                text: "of potential customers (~30 people) driven away by 1 negative review",
+                num: "03",
+                title: "Happy customers go to Google.",
+                body: "4-5 stars go straight to your Google review page. 1-3 stars come to you privately so you can fix it before it goes public.",
+                icon: (
+                  <svg width={32} height={32} viewBox="0 0 24 24" fill={G}>
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" opacity=".9"/>
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" opacity=".7"/>
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" opacity=".8"/>
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" opacity=".9"/>
+                  </svg>
+                ),
               },
-              {
-                stat: "82%",
-                text: "more annual revenue for businesses with 200+ reviews",
-              },
-            ].map((card, i) => (
+            ].map((s, i) => (
               <div
                 key={i}
-                className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                className="step-card"
+                style={{ padding: 48, background: "#fff", borderRadius: 24, boxShadow: "0 4px 6px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.08), 0 40px 80px rgba(0,0,0,0.06)", transition: "all 0.3s ease", cursor: "default" }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = "0 8px 12px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.12), 0 60px 100px rgba(0,0,0,0.08)"; e.currentTarget.style.transform = "translateY(-6px)"; }}
+                onMouseLeave={e => { e.currentTarget.style.boxShadow = "0 4px 6px rgba(0,0,0,0.04), 0 12px 40px rgba(0,0,0,0.08), 0 40px 80px rgba(0,0,0,0.06)"; e.currentTarget.style.transform = ""; }}
               >
-                <div className="text-4xl font-extrabold text-sky-500 mb-3">
-                  {card.stat}
+                <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 28 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: 9999, background: G, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", fontWeight: 700, color: "#fff", fontSize: 18, flexShrink: 0, boxShadow: "0 0 0 8px rgba(0,200,150,0.1), 0 0 0 16px rgba(0,200,150,0.05)" }}>
+                    {s.num}
+                  </div>
+                  {s.icon}
                 </div>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  {card.text}
-                </p>
+                <h3 className="step-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, lineHeight: 1.2 }}>{s.title}</h3>
+                <p className="step-body" style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: TS, marginTop: 12, lineHeight: 1.6 }}>{s.body}</p>
               </div>
             ))}
           </div>
-
-          <div className="max-w-3xl mx-auto text-center">
-            <p className="text-gray-600 leading-relaxed">
-              57% of consumers will only use a business with 4+ stars. If
-              you&apos;re below that threshold, you&apos;re invisible to more
-              than half your potential customers. Review velocity — how
-              consistently you get new reviews — directly impacts your Google
-              Maps ranking. Businesses that stop getting reviews for 3 weeks see
-              measurable ranking drops.
-            </p>
+          {/* SMS conversation mockup */}
+          <div className="sms-mockup" style={{ background: "#fff", borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.10)", maxWidth: 600, margin: "80px auto 0", padding: 32 }}>
+            <div style={{ textAlign: "center", marginBottom: 24 }}>
+              <span style={{ background: OW, borderRadius: 9999, padding: "6px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, color: TM, fontWeight: 500 }}>SMS · Kings Cuts London</span>
+            </div>
+            {/* Message from Kings Cuts */}
+            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+              <div style={{ background: "#fff", border: `1.5px solid ${G}`, borderRadius: "18px 18px 4px 18px", padding: "14px 18px", maxWidth: "80%", fontFamily: "Inter, sans-serif", fontSize: 15, color: N, lineHeight: 1.5 }}>
+                Hi James, thanks for your cut at Kings Cuts today! How was your experience? Tap to rate us: vomni.app/r/kc ✂️
+              </div>
+            </div>
+            {/* Star rating response */}
+            <div style={{ display: "flex", justifyContent: "center", gap: 6, margin: "20px 0" }}>
+              {Array.from({ length: 5 }).map((_, i) => <StarSVG key={i} size={28} />)}
+            </div>
+            {/* Redirect confirmation */}
+            <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 20 }}>
+              <div style={{ background: G, borderRadius: "18px 18px 18px 4px", padding: "14px 18px", maxWidth: "80%", fontFamily: "Inter, sans-serif", fontSize: 15, color: "#fff", lineHeight: 1.5 }}>
+                Thanks James! We&apos;ve sent you to Google to leave your review 🙏
+              </div>
+            </div>
+            {/* Notification */}
+            <div style={{ background: OW, borderRadius: 12, borderLeft: `3px solid ${G}`, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+              <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+              </svg>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500 }}>New 5-star review on Google · Omar Abdullah</span>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Section 3 — How It Works */}
-      <section className="bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
-              How It Works
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Three simple steps to more Google reviews
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 lg:gap-12">
+      {/* ── TESTIMONIALS ────────────────────────────────────────────────────── */}
+      <section className="testimonials-section section-pad" style={{ background: OW, padding: "120px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
+          <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: N, textAlign: "center" }}>
+            Built for businesses that run on reputation.
+          </h2>
+          <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28, marginTop: 80 }}>
             {[
-              {
-                icon: Mail,
-                step: "1",
-                title: "Forward your booking confirmations to your Vomni inbox",
-                desc: "Works with any booking system. No integrations needed.",
-              },
-              {
-                icon: Clock,
-                step: "2",
-                title:
-                  "We automatically send review requests at exactly the right time",
-                desc: "SMS sent within hours of service. 98% open rate. Feels personal, not spammy.",
-              },
-              {
-                icon: Star,
-                step: "3",
-                title:
-                  "Happy customers go to Google. Unhappy ones come to you first.",
-                desc: "Smart review gating catches problems before they become public 1-star reviews.",
-              },
-            ].map((item, i) => (
-              <div key={i} className="text-center">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-sky-50 rounded-2xl mb-6">
-                  <item.icon className="w-8 h-8 text-sky-500" />
-                </div>
-                <div className="text-xs font-bold text-sky-500 uppercase tracking-widest mb-2">
-                  Step {item.step}
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-3">
-                  {item.title}
-                </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  {item.desc}
-                </p>
-                {i < 2 && (
-                  <ChevronRight className="w-6 h-6 text-gray-300 mx-auto mt-6 hidden md:block rotate-0" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Section 4 — Features */}
-      <section className="bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
-              Everything You Need to Win at Reviews
-            </h2>
-          </div>
-
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                icon: MessageSquare,
-                title: "Automatic SMS Review Requests",
-                desc: "Personalized text messages sent at the perfect time after each appointment. High open rates, zero effort from you.",
-              },
-              {
-                icon: Shield,
-                title: "Smart Review Gating",
-                desc: "Customers rate their experience first. Happy ones go to Google. Unhappy ones come directly to you — privately.",
-              },
-              {
-                icon: HeartHandshake,
-                title: "Negative Feedback Recovery",
-                desc: "Catch and resolve complaints before they become public 1-star reviews. Turn frustrated customers into loyal ones.",
-              },
-              {
-                icon: BarChart3,
-                title: "Real-Time Dashboard",
-                desc: "Track review requests sent, completion rates, and your rating trend all in one clean dashboard.",
-              },
-              {
-                icon: Sparkles,
-                title: "AI-Powered Insights",
-                desc: "Understand what customers love and where to improve with automatic sentiment analysis of all feedback.",
-              },
-              {
-                icon: Plug,
-                title: "Works With Any Booking System",
-                desc: "No complex integrations. Just forward booking confirmations to your Vomni inbox and we handle the rest.",
-              },
-            ].map((feature, i) => (
+              { quote: "34 reviews to 180 in four months. We're now the first result for barber Shoreditch.", name: "Marcus T.", biz: "Kings Cuts London",         avatar: "https://i.pravatar.cc/80?img=11" },
+              { quote: "Three complaints resolved privately last month. None of them reached Google.",         name: "Priya K.",  biz: "Glamour Hair Studio",        avatar: "https://i.pravatar.cc/80?img=47" },
+              { quote: "Eight minutes to set up. Sixty new reviews. I haven't touched it since day one.",     name: "Tom B.",    biz: "The Oak Table Restaurant",   avatar: "https://i.pravatar.cc/80?img=33" },
+            ].map((t, i) => (
               <div
                 key={i}
-                className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                className="testimonial-card"
+                style={{ background: "#fff", borderRadius: 24, padding: 44, boxShadow: "0 2px 24px rgba(0,0,0,0.06)", transition: "transform 0.25s, box-shadow 0.25s", cursor: "default" }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-6px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.10)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 24px rgba(0,0,0,0.06)"; }}
               >
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-sky-50 rounded-xl mb-4">
-                  <feature.icon className="w-6 h-6 text-sky-500" />
-                </div>
-                <h3 className="text-lg font-bold text-gray-900 mb-2">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 text-sm leading-relaxed">
-                  {feature.desc}
+                <Stars count={5} size={20} />
+                <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, color: N, fontStyle: "italic", lineHeight: 1.5, marginTop: 24 }}>
+                  {t.quote}
                 </p>
+                <hr style={{ border: "none", borderTop: `1px solid ${BD}`, margin: "28px 0" }} />
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={t.avatar} alt={t.name} width={40} height={40} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                  <div>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 700, color: N }}>{t.name}</p>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS, marginTop: 2 }}>{t.biz}</p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Section 5 — Pricing */}
-      <section id="pricing" className="bg-white scroll-mt-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
-              Simple, Transparent Pricing
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Everything included. No hidden fees.
-            </p>
-          </div>
+      {/* ── PRICING ─────────────────────────────────────────────────────────── */}
+      <section id="pricing" className="section-pad" style={{ background: N, padding: "120px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
+          <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: "#fff", textAlign: "center" }}>
+            One price. Everything included.
+          </h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, textAlign: "center", marginTop: 16 }}>
+            No setup fees. No long contracts. Cancel whenever.
+          </p>
+          <div className="pricing-flex" style={{ display: "flex", justifyContent: "center", alignItems: "stretch", gap: 28, marginTop: 80, maxWidth: 860, marginLeft: "auto", marginRight: "auto" }}>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
             {/* Monthly */}
-            <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Monthly</h3>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-5xl font-extrabold text-gray-900">
-                  $70
-                </span>
-                <span className="text-gray-500 font-medium">/month</span>
+            <div style={{ background: "#fff", borderRadius: 24, padding: 48, flex: 1, display: "flex", flexDirection: "column" }}>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: TS }}>MONTHLY</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 12 }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 72, fontWeight: 900, color: N, lineHeight: 1 }}>£70</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: TS }}>/month</span>
               </div>
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Cancel anytime",
-                  "Everything included",
-                  "30-day money back guarantee",
-                ].map((item, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-3 text-sm text-gray-600"
-                  >
-                    <Check className="w-5 h-5 text-sky-500 flex-shrink-0" />
-                    {item}
-                  </li>
+              <hr style={{ border: "none", borderTop: `1px solid ${BD}`, margin: "28px 0" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+                {["Cancel anytime", "Unlimited review requests", "Full dashboard and analytics", "24/7 customer support"].map((f) => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <CheckIcon />
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: TS }}>{f}</span>
+                  </div>
                 ))}
-              </ul>
-              <Link
-                href="/signup"
-                className="block w-full text-center bg-white border-2 border-sky-500 text-sky-500 hover:bg-sky-50 font-semibold py-3 rounded-xl transition-colors"
-              >
+              </div>
+              <a href="/signup" style={{ display: "block", marginTop: 36, background: G, color: "#fff", borderRadius: 9999, padding: "18px 0", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
                 Get Started
-              </Link>
+              </a>
             </div>
 
             {/* Annual */}
-            <div className="bg-white rounded-2xl p-8 shadow-lg border-2 border-sky-500 relative hover:shadow-xl transition-shadow">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className="bg-sky-500 text-white text-xs font-bold px-4 py-1.5 rounded-full uppercase tracking-wide">
-                  Save $240
-                </span>
+            <div style={{ background: "#fff", borderRadius: 24, padding: 48, flex: 1, border: `2.5px solid ${G}`, position: "relative", display: "flex", flexDirection: "column" }}>
+              <div style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", background: G, color: "#fff", borderRadius: 9999, padding: "6px 20px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
+                SAVE £240
               </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-1">Annual</h3>
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-5xl font-extrabold text-gray-900">
-                  $600
-                </span>
-                <span className="text-gray-500 font-medium">/year</span>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: TS }}>ANNUAL</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 12 }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 72, fontWeight: 900, color: N, lineHeight: 1 }}>£600</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: TS }}>/year</span>
               </div>
-              <p className="text-sm text-sky-600 font-medium mb-6">
-                That&apos;s 2 months free
-              </p>
-              <ul className="space-y-3 mb-8">
-                {[
-                  "Everything included",
-                  "30-day money back guarantee",
-                  "Best value",
-                ].map((item, i) => (
-                  <li
-                    key={i}
-                    className="flex items-center gap-3 text-sm text-gray-600"
-                  >
-                    <Check className="w-5 h-5 text-sky-500 flex-shrink-0" />
-                    {item}
-                  </li>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: G, fontWeight: 600, marginTop: 6 }}>That&apos;s £50/month - save £240</p>
+              <hr style={{ border: "none", borderTop: `1px solid ${BD}`, margin: "28px 0" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+                {["2 months free", "Everything in monthly", "Priority support"].map((f) => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <CheckIcon />
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: TS }}>{f}</span>
+                  </div>
                 ))}
-              </ul>
-              <Link
-                href="/signup"
-                className="block w-full text-center bg-sky-500 hover:bg-sky-600 text-white font-semibold py-3 rounded-xl transition-colors shadow-lg shadow-sky-500/25"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
-
-          <p className="text-center text-sm text-gray-500 mt-8 max-w-2xl mx-auto">
-            Not sure? Every plan comes with a 30-day money back guarantee. If
-            you don&apos;t get more Google reviews in your first 30 days,
-            we&apos;ll refund you in full. No questions asked.
-          </p>
-        </div>
-      </section>
-
-      {/* Section 6 — Social Proof */}
-      <section className="bg-gray-50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
-              Join Service Businesses Getting More Reviews on Autopilot
-            </h2>
-          </div>
-
-          <div className="flex flex-wrap justify-center gap-8 sm:gap-12">
-            {[
-              { icon: Scissors, label: "Barber" },
-              { icon: Sparkles, label: "Salon" },
-              { icon: UtensilsCrossed, label: "Restaurant" },
-              { icon: Stethoscope, label: "Dentist" },
-              { icon: Pen, label: "Tattoo Shop" },
-            ].map((biz, i) => (
-              <div key={i} className="flex flex-col items-center gap-3">
-                <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center">
-                  <biz.icon className="w-7 h-7 text-sky-500" />
-                </div>
-                <span className="text-sm font-medium text-gray-600">
-                  {biz.label}
-                </span>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Section 7 — See It In Action */}
-      <section className="bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
-              See How Vomni Works
-            </h2>
-            <p className="mt-4 text-lg text-gray-600">
-              Explore a live demo — no signup required
-            </p>
+              <a href="/signup" style={{ display: "block", marginTop: 36, background: G, color: "#fff", borderRadius: 9999, padding: "18px 0", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+                Get Started - Best Value
+              </a>
+            </div>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-            {[
-              {
-                name: "Kings Cuts London",
-                desc: "A thriving barber shop with 66% completion rate",
-                href: "/demo/kings-cuts",
-              },
-              {
-                name: "Bella Vista Restaurant",
-                desc: "A restaurant that needs more reviews",
-                href: "/demo/bella-vista",
-              },
-            ].map((demo, i) => (
-              <Link
-                key={i}
-                href={demo.href}
-                className="group bg-white rounded-2xl p-8 shadow-sm border border-gray-200 hover:shadow-lg hover:border-sky-200 transition-all"
-              >
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xl font-bold text-gray-900 group-hover:text-sky-500 transition-colors">
-                    {demo.name}
-                  </h3>
-                  <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-sky-500 group-hover:translate-x-1 transition-all" />
-                </div>
-                <p className="text-gray-600 text-sm">{demo.desc}</p>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Section 8 — Final CTA */}
-      <section className="bg-sky-500">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-24 text-center">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white mb-8">
-            Ready to Get More Google Reviews?
-          </h2>
-          <Link
-            href="/signup"
-            className="inline-flex items-center gap-2 bg-white text-sky-500 hover:bg-gray-50 font-semibold px-8 py-4 rounded-xl text-lg transition-colors shadow-lg"
-          >
-            Start Today — $70/month
-            <ArrowRight className="w-5 h-5" />
-          </Link>
-          <p className="mt-4 text-sky-100 text-sm">
-            30-day money back guarantee
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: TM, textAlign: "center", marginTop: 40 }}>
+            Not seeing more reviews in your first 30 days? Full refund. No forms. No questions.
           </p>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
-            <span className="text-xl font-bold text-white">Vomni</span>
-            <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-400">
-              <a
-                href="#pricing"
-                className="hover:text-white transition-colors"
-              >
-                Pricing
-              </a>
-              <a
-                href="mailto:hello@vomni.app"
-                className="hover:text-white transition-colors"
-              >
-                Contact
-              </a>
-              <Link
-                href="/privacy"
-                className="hover:text-white transition-colors"
-              >
-                Privacy Policy
-              </Link>
-              <Link
-                href="/terms"
-                className="hover:text-white transition-colors"
-              >
-                Terms of Service
-              </Link>
-            </div>
+      {/* ── FINAL CTA ───────────────────────────────────────────────────────── */}
+      <section className="section-pad" style={{ background: "#fff", padding: "120px 0", textAlign: "center" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
+          <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 80, fontWeight: 800, color: N, lineHeight: 1.0, letterSpacing: "-0.03em" }}>
+            Your competitors are collecting reviews right now.
+          </h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, marginTop: 24 }}>
+            Every day without Vomni, your competitor gets the review instead.
+          </p>
+          <a
+            href="/signup"
+            style={{ display: "inline-block", marginTop: 48, background: G, color: "#fff", borderRadius: 9999, padding: "22px 56px", fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, textDecoration: "none", boxShadow: "0 0 40px rgba(0,200,150,0.3)", transition: "transform 0.2s, box-shadow 0.2s" }}
+            onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.03)"; e.currentTarget.style.boxShadow = "0 0 60px rgba(0,200,150,0.4)"; }}
+            onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 0 40px rgba(0,200,150,0.3)"; }}
+          >
+            Start Today - £70/month →
+          </a>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, marginTop: 16 }}>30-day money back guarantee</p>
+
+        </div>
+      </section>
+
+      {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
+      <footer style={{ background: N, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "48px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 800, color: "#fff" }}>Vomni</span>
+          <div style={{ display: "flex", gap: 32 }}>
+            {["Pricing", "Contact", "Privacy", "Terms"].map((l) => (
+              <a key={l} href="#" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>{l}</a>
+            ))}
           </div>
-          <div className="mt-8 pt-8 border-t border-gray-800 text-center text-sm text-gray-500">
-            &copy; 2026 Vomni. All rights reserved.
-          </div>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM }}>© 2026 Vomni.</span>
         </div>
       </footer>
-    </div>
+    </>
   );
 }

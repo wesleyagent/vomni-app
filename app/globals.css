@@ -1,33 +1,147 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-html {
-  scroll-behavior: smooth;
+/* ── Variables ──────────────────────────────────────────────────────────────── */
+:root {
+  --green: #00C896;
+  --green-dark: #00A87D;
+  --green-glow: rgba(0, 200, 150, 0.15);
+  --navy: #0A0F1E;
+  --off-white: #F7F8FA;
+  --text-secondary: #6B7280;
+  --text-muted: #9CA3AF;
+  --border: #E5E7EB;
 }
 
+/* ── Global resets ──────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 body {
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: 'Inter', sans-serif;
+  background: #fff;
+  color: var(--navy);
+  overflow-x: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; }
 
-/* Toast animation */
-@keyframes toast-in {
-  from { transform: translateY(100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+/* ── Hero gradient mesh ─────────────────────────────────────────────────────── */
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 20%, rgba(0, 200, 150, 0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 60% at 10% 80%, rgba(0, 200, 150, 0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 50% 50%, rgba(10, 15, 30, 0.03) 0%, transparent 60%);
+  animation: meshMove 8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes meshMove {
+  0%   { opacity: 0.8; transform: scale(1) rotate(0deg); }
+  100% { opacity: 1;   transform: scale(1.05) rotate(1deg); }
 }
 
-.animate-toast {
-  animation: toast-in 0.3s ease-out;
+/* ── Browser frame float ────────────────────────────────────────────────────── */
+.browser-frame {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  transform: perspective(1000px) rotateY(-4deg) rotateX(2deg) translateY(0px);
+  animation: floatFrame 4s ease-in-out infinite alternate;
+  width: 100%;
+  max-width: 560px;
+}
+@keyframes floatFrame {
+  0%   { transform: perspective(1000px) rotateY(-4deg) rotateX(2deg) translateY(0px); }
+  100% { transform: perspective(1000px) rotateY(-4deg) rotateX(2deg) translateY(-12px); }
 }
 
-/* Star rating styles */
-.star-button {
-  transition: transform 0.15s ease, color 0.15s ease;
+/* ── iPhone mockup ──────────────────────────────────────────────────────────── */
+.iphone {
+  width: 320px;
+  height: 640px;
+  background: #1A1A1A;
+  border-radius: 52px;
+  padding: 12px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.15),
+    0 40px 80px rgba(0, 0, 0, 0.3),
+    inset 0 0 0 2px rgba(0, 0, 0, 0.8);
+  position: relative;
+  flex-shrink: 0;
 }
-.star-button:hover {
-  transform: scale(1.2);
+.iphone-screen {
+  width: 100%;
+  height: 100%;
+  background: white;
+  border-radius: 42px;
+  overflow: hidden;
+  position: relative;
+}
+.iphone-notch {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 32px;
+  background: #1A1A1A;
+  border-radius: 0 0 20px 20px;
+  z-index: 10;
+}
+.iphone-home-indicator {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+}
+
+/* ── CTA pulse ──────────────────────────────────────────────────────────────── */
+@keyframes ctaPulse {
+  0%   { box-shadow: 0 0 0 0 var(--green-glow); }
+  70%  { box-shadow: 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.cta-primary { animation: ctaPulse 2.5s ease infinite; }
+
+/* ── Step card height locks ─────────────────────────────────────────────────── */
+.step-headline {
+  min-height: 72px;
+  overflow: visible;
+}
+.step-body {
+  min-height: 112px;
+  overflow: visible;
+}
+
+/* ── Responsive overrides ───────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .hero-grid     { grid-template-columns: 1fr !important; }
+  .pain-grid     { grid-template-columns: 1fr 1fr !important; }
+  .steps-grid    { grid-template-columns: 1fr !important; }
+  .testimonials-grid { grid-template-columns: 1fr !important; }
+  .pricing-flex  { flex-direction: column !important; }
+  .hero-headline { font-size: 52px !important; }
+  .pain-headline { font-size: 40px !important; }
+  .section-headline { font-size: 40px !important; }
+  .hero-buttons  { flex-direction: column !important; align-items: flex-start !important; }
+  .browser-frame { transform: none !important; animation: none !important; max-width: 100% !important; }
+  .notif-card    { display: none !important; }
+  .container     { padding: 0 24px !important; }
+  .section-pad   { padding: 80px 0 !important; }
+  .nav-links     { display: none !important; }
+  .analytics-grid { grid-template-columns: 1fr !important; }
+}
+@media (max-width: 480px) {
+  .pain-grid     { grid-template-columns: 1fr !important; }
+  .tabs-row      { flex-wrap: wrap !important; }
 }

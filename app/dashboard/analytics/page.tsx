@@ -25,6 +25,9 @@ import {
   Cell,
 } from "recharts";
 
+const G = "#00C896";
+const N = "#0A0F1E";
+
 interface MonthlyData {
   month: string;
   sent: number;
@@ -128,7 +131,6 @@ function generateInsights(
 
   const redirected = customers.filter((c) => c.redirectedToGoogle).length;
 
-  // Completion rate insight
   if (completionRate >= 40) {
     insights.push({
       type: "positive",
@@ -145,7 +147,6 @@ function generateInsights(
     });
   }
 
-  // Negative feedback insight
   if (negativeCaught > 0) {
     const lowSavings = negativeCaught * 3750;
     const highSavings = negativeCaught * 15000;
@@ -157,7 +158,6 @@ function generateInsights(
     });
   }
 
-  // Rating trend
   if (avgRating > 0) {
     if (avgRating >= 4.5) {
       insights.push({
@@ -183,7 +183,6 @@ function generateInsights(
     }
   }
 
-  // Review velocity
   const recentMonths = monthlyData.slice(-3);
   const recentRedirected = recentMonths.reduce((sum, m) => sum + m.redirected, 0);
   if (redirected > 0) {
@@ -204,17 +203,25 @@ const INSIGHT_ICONS = {
   opportunity: Lightbulb,
 };
 
-const INSIGHT_STYLES = {
-  positive: "border-green-200 bg-green-50/50",
-  warning: "border-orange-200 bg-orange-50/50",
-  opportunity: "border-blue-200 bg-blue-50/50",
+const INSIGHT_STYLES: Record<string, React.CSSProperties> = {
+  positive: { borderColor: '#A7F3D0', background: 'rgba(236,253,245,0.8)', borderLeft: `4px solid ${G}` },
+  warning: { borderColor: '#FDE68A', background: 'rgba(255,251,235,0.8)', borderLeft: '4px solid #F59E0B' },
+  opportunity: { borderColor: '#FDE68A', background: 'rgba(255,251,235,0.8)', borderLeft: '4px solid #F59E0B' },
 };
 
-const INSIGHT_ICON_STYLES = {
-  positive: "text-green-600",
-  warning: "text-orange-500",
-  opportunity: "text-blue-500",
+const INSIGHT_ICON_STYLES: Record<string, string> = {
+  positive: G,
+  warning: "#F59E0B",
+  opportunity: "#F59E0B",
 };
+
+const ChartCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
+  <div className="bg-white p-6 shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
+    <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
+    <p className="mt-0.5 text-xs text-gray-400">{subtitle}</p>
+    <div className="mt-4 h-64">{children}</div>
+  </div>
+);
 
 export default function AnalyticsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
@@ -230,7 +237,7 @@ export default function AnalyticsPage() {
   if (!mounted) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: G, borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -245,12 +252,12 @@ export default function AnalyticsPage() {
     return (
       <div className="p-6 lg:p-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Charts, trends, and AI-powered insights
-          </p>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N }}>
+            Analytics
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">Charts, trends, and AI-powered insights</p>
         </div>
-        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-white p-12 text-center shadow-sm">
+        <div className="flex flex-col items-center justify-center p-12 text-center bg-white shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
           <BarChart3 size={48} className="text-gray-300" />
           <h2 className="mt-4 text-lg font-semibold text-gray-900">No data yet</h2>
           <p className="mt-2 max-w-md text-sm text-gray-500">
@@ -266,7 +273,9 @@ export default function AnalyticsPage() {
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N }}>
+          Analytics
+        </h1>
         <p className="mt-1 text-sm text-gray-500">
           Charts, trends, and AI-powered insights
           {business ? ` for ${business.name}` : ""}
@@ -275,120 +284,103 @@ export default function AnalyticsPage() {
 
       {/* Charts Grid */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Rating Distribution — Pie Chart */}
-        <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900">Rating Distribution</h3>
-          <p className="mt-0.5 text-xs text-gray-400">Breakdown by star rating</p>
+        {/* Rating Distribution */}
+        <ChartCard title="Rating Distribution" subtitle="Breakdown by star rating">
           {hasRatings ? (
-            <div className="mt-4 h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={ratingDistribution.filter((d) => d.value > 0)}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={50}
-                    outerRadius={90}
-                    paddingAngle={3}
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {ratingDistribution
-                      .filter((d) => d.value > 0)
-                      .map((entry) => (
-                        <Cell
-                          key={`cell-${entry.star}`}
-                          fill={RATING_COLORS[entry.star]}
-                        />
-                      ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={ratingDistribution.filter((d) => d.value > 0)}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={50}
+                  outerRadius={90}
+                  paddingAngle={3}
+                  dataKey="value"
+                  label={({ name, value }) => `${name}: ${value}`}
+                >
+                  {ratingDistribution
+                    .filter((d) => d.value > 0)
+                    .map((entry) => (
+                      <Cell key={`cell-${entry.star}`} fill={RATING_COLORS[entry.star]} />
+                    ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           ) : (
-            <div className="mt-4 flex h-64 items-center justify-center text-sm text-gray-400">
+            <div className="flex h-full items-center justify-center text-sm text-gray-400">
               No ratings collected yet
             </div>
           )}
-        </div>
+        </ChartCard>
 
-        {/* Review Requests Over Time — Bar Chart */}
-        <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900">Review Requests Over Time</h3>
-          <p className="mt-0.5 text-xs text-gray-400">Sent count by month</p>
-          <div className="mt-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                <Tooltip />
-                <Bar dataKey="sent" fill="#0ea5e9" radius={[4, 4, 0, 0]} name="Sent" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        {/* Review Requests Over Time */}
+        <ChartCard title="Review Requests Over Time" subtitle="Sent count by month">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+              <Tooltip />
+              <Bar dataKey="sent" fill={G} radius={[4, 4, 0, 0]} name="Sent" />
+            </BarChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
-        {/* Completion Rate Trend — Line Chart */}
-        <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900">Completion Rate Trend</h3>
-          <p className="mt-0.5 text-xs text-gray-400">Percentage over time</p>
-          <div className="mt-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis
-                  tick={{ fontSize: 12 }}
-                  domain={[0, 100]}
-                  tickFormatter={(v) => `${v}%`}
-                />
-                <Tooltip formatter={(value: number) => [`${value}%`, "Completion Rate"]} />
-                <Line
-                  type="monotone"
-                  dataKey="completionRate"
-                  stroke="#22c55e"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  name="Completion Rate"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        {/* Completion Rate Trend */}
+        <ChartCard title="Completion Rate Trend" subtitle="Percentage over time">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis
+                tick={{ fontSize: 12 }}
+                domain={[0, 100]}
+                tickFormatter={(v) => `${v}%`}
+              />
+              <Tooltip formatter={(value: number) => [`${value}%`, "Completion Rate"]} />
+              <Line
+                type="monotone"
+                dataKey="completionRate"
+                stroke={G}
+                strokeWidth={2}
+                dot={{ r: 4, fill: G }}
+                name="Completion Rate"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
 
-        {/* Google Reviews Generated — Line Chart */}
-        <div className="rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-900">Google Reviews Generated</h3>
-          <p className="mt-0.5 text-xs text-gray-400">Redirected to Google by month</p>
-          <div className="mt-4 h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="redirected"
-                  stroke="#0ea5e9"
-                  strokeWidth={2}
-                  dot={{ r: 4 }}
-                  name="Google Reviews"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+        {/* Google Reviews Generated */}
+        <ChartCard title="Google Reviews Generated" subtitle="Redirected to Google by month">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={monthlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
+              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+              <Tooltip />
+              <Line
+                type="monotone"
+                dataKey="redirected"
+                stroke={G}
+                strokeWidth={2}
+                dot={{ r: 4, fill: G }}
+                name="Google Reviews"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ChartCard>
       </div>
 
       {/* AI Insights Panel */}
       {insights.length > 0 && (
         <div className="mt-10">
           <div className="mb-4 flex items-center gap-2">
-            <Sparkles size={20} className="text-primary-500" />
-            <h2 className="text-lg font-semibold text-gray-900">AI Insights</h2>
+            <Sparkles size={20} style={{ color: G }} />
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 600, color: N }}>
+              AI Insights
+            </h2>
           </div>
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {insights.map((insight, i) => {
@@ -396,20 +388,17 @@ export default function AnalyticsPage() {
               return (
                 <div
                   key={i}
-                  className={`rounded-xl border p-5 ${INSIGHT_STYLES[insight.type]}`}
+                  className="rounded-xl border p-5"
+                  style={INSIGHT_STYLES[insight.type]}
                 >
                   <div className="flex items-start gap-3">
-                    <div className={`mt-0.5 shrink-0 ${INSIGHT_ICON_STYLES[insight.type]}`}>
+                    <div className="mt-0.5 shrink-0" style={{ color: INSIGHT_ICON_STYLES[insight.type] }}>
                       <Icon size={20} />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-900">
-                        {insight.title}
-                      </h3>
+                      <h3 className="text-sm font-semibold text-gray-900">{insight.title}</h3>
                       <p className="mt-1 text-sm text-gray-600">{insight.body}</p>
-                      <p className="mt-2 text-sm font-bold text-gray-800">
-                        {insight.action}
-                      </p>
+                      <p className="mt-2 text-sm font-bold text-gray-800">{insight.action}</p>
                     </div>
                   </div>
                 </div>

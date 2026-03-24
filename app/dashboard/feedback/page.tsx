@@ -19,7 +19,9 @@ import {
 import { getFeedback, updateFeedback } from "@/lib/storage";
 import type { FeedbackItem, FeedbackStatus } from "@/types";
 
-// Inline toast system
+const G = "#00C896";
+const N = "#0A0F1E";
+
 function useToast() {
   const [toasts, setToasts] = useState<
     { id: number; message: string; type: "success" | "info" }[]
@@ -40,11 +42,8 @@ function useToast() {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`animate-slide-in rounded-lg px-4 py-3 text-sm font-medium shadow-lg ${
-              toast.type === "success"
-                ? "bg-green-600 text-white"
-                : "bg-gray-800 text-white"
-            }`}
+            className="animate-slide-in rounded-lg px-4 py-3 text-sm font-medium shadow-lg"
+            style={{ background: toast.type === "success" ? G : N, color: '#fff' }}
           >
             {toast.message}
           </div>
@@ -65,21 +64,21 @@ const STATUS_TABS: { value: string; label: string }[] = [
 
 const FEEDBACK_STATUS_CONFIG: Record<
   FeedbackStatus,
-  { label: string; className: string; icon: React.ReactNode }
+  { label: string; style: React.CSSProperties; icon: React.ReactNode }
 > = {
   new: {
     label: "New",
-    className: "bg-red-100 text-red-700",
+    style: { background: '#FEE2E2', color: '#DC2626' },
     icon: <AlertCircle size={12} />,
   },
   in_progress: {
     label: "In Progress",
-    className: "bg-yellow-100 text-yellow-700",
+    style: { background: '#FEF3C7', color: '#B45309' },
     icon: <Clock size={12} />,
   },
   resolved: {
     label: "Resolved",
-    className: "bg-green-100 text-green-700",
+    style: { background: 'rgba(0,200,150,0.1)', color: '#00A87D' },
     icon: <CheckCircle2 size={12} />,
   },
 };
@@ -90,11 +89,7 @@ function FeedbackStars({ rating }: { rating: number }) {
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((i) => (
-        <Star
-          key={i}
-          size={16}
-          className={i <= rating ? color : emptyColor}
-        />
+        <Star key={i} size={16} className={i <= rating ? color : emptyColor} />
       ))}
     </div>
   );
@@ -111,9 +106,6 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
   const [resolution, setResolution] = useState(item.resolution ?? "");
   const [copied, setCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
-  const [showAiReply, setShowAiReply] = useState(
-    item.aiSuggestedReply ? true : false
-  );
 
   const statusConfig = FEEDBACK_STATUS_CONFIG[item.status];
 
@@ -153,8 +145,19 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
     showToast("Feedback marked as in progress");
   }
 
+  const textareaFocus = {
+    onFocus: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+      e.currentTarget.style.borderColor = G;
+      e.currentTarget.style.boxShadow = `0 0 0 3px rgba(0,200,150,0.12)`;
+    },
+    onBlur: (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+      e.currentTarget.style.borderColor = '#E5E7EB';
+      e.currentTarget.style.boxShadow = 'none';
+    },
+  };
+
   return (
-    <div className="rounded-xl border border-gray-100 bg-white shadow-sm">
+    <div className="bg-white shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
       {/* Header */}
       <div className="flex flex-col gap-3 border-b border-gray-100 p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
@@ -167,16 +170,15 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
               .slice(0, 2)}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-semibold text-gray-900">
-              {item.customerName}
-            </p>
+            <p className="text-sm font-semibold text-gray-900">{item.customerName}</p>
             <p className="text-xs text-gray-500">{item.customerPhone}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <FeedbackStars rating={item.rating} />
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${statusConfig.className}`}
+            className="inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium"
+            style={statusConfig.style}
           >
             {statusConfig.icon}
             {statusConfig.label}
@@ -196,19 +198,18 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
       {item.aiSuggestedReply && (
         <div className="border-b border-gray-100 p-4">
           <div className="flex items-center gap-2 mb-2">
-            <Sparkles size={14} className="text-blue-500" />
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-blue-600">
+            <Sparkles size={14} style={{ color: G }} />
+            <h4 className="text-xs font-semibold uppercase tracking-wide" style={{ color: G }}>
               AI Suggested Reply
             </h4>
           </div>
-          <div className="rounded-lg bg-blue-50 p-3">
-            <p className="text-sm leading-relaxed text-blue-800">
-              {item.aiSuggestedReply}
-            </p>
+          <div className="rounded-lg p-3" style={{ background: 'rgba(0,200,150,0.06)', border: '1px solid rgba(0,200,150,0.15)' }}>
+            <p className="text-sm leading-relaxed text-gray-700">{item.aiSuggestedReply}</p>
             <div className="mt-3 flex items-center gap-2">
               <button
                 onClick={handleCopy}
-                className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm border border-blue-200 hover:bg-blue-50 transition-colors"
+                className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-xs font-medium shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors"
+                style={{ color: G }}
               >
                 {copied ? <Check size={12} /> : <Copy size={12} />}
                 {copied ? "Copied" : "Copy"}
@@ -216,12 +217,10 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
               <button
                 onClick={handleRegenerate}
                 disabled={regenerating}
-                className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-xs font-medium text-blue-700 shadow-sm border border-blue-200 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                className="flex items-center gap-1.5 rounded-md bg-white px-2.5 py-1.5 text-xs font-medium shadow-sm border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
+                style={{ color: G }}
               >
-                <RefreshCw
-                  size={12}
-                  className={regenerating ? "animate-spin" : ""}
-                />
+                <RefreshCw size={12} className={regenerating ? "animate-spin" : ""} />
                 {regenerating ? "Regenerating..." : "Regenerate"}
               </button>
             </div>
@@ -239,7 +238,8 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
           onChange={(e) => setNotes(e.target.value)}
           placeholder="Add internal notes about this feedback..."
           rows={2}
-          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100 resize-none"
+          className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none resize-none"
+          {...textareaFocus}
         />
         <button
           onClick={handleSaveNotes}
@@ -253,9 +253,7 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
       {/* Resolution section */}
       {(item.status === "in_progress" || item.status === "resolved") && (
         <div className="border-b border-gray-100 p-4">
-          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-            Resolution
-          </h4>
+          <h4 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Resolution</h4>
           {item.status === "resolved" ? (
             <div className="rounded-lg bg-green-50 p-3">
               <p className="text-sm text-green-800">
@@ -263,8 +261,7 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
               </p>
               {item.resolvedAt && (
                 <p className="mt-1 text-xs text-green-600">
-                  Resolved on{" "}
-                  {format(new Date(item.resolvedAt), "MMM d, yyyy 'at' h:mm a")}
+                  Resolved on {format(new Date(item.resolvedAt), "MMM d, yyyy 'at' h:mm a")}
                 </p>
               )}
             </div>
@@ -275,11 +272,13 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
                 value={resolution}
                 onChange={(e) => setResolution(e.target.value)}
                 placeholder="Describe how this was resolved..."
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none focus:border-primary-300 focus:ring-2 focus:ring-primary-100"
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 placeholder-gray-400 outline-none"
+                {...textareaFocus}
               />
               <button
                 onClick={handleMarkResolved}
-                className="mt-2 flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors"
+                className="mt-2 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors"
+                style={{ background: G }}
               >
                 <CheckCircle2 size={12} />
                 Mark as Resolved
@@ -294,7 +293,7 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
         {item.status === "new" && (
           <button
             onClick={handleMarkInProgress}
-            className="flex items-center gap-1.5 rounded-lg bg-yellow-100 px-3 py-1.5 text-xs font-medium text-yellow-700 hover:bg-yellow-200 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-200 transition-colors"
           >
             <Clock size={12} />
             Mark In Progress
@@ -303,7 +302,8 @@ function FeedbackCard({ item, onUpdate, showToast }: FeedbackCardProps) {
         {item.status === "in_progress" && !resolution && (
           <button
             onClick={handleMarkResolved}
-            className="flex items-center gap-1.5 rounded-lg bg-green-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-green-700 transition-colors"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white transition-colors"
+            style={{ background: G }}
           >
             <CheckCircle2 size={12} />
             Mark as Resolved
@@ -349,26 +349,23 @@ export default function FeedbackPage() {
     return feedbackItems.filter((f) => f.status === activeTab);
   }, [feedbackItems, activeTab]);
 
-  // Sort newest first
   const sorted = useMemo(
     () =>
       [...filtered].sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       ),
     [filtered]
   );
 
   function handleUpdate(id: string, updates: Partial<FeedbackItem>) {
     updateFeedback(id, updates);
-    // Refresh state
     setFeedbackItems(getFeedback());
   }
 
   if (!mounted) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: G, borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -379,22 +376,20 @@ export default function FeedbackPage() {
 
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Feedback Inbox</h1>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N }}>
+          Feedback Inbox
+        </h1>
         <p className="mt-1 text-sm text-gray-500">
           Manage negative feedback before it reaches public reviews
         </p>
       </div>
 
       {feedbackItems.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-white p-12 shadow-sm">
+        <div className="flex flex-col items-center justify-center p-12 bg-white shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
           <MessageSquare size={48} className="text-gray-300" />
-          <h3 className="mt-4 text-lg font-semibold text-gray-900">
-            No negative feedback yet
-          </h3>
+          <h3 className="mt-4 text-lg font-semibold text-gray-900">No negative feedback yet</h3>
           <p className="mt-2 max-w-md text-center text-sm text-gray-500">
-            When a customer rates their experience 1-3 stars, their feedback
-            will appear here. This is a good thing — it means your customers
-            are happy!
+            When a customer rates their experience 1-3 stars, their feedback will appear here. This is a good thing — it means your customers are happy!
           </p>
         </div>
       ) : (
@@ -407,11 +402,8 @@ export default function FeedbackPage() {
                 <button
                   key={tab.value}
                   onClick={() => setActiveTab(tab.value)}
-                  className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-600 hover:text-gray-900"
-                  }`}
+                  className="flex items-center gap-1.5 whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium transition-colors"
+                  style={isActive ? { background: '#fff', color: N, boxShadow: '0 1px 3px rgba(0,0,0,0.08)' } : { color: '#6B7280' }}
                 >
                   {tab.label}
                   {tab.value === "new" && newCount > 0 && (
@@ -426,11 +418,9 @@ export default function FeedbackPage() {
 
           {/* Feedback cards */}
           {sorted.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-xl border border-gray-100 bg-white py-12 shadow-sm">
+            <div className="flex flex-col items-center justify-center py-12 bg-white shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
               <MessageSquare size={32} className="text-gray-300" />
-              <p className="mt-3 text-sm text-gray-500">
-                No feedback items in this category.
-              </p>
+              <p className="mt-3 text-sm text-gray-500">No feedback items in this category.</p>
             </div>
           ) : (
             <div className="space-y-4">

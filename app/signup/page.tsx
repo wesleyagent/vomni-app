@@ -6,6 +6,41 @@ import { saveBusiness, generateId, generateForwardingEmail, saveAdminSignup } fr
 import type { Business } from "@/types";
 import type { Plan } from "@/types";
 
+const G = "#00C896";
+const N = "#0A0F1E";
+const OW = "#F7F8FA";
+const BD = "#E5E7EB";
+
+const inputStyle: React.CSSProperties = {
+  width: "100%",
+  border: `1px solid ${BD}`,
+  borderRadius: 10,
+  padding: "14px 16px",
+  fontFamily: "Inter, sans-serif",
+  fontSize: 14,
+  color: N,
+  outline: "none",
+  boxSizing: "border-box",
+  background: "#fff",
+};
+
+function StyledInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+  return (
+    <input
+      {...props}
+      style={inputStyle}
+      onFocus={(e) => {
+        e.currentTarget.style.borderColor = G;
+        e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,200,150,0.15)";
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = BD;
+        e.currentTarget.style.boxShadow = "none";
+      }}
+    />
+  );
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [businessName, setBusinessName] = useState("");
@@ -56,7 +91,6 @@ export default function SignupPage() {
       onboardingComplete: false,
     });
 
-    // Fire-and-forget API call
     try {
       fetch("/api/signup", {
         method: "POST",
@@ -71,120 +105,231 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-8">
+    <div
+      style={{
+        minHeight: "100vh",
+        background: OW,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 16px",
+      }}
+    >
+      <div style={{ width: "100%", maxWidth: 480 }}>
+        <div
+          style={{
+            background: "#fff",
+            borderRadius: 24,
+            padding: 48,
+            boxShadow: "0 8px 40px rgba(0,0,0,0.10)",
+          }}
+        >
           {/* Logo */}
-          <div className="text-center mb-6">
-            <h1 className="text-2xl font-bold text-sky-500 tracking-tight">
-              vomni
+          <div style={{ textAlign: "center", marginBottom: 20 }}>
+            <h1
+              style={{
+                fontFamily: "'Bricolage Grotesque', sans-serif",
+                fontSize: 28,
+                fontWeight: 800,
+                color: N,
+                letterSpacing: "-0.5px",
+                margin: 0,
+              }}
+            >
+              Vomni
             </h1>
           </div>
 
-          {/* Heading */}
-          <h2 className="text-xl font-semibold text-gray-900 text-center mb-8">
+          {/* Headline */}
+          <h2
+            style={{
+              fontFamily: "'Bricolage Grotesque', sans-serif",
+              fontSize: 24,
+              fontWeight: 700,
+              color: N,
+              textAlign: "center",
+              marginBottom: 32,
+              marginTop: 0,
+              lineHeight: 1.25,
+            }}
+          >
             Start Getting More Google Reviews
           </h2>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Business name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                style={{
+                  display: "block",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: N,
+                  marginBottom: 8,
+                }}
+              >
                 Business name
               </label>
-              <input
+              <StyledInput
                 type="text"
                 required
                 value={businessName}
                 onChange={(e) => setBusinessName(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 placeholder="King's Cuts Barbershop"
               />
             </div>
 
             {/* Owner name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                style={{
+                  display: "block",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: N,
+                  marginBottom: 8,
+                }}
+              >
                 Owner name
               </label>
-              <input
+              <StyledInput
                 type="text"
                 required
                 value={ownerName}
                 onChange={(e) => setOwnerName(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 placeholder="Marcus Johnson"
               />
             </div>
 
             {/* Email */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                style={{
+                  display: "block",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: N,
+                  marginBottom: 8,
+                }}
+              >
                 Email
               </label>
-              <input
+              <StyledInput
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 placeholder="marcus@kingcuts.com"
               />
             </div>
 
             {/* Phone */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                style={{
+                  display: "block",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: N,
+                  marginBottom: 8,
+                }}
+              >
                 Phone
               </label>
-              <input
+              <StyledInput
                 type="tel"
                 required
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
-                placeholder="(555) 123-4567"
+                placeholder="+44 7700 900123"
               />
             </div>
 
             {/* Password */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                style={{
+                  display: "block",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: N,
+                  marginBottom: 8,
+                }}
+              >
                 Password
               </label>
-              <input
+              <StyledInput
                 type="password"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent"
                 placeholder="Create a password"
                 minLength={8}
               />
             </div>
 
             {/* Plan selector */}
-            <div className="pt-2">
-              <label className="block text-sm font-medium text-gray-700 mb-3">
+            <div style={{ paddingTop: 4 }}>
+              <label
+                style={{
+                  display: "block",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: N,
+                  marginBottom: 12,
+                }}
+              >
                 Choose your plan
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 {/* Monthly */}
                 <button
                   type="button"
                   onClick={() => setPlan("monthly")}
-                  className={`rounded-xl border-2 p-4 text-left transition-all ${
-                    plan === "monthly"
-                      ? "border-sky-500 bg-sky-50 ring-1 ring-sky-500"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
+                  style={{
+                    borderRadius: 12,
+                    border: plan === "monthly" ? `2px solid ${G}` : `1px solid ${BD}`,
+                    background: plan === "monthly" ? "rgba(0,200,150,0.05)" : "#fff",
+                    padding: 16,
+                    textAlign: "left",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                  }}
                 >
-                  <div className="text-sm font-semibold text-gray-900">
+                  <div
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: N,
+                    }}
+                  >
                     Monthly
                   </div>
-                  <div className="text-lg font-bold text-gray-900 mt-1">
-                    $70
-                    <span className="text-sm font-normal text-gray-500">
+                  <div
+                    style={{
+                      fontFamily: "'Bricolage Grotesque', sans-serif",
+                      fontSize: 22,
+                      fontWeight: 700,
+                      color: N,
+                      marginTop: 4,
+                    }}
+                  >
+                    £70
+                    <span
+                      style={{
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 13,
+                        fontWeight: 400,
+                        color: "#6B7280",
+                      }}
+                    >
                       /mo
                     </span>
                   </div>
@@ -194,21 +339,61 @@ export default function SignupPage() {
                 <button
                   type="button"
                   onClick={() => setPlan("annual")}
-                  className={`rounded-xl border-2 p-4 text-left transition-all relative ${
-                    plan === "annual"
-                      ? "border-sky-500 bg-sky-50 ring-1 ring-sky-500"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
+                  style={{
+                    borderRadius: 12,
+                    border: plan === "annual" ? `2px solid ${G}` : `1px solid ${BD}`,
+                    background: plan === "annual" ? "rgba(0,200,150,0.05)" : "#fff",
+                    padding: 16,
+                    textAlign: "left",
+                    cursor: "pointer",
+                    transition: "all 0.15s",
+                    position: "relative",
+                  }}
                 >
-                  <span className="absolute -top-2.5 right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    Save $240
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -11,
+                      right: 10,
+                      background: G,
+                      color: "#fff",
+                      borderRadius: 99,
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      padding: "2px 10px",
+                    }}
+                  >
+                    Save £240
                   </span>
-                  <div className="text-sm font-semibold text-gray-900">
+                  <div
+                    style={{
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: N,
+                    }}
+                  >
                     Annual
                   </div>
-                  <div className="text-lg font-bold text-gray-900 mt-1">
-                    $600
-                    <span className="text-sm font-normal text-gray-500">
+                  <div
+                    style={{
+                      fontFamily: "'Bricolage Grotesque', sans-serif",
+                      fontSize: 22,
+                      fontWeight: 700,
+                      color: N,
+                      marginTop: 4,
+                    }}
+                  >
+                    £600
+                    <span
+                      style={{
+                        fontFamily: "Inter, sans-serif",
+                        fontSize: 13,
+                        fontWeight: 400,
+                        color: "#6B7280",
+                      }}
+                    >
                       /yr
                     </span>
                   </div>
@@ -220,18 +405,52 @@ export default function SignupPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full mt-4 bg-sky-500 hover:bg-sky-600 text-white font-semibold py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                width: "100%",
+                marginTop: 8,
+                background: submitting ? "#9CA3AF" : G,
+                color: "#fff",
+                border: "none",
+                borderRadius: 9999,
+                padding: 16,
+                fontFamily: "Inter, sans-serif",
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: submitting ? "not-allowed" : "pointer",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                if (!submitting) (e.currentTarget as HTMLElement).style.background = "#00A87D";
+              }}
+              onMouseLeave={(e) => {
+                if (!submitting) (e.currentTarget as HTMLElement).style.background = G;
+              }}
             >
               {submitting ? "Creating..." : "Create Your Account"}
             </button>
           </form>
 
           {/* Sign in link */}
-          <p className="text-center text-sm text-gray-500 mt-6">
+          <p
+            style={{
+              textAlign: "center",
+              fontFamily: "Inter, sans-serif",
+              fontSize: 14,
+              color: "#6B7280",
+              marginTop: 24,
+              marginBottom: 0,
+            }}
+          >
             Already have an account?{" "}
             <a
               href="/dashboard"
-              className="text-sky-500 hover:text-sky-600 font-medium"
+              style={{
+                color: G,
+                fontWeight: 600,
+                textDecoration: "none",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#00A87D"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = G; }}
             >
               Sign in
             </a>

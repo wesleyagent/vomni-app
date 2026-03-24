@@ -23,6 +23,9 @@ const navLinks = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings },
 ];
 
+const G = "#00C896";
+const N = "#0A0F1E";
+
 export default function DashboardLayout({
   children,
 }: {
@@ -58,28 +61,33 @@ export default function DashboardLayout({
 
       {/* Sidebar */}
       <aside
+        style={{ background: N }}
         className={`
-          fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-gray-100 bg-white
+          fixed inset-y-0 left-0 z-50 flex w-64 flex-col
           transition-transform duration-200 ease-in-out
           lg:static lg:translate-x-0
           ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
         `}
       >
         {/* Logo + close button */}
-        <div className="flex h-16 items-center justify-between border-b border-gray-100 px-5">
-          <Link href="/dashboard" className="text-xl font-bold text-primary-600">
-            Vomni
+        <div className="flex h-16 items-center justify-between px-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          <Link
+            href="/dashboard"
+            style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 22, color: '#fff', letterSpacing: '-0.5px' }}
+          >
+            vomni
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 lg:hidden"
+            className="rounded-lg p-1.5 lg:hidden"
+            style={{ color: 'rgba(255,255,255,0.5)' }}
           >
             <X size={20} />
           </button>
         </div>
 
         {/* Nav links */}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 overflow-y-auto px-3 py-4" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {navLinks.map((link) => {
             const active = isActive(link.href);
             const Icon = link.icon;
@@ -88,14 +96,43 @@ export default function DashboardLayout({
                 key={link.href}
                 href={link.href}
                 onClick={() => setSidebarOpen(false)}
-                className={`
-                  flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors
-                  ${
-                    active
-                      ? "bg-primary-50 text-primary-600"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                style={active ? {
+                  borderLeft: `3px solid ${G}`,
+                  paddingLeft: 10,
+                  color: G,
+                  background: 'rgba(0,200,150,0.1)',
+                  borderRadius: 8,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 12px 10px 10px',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                } : {
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 12px',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: 'rgba(255,255,255,0.55)',
+                  borderRadius: 8,
+                  textDecoration: 'none',
+                  borderLeft: '3px solid transparent',
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLElement).style.color = '#fff';
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
                   }
-                `}
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.55)';
+                    (e.currentTarget as HTMLElement).style.background = 'transparent';
+                  }
+                }}
               >
                 <Icon size={20} />
                 {link.label}
@@ -105,13 +142,16 @@ export default function DashboardLayout({
         </nav>
 
         {/* Bottom: business name + sign out */}
-        <div className="border-t border-gray-100 px-4 py-4">
-          <p className="truncate text-sm font-medium text-gray-900">
+        <div className="px-4 py-4" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <p className="truncate text-sm font-medium" style={{ color: 'rgba(255,255,255,0.85)' }}>
             {businessName}
           </p>
           <Link
             href="/"
-            className="mt-2 flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+            className="mt-2 flex items-center gap-2 text-sm transition-colors"
+            style={{ color: 'rgba(255,255,255,0.4)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.8)'; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.4)'; }}
           >
             <LogOut size={16} />
             Sign Out
@@ -129,7 +169,12 @@ export default function DashboardLayout({
           >
             <Menu size={24} />
           </button>
-          <span className="ml-3 text-lg font-bold text-primary-600">Vomni</span>
+          <span
+            className="ml-3 text-lg font-bold"
+            style={{ fontFamily: "'Bricolage Grotesque', sans-serif", color: N }}
+          >
+            vomni
+          </span>
         </header>
 
         {/* Page content */}

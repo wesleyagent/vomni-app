@@ -16,16 +16,19 @@ import { getBusiness, getCustomers, getThisMonthStats, getFeedback } from "@/lib
 import { StatCard } from "@/components/ui/stat-card";
 import type { Business, Customer, FeedbackItem } from "@/types";
 
-const STATUS_BADGES: Record<string, { label: string; className: string }> = {
-  scheduled: { label: "Scheduled", className: "bg-gray-100 text-gray-600" },
-  sent: { label: "Sent", className: "bg-blue-100 text-blue-700" },
-  opened: { label: "Opened", className: "bg-yellow-100 text-yellow-700" },
-  clicked: { label: "Clicked", className: "bg-blue-100 text-blue-700" },
-  submitted: { label: "Submitted", className: "bg-green-100 text-green-700" },
-  redirected: { label: "Redirected", className: "bg-green-100 text-green-700" },
-  private_feedback: { label: "Private Feedback", className: "bg-orange-100 text-orange-700" },
-  failed: { label: "Failed", className: "bg-red-100 text-red-700" },
-  opted_out: { label: "Opted Out", className: "bg-gray-100 text-gray-500" },
+const G = "#00C896";
+const N = "#0A0F1E";
+
+const STATUS_BADGES: Record<string, { label: string; style: React.CSSProperties }> = {
+  scheduled: { label: "Scheduled", style: { background: '#F3F4F6', color: '#6B7280' } },
+  sent: { label: "Sent", style: { background: 'rgba(0,200,150,0.1)', color: '#00A87D' } },
+  opened: { label: "Opened", style: { background: '#FEF3C7', color: '#B45309' } },
+  clicked: { label: "Clicked", style: { background: 'rgba(0,200,150,0.1)', color: '#00A87D' } },
+  submitted: { label: "Submitted", style: { background: 'rgba(0,200,150,0.12)', color: '#00A87D' } },
+  redirected: { label: "Redirected", style: { background: 'rgba(0,200,150,0.12)', color: '#00A87D' } },
+  private_feedback: { label: "Private Feedback", style: { background: '#FEF3C7', color: '#B45309' } },
+  failed: { label: "Failed", style: { background: '#FEE2E2', color: '#DC2626' } },
+  opted_out: { label: "Opted Out", style: { background: '#F3F4F6', color: '#9CA3AF' } },
 };
 
 function StarRating({ rating }: { rating: number }) {
@@ -66,7 +69,7 @@ export default function DashboardOverview() {
   if (!mounted) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: G, borderTopColor: 'transparent' }} />
       </div>
     );
   }
@@ -75,13 +78,14 @@ export default function DashboardOverview() {
     return (
       <div className="flex h-full items-center justify-center p-8">
         <div className="max-w-md text-center">
-          <h2 className="text-2xl font-bold text-gray-900">Welcome to Vomni!</h2>
-          <p className="mt-2 text-gray-500">
-            Complete your onboarding to get started.
-          </p>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 700, color: N }}>
+            Welcome to Vomni!
+          </h2>
+          <p className="mt-2 text-gray-500">Complete your onboarding to get started.</p>
           <Link
             href="/onboarding"
-            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-primary-600 px-6 py-3 text-sm font-medium text-white hover:bg-primary-700 transition-colors"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg px-6 py-3 text-sm font-medium text-white transition-colors"
+            style={{ background: G }}
           >
             Start Onboarding
             <ArrowRight size={16} />
@@ -93,25 +97,24 @@ export default function DashboardOverview() {
 
   const stats = getThisMonthStats(customers);
 
-  // Review velocity: reviews per week (based on this month's redirected count)
   const now = new Date();
   const dayOfMonth = now.getDate();
   const weeksElapsed = Math.max(dayOfMonth / 7, 1);
   const reviewVelocity = (stats.redirected / weeksElapsed).toFixed(1);
 
-  // Recent activity: last 10 customers sorted by date
   const recentCustomers = [...customers]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 10);
 
-  // Active alerts: feedback items with status "new"
   const activeAlerts = feedback.filter((f) => f.status === "new");
 
   return (
     <div className="p-6 lg:p-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">Overview</h1>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N }}>
+          Overview
+        </h1>
         <p className="mt-1 text-sm text-gray-500">
           Your review management dashboard for {business.name}
         </p>
@@ -160,13 +163,15 @@ export default function DashboardOverview() {
 
       {/* Recent Activity */}
       <div className="mt-10">
-        <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+        <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 600, color: N }}>
+          Recent Activity
+        </h2>
         {recentCustomers.length === 0 ? (
           <p className="mt-4 text-sm text-gray-500">
             No customer activity yet. Start sending review requests to see activity here.
           </p>
         ) : (
-          <div className="mt-4 overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm">
+          <div className="mt-4 overflow-hidden bg-white shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
             <ul className="divide-y divide-gray-50">
               {recentCustomers.map((customer) => {
                 const badge = STATUS_BADGES[customer.reviewRequestStatus] ?? STATUS_BADGES.scheduled;
@@ -182,14 +187,13 @@ export default function DashboardOverview() {
                     className="flex items-center justify-between px-5 py-3.5"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-gray-900">
-                        {customer.name}
-                      </p>
+                      <p className="truncate text-sm font-medium text-gray-900">{customer.name}</p>
                       <p className="truncate text-xs text-gray-400">{customer.service}</p>
                     </div>
                     <div className="ml-4 flex items-center gap-3">
                       <span
-                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${badge.className}`}
+                        className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium"
+                        style={badge.style}
                       >
                         {badge.label}
                       </span>
@@ -206,7 +210,7 @@ export default function DashboardOverview() {
       {/* Active Alerts */}
       {activeAlerts.length > 0 && (
         <div className="mt-10">
-          <h2 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
+          <h2 className="flex items-center gap-2" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 600, color: N }}>
             <AlertTriangle size={20} className="text-orange-500" />
             Active Alerts
             <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-600">
@@ -217,7 +221,8 @@ export default function DashboardOverview() {
             {activeAlerts.map((item) => (
               <div
                 key={item.id}
-                className="flex items-start justify-between rounded-xl border border-orange-100 bg-orange-50/50 p-4"
+                className="flex items-start justify-between p-4"
+                style={{ borderRadius: 12, border: '1px solid #FED7AA', background: 'rgba(255,237,213,0.5)' }}
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
