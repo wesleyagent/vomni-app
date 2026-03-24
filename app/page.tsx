@@ -483,7 +483,7 @@ export default function LandingPage() {
             </p>
             <div className="hero-buttons" style={{ marginTop: 40, display: "flex", gap: 16, alignItems: "center" }}>
               <a href="/signup" className="cta-primary" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>
-                Start Getting Reviews - £70/month
+                Start Getting Reviews - from £50/month
               </a>
               <a href="/demo"
                 style={{ background: "transparent", border: `2px solid ${N}`, color: N, borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", transition: "all 0.2s" }}
@@ -562,13 +562,13 @@ export default function LandingPage() {
             Your Google rating is working against you.
           </h2>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, textAlign: "center", marginTop: 16 }}>
-            The data may surprise you.
+            The data might surprise you.
           </p>
           <div className="pain-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", marginTop: 80 }}>
             {[
               { num: "96%",  label: "of customers read Google reviews before walking through your door" },
               { num: "1",    label: "bad review sends 30 potential customers straight to your competitor" },
-              { num: null,   label: "and you lose 70% of search clicks before anyone sees your business", mixed: true },
+              { num: null,   label: "or less loses you 70% of search clicks before anyone finds your business", mixed: true },
               { num: "£12k", label: "lost in lifetime customer value from just one complaint that goes public online" },
             ].map((s, i, arr) => (
               <div key={i} className="pain-stat" style={{ padding: "60px 40px", position: "relative", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none", textAlign: "center" }}>
@@ -853,7 +853,7 @@ export default function LandingPage() {
             onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.03)"; e.currentTarget.style.boxShadow = "0 0 60px rgba(0,200,150,0.4)"; }}
             onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 0 40px rgba(0,200,150,0.3)"; }}
           >
-            Start Today - £70/month →
+            Start Today - from £50/month →
           </a>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, marginTop: 16 }}>30-day money back guarantee</p>
 
