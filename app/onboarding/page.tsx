@@ -1,0 +1,350 @@
+"use client";
+
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { getBusiness, updateBusiness } from "@/lib/storage";
+import type { Business } from "@/types";
+import { CheckCircle2, Circle, Copy, Check } from "lucide-react";
+
+export default function OnboardingPage() {
+  const router = useRouter();
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Step 1 fields
+  const [bizName, setBizName] = useState("");
+  const [bizPhone, setBizPhone] = useState("");
+  const [bizAddress, setBizAddress] = useState("");
+
+  // Step 2
+  const [googleLink, setGoogleLink] = useState("");
+
+  // Copy button state
+  const [copied, setCopied] = useState(false);
+
+  const refreshBusiness = useCallback(() => {
+    const biz = getBusiness();
+    if (!biz) {
+      router.push("/signup");
+      return;
+    }
+    setBusiness(biz);
+    setBizName(biz.name);
+    setBizPhone(biz.phone);
+    setBizAddress(biz.address);
+    setGoogleLink(biz.googleReviewLink);
+    setLoading(false);
+  }, [router]);
+
+  useEffect(() => {
+    refreshBusiness();
+  }, [refreshBusiness]);
+
+  if (loading || !business) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-gray-400 text-sm">Loading...</div>
+      </div>
+    );
+  }
+
+  const steps = business.onboardingSteps;
+  const completedCount = steps.filter(Boolean).length;
+
+  function markStep(index: number, updates: Partial<Business> = {}) {
+    const newSteps = [...steps];
+    newSteps[index] = true;
+    updateBusiness({ ...updates, onboardingSteps: newSteps });
+    refreshBusiness();
+  }
+
+  function handleCopyEmail() {
+    navigator.clipboard.writeText(business!.forwardingEmail).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
+  function handleGoLive() {
+    updateBusiness({ onboardingComplete: true });
+    router.push("/dashboard");
+  }
+
+  const canGoLive = steps[0] && steps[1] && steps[2];
+
+  return (
+    <div className="min-h-screen bg-gray-50 px-4 py-12">
+      <div className="max-w-2xl mx-auto">
+        {/* Header */}
+        <div className="text-center mb-8">
+          <h1 className="text-2xl font-bold text-sky-500 tracking-tight">
+            vomni
+          </h1>
+          <h2 className="text-xl font-semibold text-gray-900 mt-4">
+            Set up your account
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Step {Math.min(completedCount + 1, 5)} of 5
+          </p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="w-full bg-gray-200 rounded-full h-2 mb-10">
+          <div
+            className="bg-sky-500 h-2 rounded-full transition-all duration-500"
+            style={{ width: `${(completedCount / 5) * 100}%` }}
+          />
+        </div>
+
+        <div className="space-y-4">
+          {/* Step 1: Business details */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-start gap-3">
+              {steps[0] ? (
+                <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="w-6 h-6 text-gray-300 flex-shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">
+                  Add your business details
+                </h3>
+                {!steps[0] && (
+                  <div className="mt-4 space-y-3">
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Business name
+                      </label>
+                      <input
+                        type="text"
+                        value={bizName}
+                        onChange={(e) => setBizName(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        value={bizPhone}
+                        onChange={(e) => setBizPhone(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-600 mb-1">
+                        Address
+                      </label>
+                      <input
+                        type="text"
+                        value={bizAddress}
+                        onChange={(e) => setBizAddress(e.target.value)}
+                        className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                        placeholder="123 Main St, City, State"
+                      />
+                    </div>
+                    <button
+                      onClick={() =>
+                        markStep(0, {
+                          name: bizName,
+                          phone: bizPhone,
+                          address: bizAddress,
+                        })
+                      }
+                      className="bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Mark as complete
+                    </button>
+                  </div>
+                )}
+                {steps[0] && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    {business.name} &mdash; {business.address || "No address"}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Step 2: Google review link */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-start gap-3">
+              {steps[1] ? (
+                <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="w-6 h-6 text-gray-300 flex-shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">
+                  Add your Google review link
+                </h3>
+                {!steps[1] && (
+                  <div className="mt-4 space-y-3">
+                    <p className="text-sm text-gray-500">
+                      Go to Google Maps, search for your business, click
+                      &ldquo;Write a review&rdquo;, and copy the URL.
+                    </p>
+                    <input
+                      type="url"
+                      value={googleLink}
+                      onChange={(e) => setGoogleLink(e.target.value)}
+                      className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-sky-500"
+                      placeholder="https://g.page/r/..."
+                    />
+                    <button
+                      onClick={() =>
+                        markStep(1, { googleReviewLink: googleLink })
+                      }
+                      disabled={!googleLink}
+                      className="bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Mark as complete
+                    </button>
+                  </div>
+                )}
+                {steps[1] && (
+                  <p className="text-sm text-gray-500 mt-1 truncate">
+                    {business.googleReviewLink}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Step 3: Email forwarding */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-start gap-3">
+              {steps[2] ? (
+                <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="w-6 h-6 text-gray-300 flex-shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">
+                  Set up email forwarding
+                </h3>
+                {!steps[2] && (
+                  <div className="mt-4 space-y-3">
+                    <p className="text-sm text-gray-500">
+                      In your booking system&apos;s email settings, add this
+                      address as a forwarding address. Every booking
+                      confirmation email will be automatically parsed.
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-900 font-mono truncate">
+                        {business.forwardingEmail}
+                      </code>
+                      <button
+                        onClick={handleCopyEmail}
+                        className="flex-shrink-0 bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-colors"
+                        title="Copy email"
+                      >
+                        {copied ? (
+                          <Check className="w-4 h-4 text-green-500" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => markStep(2)}
+                      className="bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                    >
+                      Mark as complete
+                    </button>
+                  </div>
+                )}
+                {steps[2] && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Forwarding to {business.forwardingEmail}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Step 4: Test booking */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-start gap-3">
+              {steps[3] ? (
+                <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="w-6 h-6 text-gray-300 flex-shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">
+                  Send a test booking
+                </h3>
+                {!steps[3] && (
+                  <div className="mt-4 space-y-3">
+                    <p className="text-sm text-gray-500">
+                      Forward a booking confirmation email to{" "}
+                      <span className="font-mono text-gray-700">
+                        {business.forwardingEmail}
+                      </span>{" "}
+                      to test the system. This step is optional.
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => markStep(3)}
+                        className="bg-sky-500 hover:bg-sky-600 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                      >
+                        Mark as done
+                      </button>
+                      <button
+                        onClick={() => markStep(3)}
+                        className="bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+                      >
+                        Skip for now
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {steps[3] && (
+                  <p className="text-sm text-gray-500 mt-1">Completed</p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Step 5: Go live */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6">
+            <div className="flex items-start gap-3">
+              {steps[4] ? (
+                <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="w-6 h-6 text-gray-300 flex-shrink-0 mt-0.5" />
+              )}
+              <div className="flex-1">
+                <h3 className="font-semibold text-gray-900">Go live!</h3>
+                {!steps[4] && (
+                  <div className="mt-4">
+                    {!canGoLive && (
+                      <p className="text-sm text-amber-600 mb-3">
+                        Complete steps 1-3 before launching.
+                      </p>
+                    )}
+                    <button
+                      onClick={handleGoLive}
+                      disabled={!canGoLive}
+                      className="bg-sky-500 hover:bg-sky-600 text-white text-sm font-semibold px-6 py-2.5 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Launch Vomni
+                    </button>
+                  </div>
+                )}
+                {steps[4] && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    You&apos;re live!
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
