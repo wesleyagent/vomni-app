@@ -113,6 +113,20 @@ export function saveAdminSignup(signup: unknown): void {
   set(KEYS.ADMIN_SIGNUPS, signups);
 }
 
+export function updateAdminSignup(index: number, data: unknown): void {
+  const signups = getAdminSignups();
+  if (index >= 0 && index < signups.length) {
+    signups[index] = data;
+    set(KEYS.ADMIN_SIGNUPS, signups);
+  }
+}
+
+export function deleteAdminSignup(index: number): void {
+  const signups = getAdminSignups();
+  signups.splice(index, 1);
+  set(KEYS.ADMIN_SIGNUPS, signups);
+}
+
 // Generate unique IDs
 export function generateId(): string {
   return Math.random().toString(36).substring(2, 10) + Date.now().toString(36);

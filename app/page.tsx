@@ -338,6 +338,39 @@ export default function LandingPage() {
   const [chartLoaded, setChartLoaded] = useState(false);
   const gsapInited = useRef(false);
 
+  // Demo booking form state
+  const [bookingForm, setBookingForm] = useState({ firstName: "", lastName: "", email: "", businessName: "", businessType: "", phone: "" });
+  const [bookingErrors, setBookingErrors] = useState<Record<string, string>>({});
+  const [bookingSubmitting, setBookingSubmitting] = useState(false);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  function scrollToBookDemo() {
+    document.querySelector("#book-demo")?.scrollIntoView({ behavior: "smooth" });
+  }
+
+  async function submitBooking(e: React.FormEvent) {
+    e.preventDefault();
+    const errors: Record<string, string> = {};
+    if (!bookingForm.firstName.trim())   errors.firstName    = "Required";
+    if (!bookingForm.lastName.trim())    errors.lastName     = "Required";
+    if (!bookingForm.email.trim())       errors.email        = "Required";
+    if (!bookingForm.businessName.trim()) errors.businessName = "Required";
+    if (!bookingForm.businessType)       errors.businessType = "Required";
+    if (!bookingForm.phone.trim())       errors.phone        = "Required";
+    if (Object.keys(errors).length > 0) { setBookingErrors(errors); return; }
+    setBookingSubmitting(true);
+    setBookingErrors({});
+    try {
+      await fetch("/api/demo-booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bookingForm),
+      });
+      setBookingSuccess(true);
+    } catch { /* silent */ }
+    setBookingSubmitting(false);
+  }
+
   // Nav scroll border
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
@@ -446,17 +479,23 @@ export default function LandingPage() {
               { label: "How it Works", id: "how-it-works" },
               { label: "See Demo",     id: "demo" },
               { label: "Pricing",      id: "pricing" },
-              { label: "Login",        href: "/signup" },
             ].map((item) => (
               <a
                 key={item.label}
-                href={item.href ?? `#${item.id}`}
-                onClick={item.id ? (e) => { e.preventDefault(); document.querySelector(`#${item.id}`)?.scrollIntoView({ behavior: "smooth" }); } : undefined}
+                href={`#${item.id}`}
+                onClick={(e) => { e.preventDefault(); document.querySelector(`#${item.id}`)?.scrollIntoView({ behavior: "smooth" }); }}
                 style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}
               >
                 {item.label}
               </a>
             ))}
+            <button
+              onClick={scrollToBookDemo}
+              style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, color: G, textDecoration: "none", background: "none", border: "none", cursor: "pointer", padding: 0 }}
+            >
+              Book a Demo
+            </button>
+            <a href="/signup" style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}>Login</a>
           </div>
           <a href="/signup"
             style={{ background: G, color: "#fff", borderRadius: 9999, padding: "12px 28px", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", transition: "background 0.2s" }}
@@ -485,13 +524,14 @@ export default function LandingPage() {
               <a href="/signup" className="cta-primary" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>
                 Start Getting Reviews - from £50/month
               </a>
-              <a href="/demo"
-                style={{ background: "transparent", border: `2px solid ${N}`, color: N, borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", transition: "all 0.2s" }}
+              <button
+                onClick={scrollToBookDemo}
+                style={{ background: "transparent", border: `2px solid ${N}`, color: N, borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", transition: "all 0.2s", cursor: "pointer" }}
                 onMouseEnter={e => { e.currentTarget.style.background = N; e.currentTarget.style.color = "#fff"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = N; }}
               >
-                Watch 2-min demo →
-              </a>
+                Book a Demo →
+              </button>
             </div>
             <div style={{ marginTop: 32, display: "flex", alignItems: "center", gap: 8 }}>
               <Stars count={5} size={20} />
@@ -592,6 +632,16 @@ export default function LandingPage() {
             <a href="/signup" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
               Fix it with Vomni →
             </a>
+          </div>
+          <div style={{ marginTop: 40, textAlign: "center" }}>
+            <button
+              onClick={scrollToBookDemo}
+              style={{ background: G, color: "#fff", borderRadius: 9999, padding: "16px 40px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, border: "none", cursor: "pointer", transition: "background 0.2s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = GD; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
+            >
+              See How Vomni Fixes This →
+            </button>
           </div>
         </div>
       </section>
@@ -733,6 +783,16 @@ export default function LandingPage() {
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500 }}>New 5-star review on Google · Omar Abdullah</span>
             </div>
           </div>
+          <div style={{ marginTop: 60, textAlign: "center" }}>
+            <button
+              onClick={scrollToBookDemo}
+              style={{ background: G, color: "#fff", borderRadius: 9999, padding: "16px 40px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, border: "none", cursor: "pointer", transition: "background 0.2s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = GD; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
+            >
+              Book a Demo to See It Live →
+            </button>
+          </div>
         </div>
       </section>
 
@@ -770,6 +830,225 @@ export default function LandingPage() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── TESTIMONIALS POST-CTA ───────────────────────────────────────────── */}
+      <div style={{ background: OW, paddingBottom: 80, textAlign: "center" }}>
+        <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>
+          Want results like these?
+        </p>
+        <button
+          onClick={scrollToBookDemo}
+          style={{ marginTop: 20, background: G, color: "#fff", borderRadius: 9999, padding: "16px 40px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, border: "none", cursor: "pointer", transition: "background 0.2s" }}
+          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = GD; }}
+          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
+        >
+          Book a Free Demo →
+        </button>
+      </div>
+
+      {/* ── TRY IT LIVE ─────────────────────────────────────────────────────── */}
+      <section style={{ background: OW, padding: "100px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: G, textTransform: "uppercase", textAlign: "center" }}>
+            TRY IT LIVE
+          </p>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 48, fontWeight: 800, color: N, textAlign: "center", marginTop: 12, lineHeight: 1.1 }}>
+            Explore a real Vomni dashboard.
+          </h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: TS, textAlign: "center", marginTop: 12, lineHeight: 1.6 }}>
+            No sign up needed. Click in and see exactly what your customers would see.
+          </p>
+          <div style={{ display: "flex", justifyContent: "center", gap: 28, marginTop: 56, flexWrap: "wrap" }}>
+            {/* Card 1 — Kings Cuts London */}
+            <div
+              style={{ background: "#fff", borderRadius: 20, padding: 36, boxShadow: "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)", maxWidth: 400, flex: 1, transition: "all 0.25s ease", cursor: "pointer" }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.14)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)"; }}
+            >
+              <div style={{ background: "rgba(0,200,150,0.1)", borderRadius: 12, padding: 12, display: "inline-flex" }}>
+                <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" />
+                  <line x1="20" y1="4" x2="8.12" y2="15.88" />
+                  <line x1="14.47" y1="14.48" x2="20" y2="20" />
+                  <line x1="8.12" y1="8.12" x2="12" y2="12" />
+                </svg>
+              </div>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, marginTop: 16 }}>Kings Cuts London</h3>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS, marginTop: 8, lineHeight: 1.5 }}>A thriving barbershop in Shoreditch. Growing fast with strong reviews.</p>
+              <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+                {["4.3★ rating", "66% completion", "28 reviews/mo"].map((s) => (
+                  <span key={s} style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM }}>{s}</span>
+                ))}
+              </div>
+              <a
+                href="/demo/kings-cuts-london"
+                style={{ display: "block", marginTop: 24, background: N, color: "#fff", borderRadius: 9999, padding: "14px 0", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none", transition: "background 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#1a2035"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = N; }}
+              >
+                Explore This Dashboard →
+              </a>
+            </div>
+            {/* Card 2 — Bella Vista Restaurant */}
+            <div
+              style={{ background: "#fff", borderRadius: 20, padding: 36, boxShadow: "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)", maxWidth: 400, flex: 1, transition: "all 0.25s ease", cursor: "pointer" }}
+              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.14)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)"; }}
+            >
+              <div style={{ background: "rgba(245,158,11,0.1)", borderRadius: 12, padding: 12, display: "inline-flex" }}>
+                <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 11l19-9-9 19-2-8-8-2z" />
+                </svg>
+              </div>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, marginTop: 16 }}>Bella Vista Restaurant</h3>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS, marginTop: 8, lineHeight: 1.5 }}>A London restaurant building its online reputation.</p>
+              <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM }}>3.7★ rating</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM }}>29% completion</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#F59E0B", fontWeight: 500 }}>Needs improvement</span>
+              </div>
+              <a
+                href="/demo/bella-vista-restaurant"
+                style={{ display: "block", marginTop: 24, background: N, color: "#fff", borderRadius: 9999, padding: "14px 0", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none", transition: "background 0.2s" }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#1a2035"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = N; }}
+              >
+                Explore This Dashboard →
+              </a>
+            </div>
+          </div>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textAlign: "center", marginTop: 32 }}>
+            These are live demo accounts with real product functionality.
+          </p>
+        </div>
+      </section>
+
+      {/* ── BOOK A DEMO ─────────────────────────────────────────────────────── */}
+      <section id="book-demo" style={{ background: N, padding: "120px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+
+          {/* Left — copy */}
+          <div>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: G, textTransform: "uppercase" }}>BOOK A DEMO</p>
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 52, fontWeight: 800, color: "#fff", lineHeight: 1.1, marginTop: 16 }}>
+              See exactly how Vomni works for your business.
+            </h2>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginTop: 16 }}>
+              Omri will walk you through the product, show you what your dashboard would look like, and answer every question you have. No pressure. 30 minutes.
+            </p>
+            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 16 }}>
+              {[
+                "Live walkthrough tailored to your business type",
+                "See real results from businesses like yours",
+                "Get set up the same day if you decide to go ahead",
+              ].map((point) => (
+                <div key={point} style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+                  <svg width={18} height={18} viewBox="0 0 20 20" fill={G} style={{ flexShrink: 0, marginTop: 2 }}>
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: "#fff", lineHeight: 1.5 }}>{point}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right — booking form card */}
+          <div style={{ background: "#fff", borderRadius: 20, padding: 40, boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
+            {bookingSuccess ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(0,200,150,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
+                  <svg width={32} height={32} viewBox="0 0 20 20" fill={G}>
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: N, marginTop: 20 }}>
+                  {"You're booked in 🎉"}
+                </h3>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: TS, marginTop: 12, lineHeight: 1.6 }}>
+                  Omri will be in touch within a few hours to confirm your time. Check your email for confirmation.
+                </p>
+                <span style={{ display: "inline-block", marginTop: 20, background: "rgba(0,200,150,0.1)", color: G, borderRadius: 9999, padding: "8px 20px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600 }}>
+                  {"We'll see you soon"}
+                </span>
+              </div>
+            ) : (
+              <form onSubmit={submitBooking}>
+                <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>Book your free demo</h3>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS, marginTop: 6, marginBottom: 28 }}>Pick a time that works for you</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  {/* First + Last name */}
+                  {[
+                    { label: "First name", key: "firstName", placeholder: "James" },
+                    { label: "Last name",  key: "lastName",  placeholder: "Mitchell" },
+                  ].map(({ label, key, placeholder }) => (
+                    <div key={key}>
+                      <label style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, display: "block", marginBottom: 6 }}>{label}</label>
+                      <input
+                        value={bookingForm[key as keyof typeof bookingForm]}
+                        onChange={e => setBookingForm(f => ({ ...f, [key]: e.target.value }))}
+                        placeholder={placeholder}
+                        style={{ width: "100%", border: `1px solid ${bookingErrors[key] ? "#EF4444" : BD}`, borderRadius: 10, padding: "12px 16px", fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box", transition: "border-color 0.2s, box-shadow 0.2s" }}
+                        onFocus={e => { e.currentTarget.style.borderColor = G; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,200,150,0.15)"; }}
+                        onBlur={e => { e.currentTarget.style.borderColor = bookingErrors[key] ? "#EF4444" : BD; e.currentTarget.style.boxShadow = "none"; }}
+                      />
+                      {bookingErrors[key] && <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#EF4444", marginTop: 4 }}>{bookingErrors[key]}</p>}
+                    </div>
+                  ))}
+                </div>
+                {/* Full-width fields */}
+                {[
+                  { label: "Email address", key: "email", placeholder: "james@kingscutslondon.co.uk", type: "email" },
+                  { label: "Business name", key: "businessName", placeholder: "Kings Cuts London" },
+                  { label: "Phone number", key: "phone", placeholder: "+44 7700 900000", type: "tel" },
+                ].map(({ label, key, placeholder, type }) => (
+                  <div key={key} style={{ marginTop: 16 }}>
+                    <label style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, display: "block", marginBottom: 6 }}>{label}</label>
+                    <input
+                      type={type ?? "text"}
+                      value={bookingForm[key as keyof typeof bookingForm]}
+                      onChange={e => setBookingForm(f => ({ ...f, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      style={{ width: "100%", border: `1px solid ${bookingErrors[key] ? "#EF4444" : BD}`, borderRadius: 10, padding: "12px 16px", fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box", transition: "border-color 0.2s, box-shadow 0.2s" }}
+                      onFocus={e => { e.currentTarget.style.borderColor = G; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,200,150,0.15)"; }}
+                      onBlur={e => { e.currentTarget.style.borderColor = bookingErrors[key] ? "#EF4444" : BD; e.currentTarget.style.boxShadow = "none"; }}
+                    />
+                    {bookingErrors[key] && <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#EF4444", marginTop: 4 }}>{bookingErrors[key]}</p>}
+                  </div>
+                ))}
+                {/* Business type dropdown */}
+                <div style={{ marginTop: 16 }}>
+                  <label style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, display: "block", marginBottom: 6 }}>Business type</label>
+                  <select
+                    value={bookingForm.businessType}
+                    onChange={e => setBookingForm(f => ({ ...f, businessType: e.target.value }))}
+                    style={{ width: "100%", border: `1px solid ${bookingErrors.businessType ? "#EF4444" : BD}`, borderRadius: 10, padding: "12px 16px", fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", color: bookingForm.businessType ? N : TM, appearance: "none", background: "#fff", transition: "border-color 0.2s, box-shadow 0.2s" }}
+                    onFocus={e => { e.currentTarget.style.borderColor = G; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,200,150,0.15)"; }}
+                    onBlur={e => { e.currentTarget.style.borderColor = bookingErrors.businessType ? "#EF4444" : BD; e.currentTarget.style.boxShadow = "none"; }}
+                  >
+                    <option value="">Select your business type</option>
+                    {["Barbershop", "Hair Salon", "Beauty Salon", "Restaurant", "Dentist", "Tattoo Studio", "Nail Salon", "Other"].map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  {bookingErrors.businessType && <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#EF4444", marginTop: 4 }}>{bookingErrors.businessType}</p>}
+                </div>
+                <button
+                  type="submit"
+                  disabled={bookingSubmitting}
+                  style={{ width: "100%", marginTop: 28, background: G, color: "#fff", borderRadius: 9999, padding: 16, fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 700, border: "none", cursor: bookingSubmitting ? "not-allowed" : "pointer", opacity: bookingSubmitting ? 0.7 : 1, transition: "background 0.2s" }}
+                  onMouseEnter={e => { if (!bookingSubmitting) (e.currentTarget as HTMLElement).style.background = GD; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
+                >
+                  {bookingSubmitting ? "Submitting..." : "Book My Free Demo →"}
+                </button>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM, textAlign: "center", marginTop: 12 }}>
+                  Free 30-minute call · No commitment · Instant confirmation
+                </p>
+              </form>
+            )}
           </div>
         </div>
       </section>
