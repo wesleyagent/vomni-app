@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Edit3, X, Send, AlertCircle, Copy } from "lucide-react";
+import { Check, Pencil, X, Send, AlertCircle, Copy } from "lucide-react";
 import { supabase, supabaseConfigured, type CopyQueueItem, type Lead } from "@/lib/supabase";
 
 const G = "#00C896";
@@ -229,7 +229,7 @@ export default function CopyQueuePage() {
                           <Copy size={11} /> {copied === v ? "Copied!" : "Copy"}
                         </button>
                         <button onClick={() => { setEditingVariant(v); setEditText(text); }} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
-                          <Edit3 size={11} /> Edit
+                          <Pencil size={11} /> Edit
                         </button>
                       </div>
                     </div>

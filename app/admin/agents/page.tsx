@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Crown, Search, PenLine, MessageSquare, Calendar, UserCheck,
   Wrench, BarChart3, Play, Pause, Send, X, ChevronDown, ChevronUp,
-  Users, Bot, Trash2, CheckCircle2, AlertCircle, Plug, Key, Webhook
+  Users, Bot, Trash2, CircleCheckBig, AlertCircle, Plug, Key, Webhook
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
@@ -992,7 +992,7 @@ export default function AgentsPage() {
                       <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2">
                           {tool.connected
-                            ? <CheckCircle2 size={16} style={{ color: G }} />
+                            ? <CircleCheckBig size={16} style={{ color: G }} />
                             : <AlertCircle size={16} className="text-amber-400" />}
                           <p className="text-sm font-semibold text-gray-900">{tool.name}</p>
                         </div>

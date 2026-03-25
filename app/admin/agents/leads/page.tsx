@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, CheckCircle, XCircle, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { Search, Plus, CircleCheck, CircleX, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import { supabase, supabaseConfigured, type Lead, type LeadStatus, type BusinessType, type OutreachChannel } from "@/lib/supabase";
 
 const G = "#00C896";
@@ -274,7 +274,7 @@ export default function LeadPipelinePage() {
                                 style={{ background: G }}
                                 title="Approve"
                               >
-                                <CheckCircle size={12} /> Approve
+                                <CircleCheck size={12} /> Approve
                               </button>
                             )}
                             {lead.status !== "rejected" && lead.status !== "customer" && (
@@ -283,7 +283,7 @@ export default function LeadPipelinePage() {
                                 className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
                                 title="Reject"
                               >
-                                <XCircle size={12} /> Reject
+                                <CircleX size={12} /> Reject
                               </button>
                             )}
                             <button
@@ -321,7 +321,7 @@ export default function LeadPipelinePage() {
             <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-xl">
               <div className="sticky top-0 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
                 <h2 className="text-lg font-semibold text-gray-900">Add lead manually</h2>
-                <button onClick={() => setShowAddModal(false)} className="rounded-md p-1 text-gray-400 hover:text-gray-600"><XCircle size={20} /></button>
+                <button onClick={() => setShowAddModal(false)} className="rounded-md p-1 text-gray-400 hover:text-gray-600"><CircleX size={20} /></button>
               </div>
               <div className="grid grid-cols-2 gap-4 p-6">
                 {[
