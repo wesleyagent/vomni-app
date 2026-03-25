@@ -5,8 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Lock, LayoutDashboard, Bot, ArrowLeft,
-  Target, PenLine, MessageSquare, BarChart3, ChevronDown,
+  Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones,
 } from "lucide-react";
+import { supabase, supabaseConfigured } from "@/lib/supabase";
 
 const ADMIN_PASSWORD = "vomni2026";
 const SESSION_KEY = "vomni_admin_authed";
@@ -21,6 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
+  const [supportCount, setSupportCount] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -30,6 +32,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     // Auto-expand if on any agents page
     if (pathname.startsWith("/admin/agents")) setWorkspaceOpen(true);
   }, [pathname]);
+
+  // Fetch support badge count
+  useEffect(() => {
+    if (!authenticated || !supabaseConfigured) return;
+    supabase
+      .from("chat_conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "needs_human")
+      .then(({ count }) => setSupportCount(count ?? 0));
+  }, [authenticated]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,6 +166,43 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Top nav items */}
           <NavLink href="/admin" label="Admin Dashboard" icon={LayoutDashboard} />
+
+          {/* Support Inbox with badge */}
+          <Link
+            href="/admin/support"
+            style={isActivePrefix("/admin/support") ? {
+              display: "flex", alignItems: "center", gap: 9, padding: "9px 10px",
+              borderRadius: 8, background: "rgba(0,200,150,0.1)", color: G,
+              borderLeft: `3px solid ${G}`, fontSize: 14, fontWeight: 500, textDecoration: "none",
+            } : {
+              display: "flex", alignItems: "center", gap: 9, padding: "9px 12px",
+              borderRadius: 8, color: "rgba(255,255,255,0.55)", borderLeft: "3px solid transparent",
+              fontSize: 14, fontWeight: 500, textDecoration: "none",
+            }}
+            onMouseEnter={(e) => {
+              if (!isActivePrefix("/admin/support")) {
+                (e.currentTarget as HTMLElement).style.color = "#fff";
+                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActivePrefix("/admin/support")) {
+                (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)";
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+              }
+            }}
+          >
+            <Headphones size={18} />
+            <span style={{ flex: 1 }}>Support</span>
+            {supportCount > 0 && (
+              <span style={{
+                background: "#EF4444", color: "white", borderRadius: 9999,
+                fontSize: 10, fontWeight: 700, padding: "1px 6px", minWidth: 18, textAlign: "center",
+              }}>
+                {supportCount}
+              </span>
+            )}
+          </Link>
 
           {/* Agent Workspace section */}
           <div style={{ marginTop: 12 }}>

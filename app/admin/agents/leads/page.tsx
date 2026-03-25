@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Plus, CircleCheck, CircleX, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
+import { Search, Plus, CircleCheck, CircleX, ChevronDown, ChevronUp, AlertCircle, Pencil, Trash2 } from "lucide-react";
 import { supabase, supabaseConfigured, type Lead, type LeadStatus, type BusinessType, type OutreachChannel } from "@/lib/supabase";
 
 const G = "#00C896";
@@ -54,8 +54,11 @@ export default function LeadPipelinePage() {
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterScore, setFilterScore] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingLead, setEditingLead] = useState<Lead | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [editForm, setEditForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -105,6 +108,63 @@ export default function LeadPipelinePage() {
     }
     setForm(emptyForm);
     setShowAddModal(false);
+    setSaving(false);
+  }
+
+  async function deleteLead(id: string) {
+    if (supabaseConfigured) {
+      await supabase.from("leads").delete().eq("id", id);
+    }
+    setLeads((prev) => prev.filter((l) => l.id !== id));
+    setDeletingId(null);
+    if (expandedRow === id) setExpandedRow(null);
+  }
+
+  function openEdit(lead: Lead) {
+    setEditForm({
+      business_name: lead.business_name,
+      business_type: lead.business_type,
+      location: lead.location || "",
+      city: lead.city || "",
+      country: lead.country || "UK",
+      google_rating: String(lead.google_rating ?? ""),
+      review_count: String(lead.review_count ?? ""),
+      competitor_name: lead.competitor_name || "",
+      competitor_rating: String(lead.competitor_rating ?? ""),
+      instagram_handle: lead.instagram_handle || "",
+      email: lead.email || "",
+      outreach_channel: lead.outreach_channel,
+      score: String(lead.score ?? "5"),
+      notes: lead.notes || "",
+    });
+    setEditingLead(lead);
+  }
+
+  async function saveEdit() {
+    if (!editingLead || !editForm.business_name.trim()) return;
+    setSaving(true);
+    const payload = {
+      business_name: editForm.business_name,
+      business_type: editForm.business_type,
+      location: editForm.location,
+      city: editForm.city,
+      country: editForm.country,
+      google_rating: parseFloat(editForm.google_rating) || 0,
+      review_count: parseInt(editForm.review_count) || 0,
+      competitor_name: editForm.competitor_name,
+      competitor_rating: parseFloat(editForm.competitor_rating) || 0,
+      instagram_handle: editForm.instagram_handle,
+      email: editForm.email,
+      outreach_channel: editForm.outreach_channel,
+      score: parseInt(editForm.score) || 5,
+      notes: editForm.notes,
+      updated_at: new Date().toISOString(),
+    };
+    if (supabaseConfigured) {
+      await supabase.from("leads").update(payload).eq("id", editingLead.id);
+    }
+    setLeads((prev) => prev.map((l) => l.id === editingLead.id ? { ...l, ...payload } : l));
+    setEditingLead(null);
     setSaving(false);
   }
 
@@ -292,6 +352,38 @@ export default function LeadPipelinePage() {
                             >
                               {expandedRow === lead.id ? <ChevronUp size={12} /> : <ChevronDown size={12} />} View
                             </button>
+                            <button
+                              onClick={() => openEdit(lead)}
+                              className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                              title="Edit"
+                            >
+                              <Pencil size={12} />
+                            </button>
+                            {deletingId === lead.id ? (
+                              <span className="flex items-center gap-1">
+                                <button
+                                  onClick={() => deleteLead(lead.id)}
+                                  className="rounded-md px-2 py-1 text-xs font-medium text-white"
+                                  style={{ background: "#EF4444" }}
+                                >
+                                  Confirm
+                                </button>
+                                <button
+                                  onClick={() => setDeletingId(null)}
+                                  className="rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50"
+                                >
+                                  Cancel
+                                </button>
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => setDeletingId(lead.id)}
+                                className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-red-500 hover:bg-red-50 hover:border-red-200"
+                                title="Delete"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -314,6 +406,83 @@ export default function LeadPipelinePage() {
             </div>
           )}
         </div>
+
+        {/* Edit Lead Modal */}
+        {editingLead && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={(e) => { if (e.target === e.currentTarget) setEditingLead(null); }}>
+            <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl border border-gray-100 bg-white shadow-xl">
+              <div className="sticky top-0 flex items-center justify-between border-b border-gray-100 bg-white px-6 py-4">
+                <h2 className="text-lg font-semibold text-gray-900">Edit lead</h2>
+                <button onClick={() => setEditingLead(null)} className="rounded-md p-1 text-gray-400 hover:text-gray-600"><CircleX size={20} /></button>
+              </div>
+              <div className="grid grid-cols-2 gap-4 p-6">
+                {[
+                  { label: "Business name *", key: "business_name", placeholder: "Elite Barbers" },
+                  { label: "City", key: "city", placeholder: "London" },
+                  { label: "Location / area", key: "location", placeholder: "Shoreditch, London" },
+                  { label: "Country", key: "country", placeholder: "UK" },
+                  { label: "Google rating", key: "google_rating", placeholder: "3.9" },
+                  { label: "Review count", key: "review_count", placeholder: "34" },
+                  { label: "Competitor name", key: "competitor_name", placeholder: "Kings Cuts" },
+                  { label: "Competitor rating", key: "competitor_rating", placeholder: "4.6" },
+                  { label: "Instagram handle", key: "instagram_handle", placeholder: "@elitebarbers" },
+                  { label: "Email", key: "email", placeholder: "hello@elitebarbers.co.uk" },
+                  { label: "Lead score (1-10)", key: "score", placeholder: "7" },
+                ].map(({ label, key, placeholder }) => (
+                  <div key={key}>
+                    <label className="mb-1 block text-xs font-medium text-gray-600">{label}</label>
+                    <input
+                      value={editForm[key as keyof typeof editForm]}
+                      onChange={(e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))}
+                      placeholder={placeholder}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none"
+                      onFocus={(e) => { e.currentTarget.style.borderColor = G; }}
+                      onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; }}
+                    />
+                  </div>
+                ))}
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Business type</label>
+                  <select value={editForm.business_type} onChange={(e) => setEditForm((f) => ({ ...f, business_type: e.target.value as BusinessType }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none">
+                    {BUSINESS_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Outreach channel</label>
+                  <select value={editForm.outreach_channel} onChange={(e) => setEditForm((f) => ({ ...f, outreach_channel: e.target.value as OutreachChannel }))}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none">
+                    <option value="instagram">Instagram DM</option>
+                    <option value="email">Email</option>
+                  </select>
+                </div>
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs font-medium text-gray-600">Notes</label>
+                  <textarea
+                    value={editForm.notes}
+                    onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                    placeholder="Why this lead, any context..."
+                    rows={2}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none resize-none"
+                    onFocus={(e) => { e.currentTarget.style.borderColor = G; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; }}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 border-t border-gray-100 px-6 py-4">
+                <button onClick={() => setEditingLead(null)} className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Cancel</button>
+                <button
+                  onClick={saveEdit}
+                  disabled={saving || !editForm.business_name.trim()}
+                  className="rounded-lg px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
+                  style={{ background: G }}
+                >
+                  {saving ? "Saving..." : "Save changes"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Add Lead Modal */}
         {showAddModal && (

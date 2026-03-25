@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import LandingChatWidget from "@/components/LandingChatWidget";
 
 export const metadata: Metadata = {
   title: "Vomni — Get More 5-Star Google Reviews on Autopilot",
@@ -14,7 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className="bg-white text-gray-900 antialiased">{children}</body>
+      <body className="bg-white text-gray-900 antialiased">
+        {children}
+        <LandingChatWidget />
+      </body>
     </html>
   );
 }

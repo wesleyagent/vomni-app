@@ -14,6 +14,8 @@ import {
   LogOut,
 } from "lucide-react";
 import { getBusiness } from "@/lib/storage";
+import dynamic from "next/dynamic";
+const ChatWidget = dynamic(() => import("@/components/ChatWidget"), { ssr: false });
 
 const navLinks = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -34,11 +36,13 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [businessName, setBusinessName] = useState<string>("My Business");
+  const [businessInfo, setBusinessInfo] = useState<{ id: string; name: string; ownerName: string } | null>(null);
 
   useEffect(() => {
     const business = getBusiness();
     if (business?.name) {
       setBusinessName(business.name);
+      setBusinessInfo({ id: business.id, name: business.name, ownerName: business.ownerName || business.name });
     }
   }, []);
 
@@ -180,6 +184,9 @@ export default function DashboardLayout({
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
+
+      {/* Dashboard chat widget */}
+      <ChatWidget context="dashboard" business={businessInfo} />
     </div>
   );
 }
