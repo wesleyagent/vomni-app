@@ -4,8 +4,9 @@ import { useState, useEffect, useRef } from "react";
 import {
   Crown, Search, PenLine, MessageSquare, Calendar, UserCheck,
   Wrench, BarChart3, Play, Pause, Send, X, ChevronDown, ChevronUp,
-  Users, Bot, Trash2
+  Users, Bot, Trash2, CheckCircle2, AlertCircle, Plug, Key, Webhook
 } from "lucide-react";
+import { supabase, supabaseConfigured } from "@/lib/supabase";
 
 const G = "#00C896";
 const N = "#0A0F1E";
@@ -354,7 +355,21 @@ type AgentStates = Record<string, AgentState>;
 type ChatHistories = Record<string, Message[]>;
 
 const STATES_KEY = "vomni_agent_states";
+const TOOLS_KEY = "vomni_tool_connections";
 const chatKey = (id: string) => `vomni_agent_chat_${id}`;
+
+interface ToolConnections {
+  googlePlacesKey: string;
+  calendlyKey: string;
+  makeWebhookUrl: string;
+}
+
+interface ToolStats {
+  leadsCount: number;
+  pendingCopy: number;
+  conversationsNeedResponse: number;
+  lastReportDays: number | null;
+}
 
 function defaultStates(): AgentStates {
   const s: AgentStates = {};
@@ -396,6 +411,11 @@ export default function AgentsPage() {
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [ceoExpanded, setCeoExpanded] = useState(true);
+  const [toolStats, setToolStats] = useState<ToolStats>({ leadsCount: 0, pendingCopy: 0, conversationsNeedResponse: 0, lastReportDays: null });
+  const [toolConnections, setToolConnections] = useState<ToolConnections>({ googlePlacesKey: "", calendlyKey: "", makeWebhookUrl: "" });
+  const [toolsExpanded, setToolsExpanded] = useState(false);
+  const [editingTool, setEditingTool] = useState<keyof ToolConnections | null>(null);
+  const [toolInputVal, setToolInputVal] = useState("");
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // ── Load from localStorage ──────────────────────────────────────────────
@@ -404,6 +424,11 @@ export default function AgentsPage() {
     try {
       const raw = localStorage.getItem(STATES_KEY);
       if (raw) setStates(JSON.parse(raw));
+    } catch { /* ignore */ }
+
+    try {
+      const raw = localStorage.getItem(TOOLS_KEY);
+      if (raw) setToolConnections(JSON.parse(raw));
     } catch { /* ignore */ }
 
     const h: ChatHistories = {};
@@ -415,7 +440,36 @@ export default function AgentsPage() {
       } catch { h[a.id] = []; }
     });
     setHistories(h);
+
+    fetchToolStats();
   }, []);
+
+  async function fetchToolStats() {
+    if (!supabaseConfigured) return;
+    const [leadsRes, copyRes, convRes, reportsRes] = await Promise.all([
+      supabase.from("leads").select("id", { count: "exact", head: true }),
+      supabase.from("copy_queue").select("id", { count: "exact", head: true }).eq("status", "pending"),
+      supabase.from("conversations").select("id", { count: "exact", head: true }).eq("status", "new_reply"),
+      supabase.from("weekly_reports").select("created_at").order("created_at", { ascending: false }).limit(1),
+    ]);
+    const lastReportDays = reportsRes.data?.[0]
+      ? Math.floor((Date.now() - new Date(reportsRes.data[0].created_at).getTime()) / 1000 / 60 / 60 / 24)
+      : null;
+    setToolStats({
+      leadsCount: leadsRes.count ?? 0,
+      pendingCopy: copyRes.count ?? 0,
+      conversationsNeedResponse: convRes.count ?? 0,
+      lastReportDays,
+    });
+  }
+
+  function saveToolConnection(key: keyof ToolConnections, value: string) {
+    const updated = { ...toolConnections, [key]: value };
+    setToolConnections(updated);
+    try { localStorage.setItem(TOOLS_KEY, JSON.stringify(updated)); } catch { /* ignore */ }
+    setEditingTool(null);
+    setToolInputVal("");
+  }
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -683,6 +737,28 @@ export default function AgentsPage() {
                     Last active: {formatLastActivity(state.lastActivity)}
                   </p>
 
+                  {/* Tool status */}
+                  {(() => {
+                    const lines: { text: string; ok: boolean }[] = [];
+                    if (agent.id === "prospector") lines.push({ text: supabaseConfigured ? `${toolStats.leadsCount} leads in pipeline` : "Supabase: Not connected", ok: supabaseConfigured });
+                    if (agent.id === "outreach-writer") lines.push({ text: supabaseConfigured ? `Copy queue: ${toolStats.pendingCopy} pending` : "Supabase: Not connected", ok: supabaseConfigured && toolStats.pendingCopy === 0 });
+                    if (agent.id === "objection-handler") lines.push({ text: supabaseConfigured ? `${toolStats.conversationsNeedResponse} need response` : "Supabase: Not connected", ok: supabaseConfigured && toolStats.conversationsNeedResponse === 0 });
+                    if (agent.id === "demo-booker") lines.push({ text: toolConnections.calendlyKey ? "Calendly: Connected" : "Calendly: Not connected", ok: !!toolConnections.calendlyKey });
+                    if (agent.id === "onboarder") lines.push({ text: "Email (Resend): Auto-connected", ok: true });
+                    if (agent.id === "analyst") lines.push({ text: toolStats.lastReportDays === null ? "No reports yet" : `Last report: ${toolStats.lastReportDays}d ago`, ok: toolStats.lastReportDays !== null && toolStats.lastReportDays < 8 });
+                    if (lines.length === 0) return null;
+                    return (
+                      <div className="mt-2 space-y-1">
+                        {lines.map(({ text, ok }, i) => (
+                          <div key={i} className="flex items-center gap-1.5">
+                            <div className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ background: ok ? G : "#F59E0B" }} />
+                            <p className="text-xs text-gray-400">{text}</p>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
                   {/* Toggle + Open button */}
                   <div className="mt-4 flex items-center justify-between">
                     <Toggle
@@ -841,6 +917,136 @@ export default function AgentsPage() {
             </div>
           </div>
         )}
+
+        {/* ── Tools Section ───────────────────────────────────────────── */}
+        <div className="mt-8 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          <button
+            className="flex w-full items-center justify-between px-6 py-4"
+            onClick={() => setToolsExpanded(!toolsExpanded)}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={{ background: "rgba(0,200,150,0.08)" }}>
+                <Plug size={18} style={{ color: G }} />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-semibold text-gray-900">Tools & Integrations</p>
+                <p className="text-xs text-gray-500">Connect external services your agents use</p>
+              </div>
+            </div>
+            {toolsExpanded ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+          </button>
+
+          {toolsExpanded && (
+            <div className="border-t border-gray-100 p-6">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {[
+                  {
+                    name: "Supabase",
+                    description: "Lead pipeline, copy queue, conversations, reports",
+                    icon: null,
+                    connected: supabaseConfigured,
+                    autoConnected: true,
+                    key: null as keyof ToolConnections | null,
+                    placeholder: "",
+                  },
+                  {
+                    name: "Resend",
+                    description: "Onboarding emails and signup notifications",
+                    icon: null,
+                    connected: true,
+                    autoConnected: true,
+                    key: null as keyof ToolConnections | null,
+                    placeholder: "",
+                  },
+                  {
+                    name: "Google Places API",
+                    description: "Prospector uses this to find and score leads",
+                    icon: Key,
+                    connected: !!toolConnections.googlePlacesKey,
+                    autoConnected: false,
+                    key: "googlePlacesKey" as keyof ToolConnections,
+                    placeholder: "AIza...",
+                  },
+                  {
+                    name: "Calendly",
+                    description: "Demo Booker sends this link to book calls",
+                    icon: Key,
+                    connected: !!toolConnections.calendlyKey,
+                    autoConnected: false,
+                    key: "calendlyKey" as keyof ToolConnections,
+                    placeholder: "Calendly link or API key",
+                  },
+                  {
+                    name: "Make (webhook)",
+                    description: "Trigger automations when leads or demos are created",
+                    icon: Webhook,
+                    connected: !!toolConnections.makeWebhookUrl,
+                    autoConnected: false,
+                    key: "makeWebhookUrl" as keyof ToolConnections,
+                    placeholder: "https://hook.make.com/...",
+                  },
+                ].map((tool) => {
+                  const isEditing = editingTool === tool.key;
+                  return (
+                    <div key={tool.name} className="rounded-xl border border-gray-100 p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          {tool.connected
+                            ? <CheckCircle2 size={16} style={{ color: G }} />
+                            : <AlertCircle size={16} className="text-amber-400" />}
+                          <p className="text-sm font-semibold text-gray-900">{tool.name}</p>
+                        </div>
+                        <span className="rounded-full px-2 py-0.5 text-xs font-medium"
+                          style={tool.connected
+                            ? { background: "rgba(0,200,150,0.1)", color: G }
+                            : { background: "#FEF3C7", color: "#D97706" }}>
+                          {tool.connected ? (tool.autoConnected ? "Auto-connected" : "Connected") : "Not connected"}
+                        </span>
+                      </div>
+                      <p className="mt-1.5 text-xs text-gray-500">{tool.description}</p>
+                      {!tool.autoConnected && tool.key && (
+                        <div className="mt-3">
+                          {isEditing ? (
+                            <div className="flex gap-2">
+                              <input
+                                value={toolInputVal}
+                                onChange={(e) => setToolInputVal(e.target.value)}
+                                placeholder={tool.placeholder}
+                                className="flex-1 rounded-lg border border-gray-200 px-2 py-1.5 text-xs outline-none"
+                                onFocus={(e) => { e.currentTarget.style.borderColor = G; }}
+                                onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; }}
+                                autoFocus
+                              />
+                              <button onClick={() => saveToolConnection(tool.key!, toolInputVal)}
+                                className="rounded-lg px-2 py-1.5 text-xs font-medium text-white" style={{ background: G }}>
+                                Save
+                              </button>
+                              <button onClick={() => setEditingTool(null)}
+                                className="rounded-lg border border-gray-200 px-2 py-1.5 text-xs text-gray-500 hover:bg-gray-50">
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setEditingTool(tool.key!); setToolInputVal(toolConnections[tool.key!] ?? ""); }}
+                              className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                            >
+                              {tool.connected ? "Update" : "Connect"}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                      {tool.autoConnected && !tool.connected && (
+                        <p className="mt-2 text-xs text-amber-600">Add environment variable to activate</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
       </div>
 
       {/* Bounce animation */}
