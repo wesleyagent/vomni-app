@@ -314,4 +314,113 @@ Research shows 20-30% of booked demos are no-shows. Prevention tactics:
 
 ---
 
-*This document is maintained by the Vomni team. Last updated at project initialisation. Update when new tactics are validated by real-world data from the Analyst's weekly reports.*
+---
+
+## 11. Additional Research Findings (March 2025)
+
+### Key Stats Quick Reference
+
+| Topic | Stat |
+|---|---|
+| AI Prospecting | Teams using AI report 10–25% pipeline lift; up to 1.3× revenue vs non-AI teams |
+| Cold Email | Personalised subject lines = +29% open rate |
+| Cold Email Timing | 9–11am and 1–4pm = highest response windows |
+| Instagram DMs | Open rates: 80–100%; achievable reply rate: up to 36% |
+| Objection Handling | 60% of customers say "no" 4× before saying "yes"; 92% of reps quit after 4 "no"s |
+| Follow-Up | 80% of sales require 5+ touches to close |
+| Demo Talk Ratio | Top reps let prospects speak 57% of the time (Gong 43/57 rule) |
+| Demo Speed | 78% of new business goes to the first responder (HBR) |
+| SaaS Onboarding | 8 in 10 users abandon apps due to poor onboarding |
+| Onboarding Emails | Open rates up to 83%; triggered emails 3–4× CTR vs time-based |
+| Lead Gen | Companies automating lead gen see +30% conversion rate |
+| BANT | 67% of top B2B companies use BANT as core qualification method (Gartner) |
+| SPIN | SPIN practitioners achieve 57% higher prospect talk time |
+| PQLs | Product Qualified Leads convert at 2–3× the rate of MQLs |
+| Personalisation | Trigger-event personalisation = 3× reply rate vs generic outreach |
+| AI Scraping | ~$0.20 per 1,000 leads using automated Google Maps/LinkedIn tools |
+
+### The Personalisation Pyramid
+
+Moving from least to most effective (each level roughly doubles reply rate):
+
+1. **Name personalisation** — table stakes, not a differentiator
+2. **Company/role personalisation** — industry, title, company size
+3. **Situational personalisation** — specific observable fact (recent news, funding, job posting, review they left)
+4. **Pain-based personalisation** — connecting their observable situation to a known pain
+5. **Proof-based personalisation** — showing how you solved the same problem for someone just like them
+
+Most reps stop at level 1 or 2. Tier 4–5 is where Vomni's agents operate.
+
+### Trigger Event Framework
+
+Use observable prospect signals as personalisation triggers:
+- They posted about a challenge → reference it specifically
+- They have a recent negative review → the owner is thinking about reviews right now
+- Their competitor just passed a milestone (100 reviews, 4.5 stars) → urgency signal
+- Their rating dropped since last month → live pain signal, reach out now
+- They follow a competitor's Instagram account → aware of the competitive gap
+
+### The Relevance-Brevity-Value (RBV) Model
+
+Every personalised outreach message must satisfy all three:
+- **Relevant**: the personalisation is tied to something they care about, not trivia
+- **Brief**: under 60 words for cold DMs, under 100 words for cold email
+- **Valuable**: there is something worth reading even if they never buy
+
+### 4-Step Objection Framework
+
+A structured alternative to Feel/Felt/Found:
+
+1. **Acknowledge** — validate without agreeing ("That makes sense")
+2. **Align** — show you understand their position ("A lot of barbers I speak to feel the same way initially")
+3. **Reframe** — shift the lens ("The question isn't really cost, it's what staying at 3.9 stars is costing you each month")
+4. **Ask** — hand the conversation back ("What would need to be true for this to make sense for you?")
+
+### Story-Led Demo Structure (Gong-validated)
+
+1. **Align** — confirm their pain in their words before showing anything
+2. **Frame** — "Let me show you exactly how [business like theirs] solved this"
+3. **Narrate** — tell the before/after story of a similar customer
+4. **Show** — demo only the features that match their pain
+5. **Check In** — "Does this solve what you described?"
+6. **Next Steps** — close on the call, not after it
+
+### RACI Framework for AI Agents
+
+Every agent in the Vomni team has defined ownership:
+- **Responsible**: the AI agent executing the task
+- **Accountable**: the human (Omri) who owns the outcome and quality
+- **Consulted**: CEO agent, which coordinates and sets priorities
+- **Informed**: Analyst agent, which tracks all results weekly
+
+### Autonomy Spectrum
+
+Map each agent before deployment:
+1. **Fully supervised** — agent drafts, human approves every output before it acts
+2. **Conditionally autonomous** — acts independently within rules; escalates edge cases
+3. **Fully autonomous** — acts without human review (low-risk tasks only)
+
+Outbound communication and any financial action = always supervised or conditional. Never fully autonomous.
+
+### Agent Lifecycle Framework
+
+1. **Design**: define scope, inputs, outputs, guardrails, escalation triggers
+2. **Test**: run on small sample with 100% human review
+3. **Pilot**: partial volume with spot-checking (10–20% of outputs)
+4. **Scale**: full volume with automated quality monitoring
+5. **Review**: monthly check of agent performance vs KPIs
+6. **Retire/Update**: refresh instructions when business context changes
+
+### CHAMP Framework (Alternative to BANT)
+
+More pain-focused qualification for independent business owners:
+- **C — Challenges**: what specific problem are they trying to solve right now?
+- **H — Authority**: are they the decision-maker (owner, not manager)?
+- **A — Money**: can they allocate budget? (independent owners = yes if they feel the pain)
+- **P — Prioritization**: is this a priority for them this month, or a "nice to have"?
+
+CHAMP leads with pain rather than budget — better fit for cold DM outreach to service businesses.
+
+---
+
+*This document is maintained by the Vomni team. Last updated March 2025 with additional research from validated sales, onboarding, and AI agent management sources. Update when new tactics are validated by real-world data from the Analyst's weekly reports.*
