@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getBusiness, updateBusiness } from "@/lib/storage";
 import type { Business } from "@/types";
-import { CheckCircle2, Circle, Copy, Check } from "lucide-react";
+import { CheckCircle2, Circle } from "lucide-react";
+import { EmailForwardingSetup } from "./EmailForwardingSetup";
 
 const G = "#00C896";
 const N = "#0A0F1E";
@@ -37,8 +38,6 @@ export default function OnboardingPage() {
   const [bizPhone, setBizPhone] = useState("");
   const [bizAddress, setBizAddress] = useState("");
   const [googleLink, setGoogleLink] = useState("");
-  const [copied, setCopied] = useState(false);
-
   const refreshBusiness = useCallback(() => {
     const biz = getBusiness();
     if (!biz) {
@@ -73,13 +72,6 @@ export default function OnboardingPage() {
     newSteps[index] = true;
     updateBusiness({ ...updates, onboardingSteps: newSteps });
     refreshBusiness();
-  }
-
-  function handleCopyEmail() {
-    navigator.clipboard.writeText(business!.forwardingEmail).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
   }
 
   function handleGoLive() {
@@ -220,39 +212,10 @@ export default function OnboardingPage() {
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">Set up email forwarding</h3>
                 {!steps[2] && (
-                  <div className="mt-4 space-y-3">
-                    <p className="text-sm text-gray-500">
-                      In your booking system&apos;s email settings, add this address as a forwarding address. Every booking confirmation email will be automatically parsed.
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <code className="flex-1 bg-gray-100 rounded-lg px-3 py-2 text-sm text-gray-900 font-mono truncate">
-                        {business.forwardingEmail}
-                      </code>
-                      <button
-                        onClick={handleCopyEmail}
-                        className="flex-shrink-0 bg-gray-100 hover:bg-gray-200 text-gray-700 p-2 rounded-lg transition-colors"
-                        title="Copy email"
-                      >
-                        {copied ? (
-                          <Check className="w-4 h-4" style={{ color: G }} />
-                        ) : (
-                          <Copy className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                    <button
-                      onClick={() => markStep(2)}
-                      className="text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
-                      style={{ background: G }}
-                      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#00A87D'; }}
-                      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = G; }}
-                    >
-                      Mark as complete
-                    </button>
-                  </div>
+                  <EmailForwardingSetup onComplete={() => markStep(2)} />
                 )}
                 {steps[2] && (
-                  <p className="text-sm text-gray-500 mt-1">Forwarding to {business.forwardingEmail}</p>
+                  <p className="text-sm text-gray-500 mt-1">Forwarding to forwarding@vomni.io</p>
                 )}
               </div>
             </div>
