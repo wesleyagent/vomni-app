@@ -27,9 +27,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     try {
       if (sessionStorage.getItem(SESSION_KEY) === "1") setAuthenticated(true);
     } catch { /* sessionStorage blocked */ }
-    // Auto-expand if on a workspace sub-page
-    const workspacePaths = ["/admin/agents/leads", "/admin/agents/copy", "/admin/agents/conversations", "/admin/agents/results"];
-    if (workspacePaths.some((p) => pathname.startsWith(p))) setWorkspaceOpen(true);
+    // Auto-expand if on any agents page
+    if (pathname.startsWith("/admin/agents")) setWorkspaceOpen(true);
   }, [pathname]);
 
   const handleLogin = (e: React.FormEvent) => {
@@ -136,7 +135,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     );
   }
 
-  const workspaceActive = isActivePrefix("/admin/agents/leads") || isActivePrefix("/admin/agents/copy") || isActivePrefix("/admin/agents/conversations") || isActivePrefix("/admin/agents/results");
+  const workspaceActive = isActivePrefix("/admin/agents");
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50">
@@ -155,7 +154,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Top nav items */}
           <NavLink href="/admin" label="Admin Dashboard" icon={LayoutDashboard} />
-          <NavLink href="/admin/agents" label="Agent Team" icon={Bot} />
 
           {/* Agent Workspace section */}
           <div style={{ marginTop: 12 }}>
@@ -178,6 +176,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {workspaceOpen && (
               <div style={{ marginTop: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+                <NavLink href="/admin/agents" label="Agent Team" icon={Bot} indent />
                 <NavLink href="/admin/agents/leads" label="Lead Pipeline" icon={Target} indent />
                 <NavLink href="/admin/agents/copy" label="Copy Queue" icon={PenLine} indent />
                 <NavLink href="/admin/agents/conversations" label="Conversations" icon={MessageSquare} indent />

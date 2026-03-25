@@ -1,10 +1,14 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 
-export const supabase = createClient(url, key);
 export const supabaseConfigured = !!(url && key);
+
+// Only create the client when credentials are present — createClient throws on empty strings
+export const supabase: SupabaseClient = supabaseConfigured
+  ? createClient(url, key)
+  : (new Proxy({}, { get: () => () => ({ data: null, error: new Error("Supabase not configured") }) }) as unknown as SupabaseClient);
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
