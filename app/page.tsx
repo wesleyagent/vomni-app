@@ -333,6 +333,7 @@ function CustomerViewTab() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const [scrolled,  setScrolled]  = useState(false);
+  const [menuOpen,  setMenuOpen]  = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const [gsapReady, setGsapReady] = useState(false);
   const [chartLoaded, setChartLoaded] = useState(false);
@@ -497,15 +498,77 @@ export default function LandingPage() {
             </button>
             <a href="/signup" style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}>Login</a>
           </div>
-          <a href="/signup"
+          {/* Desktop Get Started */}
+          <a href="/signup" className="nav-get-started"
             style={{ background: G, color: "#fff", borderRadius: 9999, padding: "12px 28px", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", transition: "background 0.2s" }}
             onMouseEnter={e => (e.currentTarget.style.background = GD)}
             onMouseLeave={e => (e.currentTarget.style.background = G)}
           >
             Get Started
           </a>
+          {/* Mobile right side: Get Started + hamburger */}
+          <div className="nav-mobile-right" style={{ display: "none", alignItems: "center", gap: 12 }}>
+            <a href="/signup"
+              style={{ background: G, color: "#fff", borderRadius: 9999, padding: "10px 20px", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, textDecoration: "none" }}
+            >
+              Get Started
+            </a>
+            <button
+              className="nav-hamburger"
+              onClick={() => setMenuOpen(true)}
+              style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", flexDirection: "column", gap: 5, alignItems: "center", justifyContent: "center" }}
+              aria-label="Open menu"
+            >
+              <span style={{ display: "block", width: 24, height: 2, background: N, borderRadius: 2 }} />
+              <span style={{ display: "block", width: 24, height: 2, background: N, borderRadius: 2 }} />
+              <span style={{ display: "block", width: 24, height: 2, background: N, borderRadius: 2 }} />
+            </button>
+          </div>
         </div>
       </nav>
+
+      {/* ── MOBILE MENU OVERLAY ─────────────────────────────────────────────── */}
+      {menuOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 200, display: "flex", flexDirection: "column", padding: "0 24px", animation: "slideDown 0.25s ease" }}>
+          {/* Header */}
+          <div style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${BD}` }}>
+            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: N }}>Vomni</span>
+            <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }} aria-label="Close menu">
+              <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={N} strokeWidth={2} strokeLinecap="round">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+          {/* Nav links */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 8 }}>
+            {[
+              { label: "How it Works", action: () => { setMenuOpen(false); document.querySelector("#how-it-works")?.scrollIntoView({ behavior: "smooth" }); } },
+              { label: "See Demo",     action: () => { setMenuOpen(false); document.querySelector("#demo")?.scrollIntoView({ behavior: "smooth" }); } },
+              { label: "Pricing",      action: () => { setMenuOpen(false); document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" }); } },
+              { label: "Book a Demo",  action: () => { setMenuOpen(false); scrollToBookDemo(); }, green: true },
+              { label: "Login",        action: () => { setMenuOpen(false); window.location.href = "/signup"; } },
+            ].map((item) => (
+              <button
+                key={item.label}
+                onClick={item.action}
+                style={{
+                  background: "none", border: "none", borderBottom: `1px solid ${BD}`,
+                  padding: "20px 0", textAlign: "left", cursor: "pointer",
+                  fontFamily: "Inter, sans-serif", fontSize: 20, fontWeight: 600,
+                  color: item.green ? G : N,
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <div style={{ paddingBottom: 40 }}>
+            <a href="/signup" style={{ display: "block", background: G, color: "#fff", borderRadius: 9999, padding: "18px 0", fontFamily: "Inter, sans-serif", fontSize: 17, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
+              Get Started
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* ── HERO ────────────────────────────────────────────────────────────── */}
       <section style={{ minHeight: "100vh", position: "relative", display: "flex", alignItems: "center", paddingTop: 120, paddingBottom: 80 }}>
@@ -537,7 +600,7 @@ export default function LandingPage() {
               <Stars count={5} size={20} />
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS }}>Trusted by thousands of businesses whose reputation is everything</span>
             </div>
-            <div style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div className="trust-pills" style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
               {["✓ 98% SMS open rate", "✓ 5 min setup", "✓ 14-day money back"].map((t) => (
                 <span key={t} style={{ background: OW, borderRadius: 9999, padding: "8px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: TS }}>{t}</span>
               ))}
@@ -625,8 +688,8 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 80, background: "rgba(0,200,150,0.08)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 16, padding: "40px 60px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 40 }}>
-            <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 32, fontWeight: 700, color: "#fff", lineHeight: 1.3, flex: 1 }}>
+          <div className="pain-statement-bar" style={{ marginTop: 80, background: "rgba(0,200,150,0.08)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 16, padding: "40px 60px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 40 }}>
+            <p className="pain-statement-text" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 32, fontWeight: 700, color: "#fff", lineHeight: 1.3, flex: 1 }}>
               Every review you don&apos;t collect is a customer your competitor wins instead.
             </p>
             <a href="/signup" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
@@ -661,6 +724,7 @@ export default function LandingPage() {
             {tabs.map((t) => (
               <button
                 key={t.id}
+                className="tab-button"
                 onClick={() => setActiveTab(t.id)}
                 style={{
                   fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500,
@@ -677,7 +741,7 @@ export default function LandingPage() {
           </div>
 
           {/* Browser frame */}
-          <div style={{ maxWidth: 1000, margin: "48px auto 0", background: "#fff", borderRadius: 20, boxShadow: "0 40px 100px rgba(0,0,0,0.12)", overflow: "hidden" }}>
+          <div className="browser-frame-large" style={{ maxWidth: 1000, margin: "48px auto 0", background: "#fff", borderRadius: 20, boxShadow: "0 40px 100px rgba(0,0,0,0.12)", overflow: "hidden" }}>
             <BrowserChrome url={tabUrls[activeTab]} />
             <div style={{ minHeight: 500 }}>
               {activeTab === "overview"  && <OverviewTab />}
@@ -861,9 +925,10 @@ export default function LandingPage() {
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: TS, textAlign: "center", marginTop: 12, lineHeight: 1.6 }}>
             No sign up needed. Click in and see exactly what your customers would see.
           </p>
-          <div style={{ display: "flex", justifyContent: "center", gap: 28, marginTop: 56, flexWrap: "wrap" }}>
+          <div className="demo-cards-container" style={{ display: "flex", justifyContent: "center", gap: 28, marginTop: 56, flexWrap: "wrap" }}>
             {/* Card 1 — Kings Cuts London */}
             <div
+              className="demo-card"
               style={{ background: "#fff", borderRadius: 20, padding: 36, boxShadow: "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)", maxWidth: 400, flex: 1, transition: "all 0.25s ease", cursor: "pointer" }}
               onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.14)"; }}
               onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)"; }}
@@ -894,6 +959,7 @@ export default function LandingPage() {
             </div>
             {/* Card 2 — Bella Vista Restaurant */}
             <div
+              className="demo-card"
               style={{ background: "#fff", borderRadius: 20, padding: 36, boxShadow: "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)", maxWidth: 400, flex: 1, transition: "all 0.25s ease", cursor: "pointer" }}
               onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.boxShadow = "0 8px 16px rgba(0,0,0,0.06), 0 24px 60px rgba(0,0,0,0.14)"; }}
               onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)"; }}
@@ -928,12 +994,12 @@ export default function LandingPage() {
 
       {/* ── BOOK A DEMO ─────────────────────────────────────────────────────── */}
       <section id="book-demo" style={{ background: N, padding: "120px 0" }}>
-        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+        <div className="book-demo-layout container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
 
           {/* Left — copy */}
           <div>
             <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: G, textTransform: "uppercase" }}>BOOK A DEMO</p>
-            <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 52, fontWeight: 800, color: "#fff", lineHeight: 1.1, marginTop: 16 }}>
+            <h2 className="book-demo-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 52, fontWeight: 800, color: "#fff", lineHeight: 1.1, marginTop: 16 }}>
               See exactly how Vomni works for your business.
             </h2>
             <p style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginTop: 16 }}>
@@ -956,7 +1022,7 @@ export default function LandingPage() {
           </div>
 
           {/* Right — booking form card */}
-          <div style={{ background: "#fff", borderRadius: 20, padding: 40, boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
+          <div className="book-demo-card" style={{ background: "#fff", borderRadius: 20, padding: 40, boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
             {bookingSuccess ? (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
                 <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(0,200,150,0.1)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
@@ -978,7 +1044,7 @@ export default function LandingPage() {
               <form onSubmit={submitBooking}>
                 <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>Book your free demo</h3>
                 <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS, marginTop: 6, marginBottom: 28 }}>Pick a time that works for you</p>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                <div className="name-fields" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                   {/* First + Last name */}
                   {[
                     { label: "First name", key: "firstName", placeholder: "James" },
@@ -1065,7 +1131,7 @@ export default function LandingPage() {
           <div className="pricing-flex" style={{ display: "flex", justifyContent: "center", alignItems: "stretch", gap: 28, marginTop: 80, maxWidth: 860, marginLeft: "auto", marginRight: "auto" }}>
 
             {/* Monthly */}
-            <div style={{ background: "#fff", borderRadius: 24, padding: 48, flex: 1, display: "flex", flexDirection: "column" }}>
+            <div className="pricing-card" style={{ background: "#fff", borderRadius: 24, padding: 48, flex: 1, display: "flex", flexDirection: "column" }}>
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: TS }}>MONTHLY</p>
               <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 12 }}>
                 <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 72, fontWeight: 900, color: N, lineHeight: 1 }}>£70</span>
@@ -1086,7 +1152,7 @@ export default function LandingPage() {
             </div>
 
             {/* Annual */}
-            <div style={{ background: "#fff", borderRadius: 24, padding: 48, flex: 1, border: `2.5px solid ${G}`, position: "relative", display: "flex", flexDirection: "column" }}>
+            <div className="pricing-card" style={{ background: "#fff", borderRadius: 24, padding: 48, flex: 1, border: `2.5px solid ${G}`, position: "relative", display: "flex", flexDirection: "column" }}>
               <div style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", background: G, color: "#fff", borderRadius: 9999, padding: "6px 20px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
                 SAVE £240
               </div>
@@ -1120,7 +1186,7 @@ export default function LandingPage() {
       {/* ── FINAL CTA ───────────────────────────────────────────────────────── */}
       <section className="section-pad" style={{ background: "#fff", padding: "120px 0", textAlign: "center" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
-          <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 80, fontWeight: 800, color: N, lineHeight: 1.0, letterSpacing: "-0.03em" }}>
+          <h2 className="section-headline final-cta-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 80, fontWeight: 800, color: N, lineHeight: 1.0, letterSpacing: "-0.03em" }}>
             Your competitors are collecting reviews right now.
           </h2>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, marginTop: 24 }}>
@@ -1128,6 +1194,7 @@ export default function LandingPage() {
           </p>
           <a
             href="/signup"
+            className="final-cta-button"
             style={{ display: "inline-block", marginTop: 48, background: G, color: "#fff", borderRadius: 9999, padding: "22px 56px", fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, textDecoration: "none", boxShadow: "0 0 40px rgba(0,200,150,0.3)", transition: "transform 0.2s, box-shadow 0.2s" }}
             onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.03)"; e.currentTarget.style.boxShadow = "0 0 60px rgba(0,200,150,0.4)"; }}
             onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 0 40px rgba(0,200,150,0.3)"; }}
@@ -1141,9 +1208,9 @@ export default function LandingPage() {
 
       {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
       <footer style={{ background: N, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "48px 0" }}>
-        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
+        <div className="footer-inner container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
           <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 800, color: "#fff" }}>Vomni</span>
-          <div style={{ display: "flex", gap: 32 }}>
+          <div className="footer-links" style={{ display: "flex", gap: 32 }}>
             {["Pricing", "Contact", "Privacy", "Terms"].map((l) => (
               <a key={l} href="#" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>{l}</a>
             ))}

@@ -123,25 +123,201 @@ h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; }
   overflow: visible;
 }
 
-/* ── Responsive overrides ───────────────────────────────────────────────────── */
+/* ── Hamburger / mobile nav — hidden on desktop ─────────────────────────────── */
+.nav-mobile-right { display: none !important; }
+.nav-hamburger    { display: none !important; }
+
+/* ── Slide-down animation for mobile menu ───────────────────────────────────── */
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE — 768px and below
+   All rules use !important to override inline styles.
+   Desktop layout is completely unchanged.
+   ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
-  .hero-grid     { grid-template-columns: 1fr !important; }
+
+  /* ── Prevent horizontal overflow ── */
+  body { overflow-x: hidden; }
+  * { box-sizing: border-box; }
+
+  /* ── Container & section padding ── */
+  .container  { padding: 0 20px !important; }
+  .section-pad { padding: 80px 0 !important; }
+
+  /* ─────────────────── NAV ─────────────────── */
+  .nav-links        { display: none !important; }
+  .nav-get-started  { display: none !important; }
+  .nav-mobile-right { display: flex !important; }
+
+  /* ─────────────────── HERO ─────────────────── */
+  .hero-grid {
+    grid-template-columns: 1fr !important;
+    padding: 80px 20px 60px !important;
+    gap: 40px !important;
+  }
+  .hero-headline { font-size: 44px !important; line-height: 1.05 !important; }
+  .hero-sub      { font-size: 16px !important; }
+  .hero-buttons  {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    width: 100% !important;
+    gap: 12px !important;
+  }
+  .hero-buttons > * {
+    width: 100% !important;
+    text-align: center !important;
+    display: block !important;
+    box-sizing: border-box !important;
+  }
+  .browser-frame {
+    transform: none !important;
+    animation: none !important;
+    max-width: 100% !important;
+  }
+  .notif-card  { display: none !important; }
+  .trust-pills { flex-wrap: wrap !important; gap: 8px !important; }
+
+  /* ─────────────────── PAIN SECTION ─────────────────── */
+  .pain-headline { font-size: 36px !important; }
   .pain-grid     { grid-template-columns: 1fr 1fr !important; }
-  .steps-grid    { grid-template-columns: 1fr !important; }
-  .testimonials-grid { grid-template-columns: 1fr !important; }
-  .pricing-flex  { flex-direction: column !important; }
-  .hero-headline { font-size: 52px !important; }
-  .pain-headline { font-size: 40px !important; }
-  .section-headline { font-size: 40px !important; }
-  .hero-buttons  { flex-direction: column !important; align-items: flex-start !important; }
-  .browser-frame { transform: none !important; animation: none !important; max-width: 100% !important; }
-  .notif-card    { display: none !important; }
-  .container     { padding: 0 24px !important; }
-  .section-pad   { padding: 80px 0 !important; }
-  .nav-links     { display: none !important; }
+  .pain-stat     {
+    padding: 36px 20px !important;
+    border-right: none !important;
+    border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+  }
+  .pain-statement-bar {
+    flex-direction: column !important;
+    gap: 20px !important;
+    text-align: center !important;
+    padding: 28px 20px !important;
+  }
+  .pain-statement-text { font-size: 20px !important; flex: none !important; }
+  .pain-statement-bar > a,
+  .pain-statement-bar > button { width: 100% !important; text-align: center !important; white-space: normal !important; }
+
+  /* ─────────────────── PRODUCT SHOWCASE ─────────────────── */
+  .section-headline { font-size: 36px !important; }
+  .product-tabs {
+    overflow-x: auto !important;
+    justify-content: flex-start !important;
+    padding: 12px 20px !important;
+    position: static !important;
+    gap: 8px !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+  }
+  .product-tabs::-webkit-scrollbar { display: none !important; }
+  .tab-button {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 10px 20px !important;
+    font-size: 14px !important;
+  }
+  .browser-frame-large {
+    width: calc(100vw - 40px) !important;
+    min-width: 0 !important;
+    margin: 20px 20px 0 !important;
+    border-radius: 12px !important;
+    overflow-x: auto !important;
+    max-width: calc(100vw - 40px) !important;
+  }
+
+  /* ─────────────────── HOW IT WORKS ─────────────────── */
+  .steps-grid { grid-template-columns: 1fr !important; gap: 16px !important; }
+  .step-card  { padding: 28px 24px !important; }
+  .step-headline { font-size: 18px !important; min-height: auto !important; }
+  .step-body     { font-size: 15px !important; min-height: auto !important; }
+  .sms-mockup    { margin: 40px 20px 0 !important; padding: 20px !important; }
+
+  /* ─────────────────── TRY IT LIVE ─────────────────── */
+  .demo-cards-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 0 20px !important;
+    gap: 20px !important;
+  }
+  .demo-card { width: 100% !important; max-width: 100% !important; flex: none !important; }
+
+  /* ─────────────────── BOOK A DEMO ─────────────────── */
+  .book-demo-layout {
+    grid-template-columns: 1fr !important;
+    gap: 40px !important;
+    padding: 0 20px !important;
+  }
+  .book-demo-headline { font-size: 34px !important; }
+  .book-demo-card     { padding: 24px 20px !important; border-radius: 16px !important; }
+  .name-fields        { grid-template-columns: 1fr !important; gap: 0 !important; }
+
+  /* ─────────────────── TESTIMONIALS ─────────────────── */
+  .testimonials-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    padding: 0 20px !important;
+  }
+  .testimonial-card { padding: 28px 24px !important; }
+
+  /* ─────────────────── PRICING ─────────────────── */
+  .pricing-flex {
+    flex-direction: column-reverse !important;
+    align-items: center !important;
+    gap: 20px !important;
+    padding: 0 20px !important;
+  }
+  .pricing-card { width: 100% !important; max-width: 400px !important; flex: none !important; }
+
+  /* ─────────────────── IPHONE MOCKUP ─────────────────── */
+  .iphone {
+    width: 240px !important;
+    height: 480px !important;
+    margin: 32px auto 0 !important;
+    border-radius: 42px !important;
+  }
+  .iphone-screen { border-radius: 32px !important; }
+
+  /* ─────────────────── FINAL CTA ─────────────────── */
+  .final-cta-headline {
+    font-size: 36px !important;
+    padding: 0 20px !important;
+  }
+  .final-cta-button {
+    display: block !important;
+    width: calc(100% - 40px) !important;
+    margin-left: 20px !important;
+    margin-right: 20px !important;
+    padding: 18px 24px !important;
+    font-size: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  /* ─────────────────── FOOTER ─────────────────── */
+  .footer-inner {
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 20px !important;
+    text-align: center !important;
+  }
+  .footer-links {
+    flex-wrap: wrap !important;
+    justify-content: center !important;
+    gap: 16px !important;
+  }
+
+  /* ─────────────────── ANALYTICS TAB ─────────────────── */
   .analytics-grid { grid-template-columns: 1fr !important; }
 }
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE — 480px and below (extra-small phones)
+   ═══════════════════════════════════════════════════════ */
 @media (max-width: 480px) {
+  .hero-headline { font-size: 38px !important; }
   .pain-grid     { grid-template-columns: 1fr !important; }
-  .tabs-row      { flex-wrap: wrap !important; }
+  .pain-stat     { border-right: none !important; border-bottom: 1px solid rgba(255,255,255,0.08) !important; }
+  .section-headline { font-size: 32px !important; }
+  .final-cta-headline { font-size: 32px !important; }
 }
