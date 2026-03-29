@@ -114,7 +114,7 @@ function OverviewTab() {
   const activity = [
     { name: "James Mitchell", status: "Redirected to Google", color: G },
     { name: "Tyler Brooks",   status: "Private Feedback",      color: "#F59E0B" },
-    { name: "Omar Abdullah",  status: "Redirected to Google", color: G },
+    { name: "James Smith",  status: "Redirected to Google", color: G },
     { name: "Aiden Clarke",   status: "Sent",                  color: TM },
     { name: "Marcus Lee",     status: "Opened",                color: "#8B5CF6" },
     { name: "Priya Patel",    status: "Redirected to Google", color: G },
@@ -564,7 +564,7 @@ export default function LandingPage() {
             >
               Book a Demo
             </button>
-            <a href="/signup" style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}>Login</a>
+            <a href="/login" style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}>Login</a>
           </div>
           {/* Desktop Get Started */}
           <a href="/signup" className="nav-get-started"
@@ -614,7 +614,7 @@ export default function LandingPage() {
             { label: "Pricing",      action: () => { setMenuOpen(false); document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" }); } },
             { label: "Contact",      action: () => { setMenuOpen(false); window.location.href = "/contact"; } },
             { label: "Book a Demo",  action: () => { setMenuOpen(false); scrollToBookDemo(); }, green: true },
-            { label: "Login",        action: () => { setMenuOpen(false); window.location.href = "/signup"; } },
+            { label: "Login",        action: () => { setMenuOpen(false); window.location.href = "/login"; } },
           ].map((item) => (
             <button
               key={item.label}
@@ -649,7 +649,7 @@ export default function LandingPage() {
               More 5-star<br /><span style={{ color: G }}>reviews.</span><br />Fewer surprises.
             </h1>
             <p className="hero-sub" style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, lineHeight: 1.6, maxWidth: 460, marginTop: 24 }}>
-              Vomni automatically sends review requests after every appointment and catches unhappy customers privately - before they reach Google.
+              Vomni sends review requests after every appointment. Every customer gets a voice - and you get the chance to make it right.
             </p>
             <div className="hero-buttons" style={{ marginTop: 40, display: "flex", gap: 16, alignItems: "center" }}>
               <a href="/signup" className="cta-primary" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>
@@ -699,7 +699,7 @@ export default function LandingPage() {
                 {[
                   { name: "James Mitchell", status: "Redirected to Google", color: G },
                   { name: "Tyler Brooks",   status: "Private feedback",      color: "#F59E0B" },
-                  { name: "Omar Abdullah",  status: "Redirected to Google", color: G },
+                  { name: "James Smith",  status: "Redirected to Google", color: G },
                 ].map((a, i, arr) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: i < arr.length - 1 ? `1px solid ${BD}` : "none" }}>
                     <span style={{ fontSize: 12, color: N }}>{a.name}</span>
@@ -719,7 +719,7 @@ export default function LandingPage() {
               </div>
               <div>
                 <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>New 5-star review on Google</p>
-                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: TM, marginTop: 2 }}>Omar Abdullah · just now</p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: TM, marginTop: 2 }}>James Smith · just now</p>
               </div>
             </div>
           </div>
@@ -778,7 +778,7 @@ export default function LandingPage() {
       <section className="section-pad" style={{ background: OW, padding: "120px 0" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
           <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: N, textAlign: "center" }}>
-            Everything you need.
+            Built to protect your reputation while you focus on your business.
           </h2>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, textAlign: "center", marginTop: 16 }}>
             See the product. All of it.
@@ -911,7 +911,7 @@ export default function LandingPage() {
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500 }}>New 5-star review on Google · Omar Abdullah</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500 }}>New 5-star review on Google · James Smith</span>
             </div>
           </div>
           <div style={{ marginTop: 60, textAlign: "center" }}>
