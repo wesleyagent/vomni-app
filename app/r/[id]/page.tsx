@@ -358,21 +358,8 @@ export default function RatingPage() {
                 value={message}
                 onChange={e => setMessage(e.target.value)}
                 placeholder="What could we have done better?"
-                style={{ width: "100%", minHeight: 140, padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${BD}`, color: "#111827", background: "#FAFAFA", display: "block", marginBottom: 8 }}
+                style={{ width: "100%", minHeight: 140, padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${BD}`, color: "#111827", background: "#FAFAFA", display: "block", marginBottom: 16 }}
               />
-
-              {/* Google link — below textarea, above send button, very small */}
-              <div style={{ marginTop: "8px", marginBottom: "16px", textAlign: "center" }}>
-                <a
-                  href={business?.google_review_link ?? "#"}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={onGoogleClick}
-                  style={{ fontSize: "11px", color: "#9CA3AF", textDecoration: "underline", fontFamily: "Inter, sans-serif" }}
-                >
-                  Review us on Google
-                </a>
-              </div>
 
               <button
                 type="button"
@@ -390,6 +377,37 @@ export default function RatingPage() {
               >
                 {sending ? "Sending..." : "Send feedback →"}
               </button>
+
+              {/* Google review option — equal opportunity, FTC/Google compliant */}
+              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: `1px solid ${BD}` }}>
+                <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "#6B7280", textAlign: "center", margin: "0 0 10px" }}>
+                  You can also share your experience publicly
+                </p>
+                <a
+                  href={business?.google_review_link ?? "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn"
+                  onClick={onGoogleClick}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "13px",
+                    backgroundColor: "transparent",
+                    color: "#374151",
+                    border: `1.5px solid ${BD}`,
+                    textAlign: "center",
+                    borderRadius: "9999px",
+                    fontSize: "15px",
+                    fontWeight: "600",
+                    fontFamily: "Inter, sans-serif",
+                    textDecoration: "none",
+                    boxSizing: "border-box",
+                  }}
+                >
+                  Leave a Google review
+                </a>
+              </div>
             </div>
           )}
 
