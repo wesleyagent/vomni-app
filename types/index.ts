@@ -29,11 +29,19 @@ export interface Business {
 export type ReviewRequestStatus =
   | "scheduled"
   | "sent"
+  | "sms_sent"
   | "opened"
+  | "form_opened"
+  | "form_submitted"
   | "clicked"
   | "submitted"
   | "redirected"
+  | "redirected_to_google"
+  | "reviewed_positive"
+  | "reviewed_negative"
   | "private_feedback"
+  | "private_feedback_from_positive"
+  | "pending"
   | "failed"
   | "opted_out";
 
