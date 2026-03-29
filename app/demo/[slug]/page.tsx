@@ -3,26 +3,17 @@
 import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { formatDistanceToNow } from "date-fns";
 import {
-  Send,
   Star,
-  ShieldAlert,
-  Zap,
-  TrendingUp,
-  AlertTriangle,
-  ArrowRight,
   Search,
-  ChevronDown,
-  ChevronUp,
   Copy,
   Check,
-  Lightbulb,
-  TriangleAlert,
-  CheckCircle,
+  RefreshCw,
+  Shield,
 } from "lucide-react";
 import {
-  LineChart,
+  AreaChart,
+  Area,
   BarChart,
   PieChart,
   ResponsiveContainer,
@@ -30,7 +21,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Line,
   Bar,
   Pie,
   Cell,
@@ -45,44 +35,122 @@ import {
   bellaVistaFeedback,
   bellaVistaAnalytics,
 } from "@/lib/demo-data";
-import { StatCard } from "@/components/ui/stat-card";
 import type { Business, Customer, FeedbackItem, AnalyticsData } from "@/types";
 
 const G = "#00C896";
 const N = "#0A0F1E";
+const AM = "#F59E0B";
+const RD = "#EF4444";
 
-// ─── Status badges ───
+// ─── Status badges (matching real dashboard exactly) ───
 const STATUS_BADGES: Record<string, { label: string; style: React.CSSProperties }> = {
-  scheduled: { label: "Scheduled", style: { background: '#F3F4F6', color: '#6B7280' } },
-  sent: { label: "Sent", style: { background: 'rgba(0,200,150,0.1)', color: '#00A87D' } },
-  opened: { label: "Opened", style: { background: '#FEF3C7', color: '#B45309' } },
-  clicked: { label: "Clicked", style: { background: 'rgba(0,200,150,0.1)', color: '#00A87D' } },
-  submitted: { label: "Submitted", style: { background: 'rgba(0,200,150,0.12)', color: '#00A87D' } },
-  redirected: { label: "Redirected", style: { background: 'rgba(0,200,150,0.12)', color: '#00A87D' } },
-  private_feedback: { label: "Private Feedback", style: { background: '#FEF3C7', color: '#B45309' } },
-  failed: { label: "Failed", style: { background: '#FEE2E2', color: '#DC2626' } },
-  opted_out: { label: "Opted Out", style: { background: '#F3F4F6', color: '#9CA3AF' } },
+  scheduled:                      { label: "Scheduled",        style: { background: "#F3F4F6", color: "#6B7280" } },
+  pending:                        { label: "Pending",           style: { background: "#F3F4F6", color: "#6B7280" } },
+  sent:                           { label: "Sent",              style: { background: "rgba(0,200,150,0.1)", color: "#00A87D" } },
+  sms_sent:                       { label: "SMS Sent",          style: { background: "#FEF3C7", color: "#B45309" } },
+  opened:                         { label: "Opened",            style: { background: "#FEF3C7", color: "#B45309" } },
+  form_opened:                    { label: "Opened",            style: { background: "#FEF3C7", color: "#B45309" } },
+  form_submitted:                 { label: "Rated",             style: { background: "rgba(0,200,150,0.1)", color: "#00A87D" } },
+  clicked:                        { label: "Clicked",           style: { background: "rgba(0,200,150,0.1)", color: "#00A87D" } },
+  submitted:                      { label: "Submitted",         style: { background: "rgba(0,200,150,0.12)", color: "#00A87D" } },
+  redirected:                     { label: "Redirected",        style: { background: "rgba(0,200,150,0.12)", color: "#00A87D" } },
+  redirected_to_google:           { label: "Sent to Google",    style: { background: "rgba(0,200,150,0.12)", color: "#00A87D" } },
+  reviewed_positive:              { label: "Positive",          style: { background: "rgba(0,200,150,0.1)", color: "#00A87D" } },
+  reviewed_negative:              { label: "Negative",          style: { background: "#FEE2E2", color: "#DC2626" } },
+  private_feedback:               { label: "Private Feedback",  style: { background: "#FEE2E2", color: "#DC2626" } },
+  private_feedback_from_positive: { label: "Gave Feedback",     style: { background: "#FEF3C7", color: "#B45309" } },
+  failed:                         { label: "Failed",            style: { background: "#FEE2E2", color: "#DC2626" } },
+  opted_out:                      { label: "Opted Out",         style: { background: "#F3F4F6", color: "#9CA3AF" } },
 };
 
-const FEEDBACK_STATUS_BADGES: Record<string, { label: string; style: React.CSSProperties }> = {
-  new: { label: "New", style: { background: '#FEE2E2', color: '#DC2626' } },
-  in_progress: { label: "In Progress", style: { background: '#FEF3C7', color: '#B45309' } },
-  resolved: { label: "Resolved", style: { background: 'rgba(0,200,150,0.1)', color: '#00A87D' } },
+const FEEDBACK_STATUS_CONFIG: Record<string, { label: string; style: React.CSSProperties }> = {
+  new:         { label: "New",         style: { background: "#FEF3C7", color: "#B45309" } },
+  in_progress: { label: "In Progress", style: { background: "rgba(0,200,150,0.1)", color: "#00A87D" } },
+  resolved:    { label: "Resolved",    style: { background: "#F0FDF4", color: "#166534" } },
 };
 
-const PIE_COLORS = ["#ef4444", "#f97316", "#eab308", "#22c55e", G];
+// ─── Journey track (matching real customers page) ───
+const JOURNEY_STEP_INDEX: Record<string, number> = {
+  pending:                        0,
+  scheduled:                      0,
+  sms_sent:                       1,
+  sent:                           1,
+  form_opened:                    2,
+  opened:                         2,
+  form_submitted:                 3,
+  reviewed_positive:              3,
+  reviewed_negative:              3,
+  submitted:                      3,
+  clicked:                        3,
+  redirected_to_google:           4,
+  private_feedback:               3,
+  private_feedback_from_positive: 3,
+  // legacy
+  redirected:                     4,
+};
+
+function JourneyTrack({ status }: { status: string }) {
+  const idx    = JOURNEY_STEP_INDEX[status] ?? 0;
+  const isNeg  = status === "reviewed_negative" || status === "private_feedback" || status === "private_feedback_from_positive";
+
+  const nodes = [
+    { key: "pending",              label: "Sent"                                                       },
+    { key: "sms_sent",             label: "SMS"                                                        },
+    { key: "form_opened",          label: "Opened"                                                     },
+    { key: "form_submitted",       label: isNeg ? "Negative" : idx >= 3 ? "Reviewed" : "Review"       },
+    { key: "redirected_to_google", label: "Google"                                                     },
+  ];
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 160 }}>
+      {nodes.map((node, i) => {
+        const reached  = i <= idx;
+        const isActive = i === idx;
+        const dotColor = reached
+          ? (isNeg && i === 3 ? RD : i === 0 ? "#9CA3AF" : i === 1 ? AM : i === 2 ? AM : G)
+          : "#E5E7EB";
+
+        return (
+          <div key={node.key} style={{ display: "flex", alignItems: "center", flex: i < nodes.length - 1 ? 1 : "none" }}>
+            <div style={{
+              width: isActive ? 12 : 8,
+              height: isActive ? 12 : 8,
+              borderRadius: "50%",
+              background: dotColor,
+              flexShrink: 0,
+              transition: "all 0.2s",
+              boxShadow: isActive ? `0 0 0 3px ${dotColor}30` : "none",
+            }} />
+            {i < nodes.length - 1 && (
+              <div style={{
+                flex: 1,
+                height: 2,
+                background: i < idx ? dotColor : "#E5E7EB",
+                minWidth: 12,
+                transition: "background 0.2s",
+              }} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 // ─── Star Rating Component ───
-function StarRating({ rating }: { rating: number }) {
+function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
+  const colors: Record<number, string> = { 1: RD, 2: "#F97316", 3: AM, 4: "#22C55E", 5: G };
+  const col = colors[Math.min(5, Math.max(1, Math.round(rating)))] ?? "#6B7280";
   return (
-    <div className="flex items-center gap-0.5">
+    <div style={{ display: "flex", alignItems: "center", gap: 3 }}>
       {[1, 2, 3, 4, 5].map((i) => (
         <Star
           key={i}
-          size={16}
-          className={i <= Math.round(rating) ? "fill-yellow-400 text-yellow-400" : "text-gray-200"}
+          size={size}
+          style={{ fill: i <= Math.round(rating) ? col : "#E5E7EB", color: i <= Math.round(rating) ? col : "#E5E7EB" }}
         />
       ))}
+      <span style={{ fontSize: 12, fontWeight: 600, color: col, marginLeft: 4 }}>{rating}/5</span>
     </div>
   );
 }
@@ -98,11 +166,10 @@ function DemoCopyButton({ text }: { text: string }) {
   return (
     <button
       onClick={handleCopy}
-      className="inline-flex items-center gap-1 text-xs transition-colors"
-      style={{ color: copied ? G : '#6B7280' }}
+      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(0,200,150,0.35)", background: "#fff", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: copied ? G : G, cursor: "pointer" }}
     >
-      {copied ? <Check size={14} style={{ color: G }} /> : <Copy size={14} />}
-      {copied ? "Copied" : "Copy"}
+      {copied ? <Check size={12} style={{ color: G }} /> : <Copy size={12} />}
+      {copied ? "Copied!" : "Copy"}
     </button>
   );
 }
@@ -115,162 +182,310 @@ function useDemoToast() {
     setTimeout(() => setToast(null), 3000);
   };
   const ToastUI = toast ? (
-    <div className="fixed bottom-4 right-4 z-50 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg" style={{ background: N }}>
+    <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 100, padding: "13px 22px", borderRadius: 12, background: N, color: "#fff", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.2)" }}>
       {toast}
     </div>
   ) : null;
   return { show, ToastUI };
 }
 
+// ─── Mini bar ───
+function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
+  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
+  return (
+    <div style={{ height: 6, background: "#F3F4F6", borderRadius: 99, overflow: "hidden", marginTop: 8 }}>
+      <div style={{ height: "100%", width: `${pct}%`, background: color, borderRadius: 99, transition: "width 0.6s ease" }} />
+    </div>
+  );
+}
+
+// ─── Star row (for hero cards) ───
+function StarRow({ rating }: { rating: number }) {
+  return (
+    <div style={{ display: "flex", gap: 3 }}>
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star key={i} size={18} style={{ fill: i <= Math.round(rating) ? G : "#E5E7EB", color: i <= Math.round(rating) ? G : "#E5E7EB" }} />
+      ))}
+    </div>
+  );
+}
+
 // ─── Overview Tab ───
 function OverviewTab({
-  business,
   customers,
   feedback,
   analytics,
+  businessSlug,
 }: {
   business: Business;
   customers: Customer[];
   feedback: FeedbackItem[];
   analytics: AnalyticsData[];
+  businessSlug: string;
 }) {
-  const lastMonth = analytics[analytics.length - 1];
-  const sent = lastMonth?.sent ?? 0;
-  const completed = lastMonth?.completed ?? 0;
-  const completionRate = sent > 0 ? Math.round((completed / sent) * 100) : 0;
-  const avgRating = lastMonth?.avgRating ?? 0;
-  const redirected = lastMonth?.redirected ?? 0;
-  const negativeCaught = lastMonth?.negativeCaught ?? 0;
+  const lastMonth      = analytics[analytics.length - 1];
+  const totalSent      = customers.length;
+  const smsSent        = customers.filter(c => c.reviewRequestStatus !== "scheduled" && (c.reviewRequestStatus as string) !== "pending").length;
+  const completed      = customers.filter(c => ["submitted", "redirected", "redirected_to_google", "private_feedback", "private_feedback_from_positive", "form_submitted", "clicked"].includes(c.reviewRequestStatus)).length;
+  const completionRate = totalSent > 0 ? Math.round((completed / totalSent) * 100) : 0;
+  const avgRating      = lastMonth?.avgRating ?? 0;
+  const redirected     = customers.filter(c => c.reviewRequestStatus === "redirected_to_google" || c.reviewRequestStatus === "redirected").length;
+  const negativeCaught = feedback.filter(f => f.rating <= 3).length;
 
-  const weeksElapsed = Math.max(new Date().getDate() / 7, 1);
-  const reviewVelocity = (redirected / weeksElapsed).toFixed(1);
+  const pct = (a: number, b: number) => b > 0 ? Math.round((a / b) * 100) : 0;
 
-  const recentCustomers = [...customers]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 8);
+  // Computed shield sub-stats (matching real dashboard)
+  const revenueProtected       = negativeCaught * 30 * 45;
+  const searchClicksProtected  = Math.min(40, negativeCaught * 10);
+  const ratingWithoutVomni     = avgRating > 0 ? Math.max(1, avgRating - negativeCaught * 0.6).toFixed(1) : "-";
+  const completionColor        = completionRate >= 40 ? G : completionRate >= 22 ? AM : RD;
+  const ratingPct              = (avgRating / 5) * 100;
 
-  const activeAlerts = feedback.filter((f) => f.status === "new");
+  const funnelSteps = [
+    { label: "Requests Sent",    count: totalSent,   color: N,  isFirst: true },
+    { label: "SMS Opened",       count: smsSent,      color: AM, pct: pct(smsSent, totalSent) },
+    { label: "Form Opened",      count: completed,   color: AM, pct: pct(completed, smsSent) },
+    { label: "Rating Submitted", count: completed,   color: G,  pct: 100 },
+    { label: "Sent to Google",   count: redirected,  color: G,  pct: pct(redirected, completed) },
+  ];
+
+  // Industry benchmark data
+  const demoBenchmarks: Record<string, { avgRating: number; topRating: number; avgReviews: number; topReviews: number; avgCompletion: number }> = {
+    "kings-cuts":  { avgRating: 4.3, topRating: 4.8, avgReviews: 54,  topReviews: 180, avgCompletion: 22 },
+    "bella-vista": { avgRating: 4.1, topRating: 4.7, avgReviews: 124, topReviews: 400, avgCompletion: 22 },
+  };
+  const bm       = demoBenchmarks[businessSlug] ?? demoBenchmarks["kings-cuts"];
+  const bizLabel = businessSlug === "kings-cuts" ? "Barbershop" : "Restaurant";
+
+  const benchmarkCards = [
+    {
+      title: "Average Rating",
+      yours: avgRating > 0 ? `${avgRating.toFixed(1)} ★` : "-",
+      yoursNum: avgRating,
+      avg: `${bm.avgRating} ★`, top: `${bm.topRating} ★`,
+      color: avgRating === 0 ? "#D1D5DB" : avgRating >= bm.topRating * 0.9 ? G : avgRating >= bm.avgRating ? AM : RD,
+      label: avgRating === 0 ? "No data yet" : avgRating >= bm.topRating * 0.9 ? "You're above average" : avgRating >= bm.avgRating ? "You're at average" : "You're below average",
+    },
+    {
+      title: "Review Count",
+      yours: String(redirected),
+      yoursNum: redirected,
+      avg: String(bm.avgReviews), top: String(bm.topReviews),
+      color: redirected === 0 ? "#D1D5DB" : redirected >= bm.topReviews * 0.9 ? G : redirected >= bm.avgReviews ? AM : RD,
+      label: redirected === 0 ? "No data yet" : redirected >= bm.topReviews * 0.9 ? "You're above average" : redirected >= bm.avgReviews ? "You're at average" : "You're below average",
+    },
+    {
+      title: "Completion Rate",
+      yours: `${completionRate}%`,
+      yoursNum: completionRate,
+      avg: `${bm.avgCompletion}%`, top: "40%",
+      color: completionRate >= 40 ? G : completionRate >= bm.avgCompletion ? AM : RD,
+      label: completionRate >= 40 ? "You're above average" : completionRate >= bm.avgCompletion ? "You're at average" : "You're below average",
+    },
+  ];
 
   return (
-    <div>
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard
-          label="Review Requests Sent"
-          value={sent}
-          icon={<Send size={20} />}
-          subtext="This month"
-          explanation="SMS review requests have a 98% open rate vs 20-45% for email. 90% are read within 3 minutes."
-        />
-        <StatCard
-          label="Completion Rate"
-          value={`${completionRate}%`}
-          icon={<TrendingUp size={20} />}
-          explanation={
-            completionRate >= 40
-              ? `Excellent! Businesses above 40% generate 2x more reviews per month. You're well above the 25-30% industry average.`
-              : `The industry average is 25-30%. Businesses above 40% generate 2x more reviews per month. Room to improve here.`
-          }
-        />
-        <StatCard
-          label="Average Rating"
-          value={avgRating > 0 ? avgRating.toFixed(1) : "--"}
-          icon={<Star size={20} />}
-          explanation={
-            avgRating >= 4.0
-              ? `Great! Crossing 4.0 stars means +20% sales and 2x traffic. 57% of consumers only use businesses with 4+ stars.`
-              : `Every 0.1 star increase = +25% conversion rate. Moving from 3.5 to 3.7 stars alone means +120% conversion growth.`
-          }
-        />
-        <StatCard
-          label="Google Reviews"
-          value={redirected}
-          icon={<Star size={20} />}
-          subtext="Redirected to Google this month"
-          explanation="Businesses with 25+ reviews generate 108% more revenue than those without. Consistent weekly reviews matter more than a large stagnant total."
-        />
-        <StatCard
-          label="Negative Caught"
-          value={negativeCaught}
-          icon={<ShieldAlert size={20} />}
-          explanation="Each negative review caught saves $3,750-$15,000 in lost customer lifetime value. 1 bad review drives away 22% of prospects."
-        />
-        <StatCard
-          label="Review Velocity"
-          value={`${reviewVelocity}/wk`}
-          icon={<Zap size={20} />}
-          subtext="Google reviews per week"
-          explanation="Rankings can drop if no new reviews for 3 weeks. Target: 10+ new reviews per month for consistent ranking improvements."
-        />
+    <div style={{ padding: "32px 0", maxWidth: 1200, margin: "0 auto" }}>
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(1.08)} }
+        .hero-card:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.08) !important; transform: translateY(-1px); }
+        .funnel-step-inner:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1) !important; }
+      `}</style>
+
+      {/* Page heading */}
+      <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 800, color: N, margin: "0 0 28px" }}>
+        Your Reputation, Right Now
+      </h1>
+
+      {/* Hero Metric Cards - 4 cards, 56px numbers */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16, marginBottom: 40 }}>
+
+        {/* Card 1: Google Reviews */}
+        <div className="hero-card" style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "28px 28px 22px", transition: "box-shadow 0.2s ease, transform 0.2s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
+            Google Reviews Generated
+          </p>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 56, fontWeight: 800, color: G, lineHeight: 1, margin: "0 0 8px" }}>
+            {redirected}
+          </div>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: 0 }}>
+            reviews sent to Google so far
+          </p>
+        </div>
+
+        {/* Card 2: Negative Reviews Shielded */}
+        <div className="hero-card" style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "28px 28px 22px", transition: "box-shadow 0.2s ease, transform 0.2s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
+            Negative Reviews Shielded
+          </p>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 56, fontWeight: 800, color: negativeCaught > 0 ? N : "#D1D5DB", lineHeight: 1, margin: "0 0 8px" }}>
+            {negativeCaught > 0 ? negativeCaught : "-"}
+          </div>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: negativeCaught > 0 ? "#6B7280" : "#9CA3AF", margin: "0 0 8px" }}>
+            {negativeCaught > 0 ? "complaints caught before going public" : "none caught yet - you're doing great"}
+          </p>
+          {negativeCaught > 0 && (
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 9999, background: "rgba(0,200,150,0.1)", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: G }}>
+              <Shield size={12} /> Protected from Google
+            </span>
+          )}
+        </div>
+
+        {/* Card 3: Average Rating */}
+        <div className="hero-card" style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "28px 28px 22px", transition: "box-shadow 0.2s ease, transform 0.2s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
+            Average Rating
+          </p>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 56, fontWeight: 800, color: G, lineHeight: 1, margin: "0 0 8px" }}>
+            {avgRating > 0 ? avgRating.toFixed(1) : "-"}
+          </div>
+          {avgRating > 0 && <StarRow rating={avgRating} />}
+          {avgRating > 0 && (
+            <div style={{ marginTop: 6 }}>
+              <MiniBar value={ratingPct} max={100} color={G} />
+              <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4 }}>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9CA3AF" }}>Now: {avgRating.toFixed(1)}</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9CA3AF" }}>Goal: 5.0</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Card 4: Completion Rate */}
+        <div className="hero-card" style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "28px 28px 22px", transition: "box-shadow 0.2s ease, transform 0.2s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
+            Completion Rate
+          </p>
+          <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 56, fontWeight: 800, color: completionColor, lineHeight: 1, margin: "0 0 8px" }}>
+            {completionRate}%
+          </div>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "0 0 8px" }}>
+            of customers complete their review request
+          </p>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: 0 }}>
+            Industry average: {bm.avgCompletion}%
+          </p>
+          <MiniBar value={completionRate} max={100} color={completionColor} />
+        </div>
+
       </div>
 
-      {/* Recent Activity */}
-      <div className="mt-10">
-        <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 600, color: N }}>
-          Recent Activity
-        </h2>
-        <div className="mt-4 overflow-hidden bg-white shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
-          <ul className="divide-y divide-gray-50">
-            {recentCustomers.map((customer) => {
-              const badge = STATUS_BADGES[customer.reviewRequestStatus] ?? STATUS_BADGES.scheduled;
-              let timeAgo = "";
-              try {
-                timeAgo = formatDistanceToNow(new Date(customer.createdAt), { addSuffix: true });
-              } catch {
-                timeAgo = "";
-              }
-              return (
-                <li key={customer.id} className="flex items-center justify-between px-5 py-3.5">
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-gray-900">{customer.name}</p>
-                    <p className="truncate text-xs text-gray-400">{customer.service}</p>
-                  </div>
-                  <div className="ml-4 flex items-center gap-3">
-                    {customer.rating && <StarRating rating={customer.rating} />}
-                    <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={badge.style}>
-                      {badge.label}
+      {/* Review Funnel */}
+      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "24px", marginBottom: 40, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: 0 }}>
+            Review Funnel
+          </h2>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, overflowX: "auto" }}>
+          {funnelSteps.map((step, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <div className="funnel-step-inner" style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", padding: "16px 12px", background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", width: "100%", transition: "box-shadow 0.2s ease" }}>
+                  <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 36, fontWeight: 800, color: step.color }}>{step.count}</span>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 4 }}>{step.label}</span>
+                  {step.pct !== undefined && !step.isFirst && (
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9CA3AF", marginTop: 2 }}>
+                      {step.pct}% conversion
                     </span>
-                    <span className="hidden text-xs text-gray-400 sm:block">{timeAgo}</span>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+                  )}
+                </div>
+              </div>
+              {i < funnelSteps.length - 1 && (
+                <span style={{ color: "#D1D5DB", fontSize: 18, margin: "0 4px", flexShrink: 0 }}>→</span>
+              )}
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Active Alerts */}
-      {activeAlerts.length > 0 && (
-        <div className="mt-10">
-          <h2 className="flex items-center gap-2" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 600, color: N }}>
-            <AlertTriangle size={20} className="text-orange-500" />
-            Active Alerts
-            <span className="ml-1 inline-flex h-5 w-5 items-center justify-center rounded-full bg-orange-100 text-xs font-bold text-orange-600">
-              {activeAlerts.length}
-            </span>
-          </h2>
-          <div className="mt-4 space-y-3">
-            {activeAlerts.map((item) => (
-              <div key={item.id} className="p-4" style={{ borderRadius: 12, border: '1px solid #FED7AA', background: 'rgba(255,237,213,0.5)' }}>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium text-gray-900">{item.customerName}</p>
-                  <StarRating rating={item.rating} />
-                </div>
-                <p className="mt-1 text-sm text-gray-600 line-clamp-2">{item.feedback}</p>
+      {/* Navy Shield Card */}
+      {negativeCaught === 0 ? (
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px dashed #D1D5DB", padding: "28px 32px", marginBottom: 40, display: "flex", alignItems: "center", gap: 20 }}>
+          <div style={{ width: 52, height: 52, borderRadius: "50%", background: "rgba(0,200,150,0.08)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#00C896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 700, color: N, margin: "0 0 6px" }}>Negative review shield is active</h3>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: 0, lineHeight: 1.6 }}>When a customer rates 1-3 stars, Vomni captures feedback privately instead of sending them to Google. None caught yet - that&apos;s a good sign.</p>
+          </div>
+          <span style={{ flexShrink: 0, padding: "5px 14px", borderRadius: 9999, background: "rgba(0,200,150,0.1)", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: G }}>Active</span>
+        </div>
+      ) : (
+        <div style={{ background: N, borderRadius: 16, padding: "32px", marginBottom: 40 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 28 }}>
+            <div style={{ animation: "pulse 2.5s ease-in-out infinite", flexShrink: 0 }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(0,200,150,0.15)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 0 8px rgba(0,200,150,0.08)" }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#00C896" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+            </div>
+            <div>
+              <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: "#fff", margin: "0 0 8px" }}>
+                {negativeCaught} negative review{negativeCaught !== 1 ? "s" : ""} never reached Google
+              </h2>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "rgba(255,255,255,0.6)", margin: 0 }}>
+                These complaints were caught privately by Vomni&apos;s system before they could affect your public rating.
+              </p>
+            </div>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16 }}>
+            {[
+              { label: "Estimated revenue protected", value: `£${revenueProtected.toLocaleString()}` },
+              { label: "Star rating without Vomni",   value: `${ratingWithoutVomni} ★` },
+              { label: "Search clicks protected",      value: `~${searchClicksProtected}%` },
+            ].map(stat => (
+              <div key={stat.label} style={{ background: "rgba(255,255,255,0.07)", borderRadius: 12, padding: "18px 20px" }}>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "rgba(255,255,255,0.5)", margin: "0 0 8px" }}>{stat.label}</p>
+                <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 800, color: G, margin: 0 }}>{stat.value}</p>
               </div>
             ))}
           </div>
         </div>
       )}
+
+      {/* Industry Benchmark Section */}
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 4px" }}>
+          How you compare to other {bizLabel}
+        </h2>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: "0 0 16px" }}>
+          Based on industry research across UK service businesses
+        </p>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16 }}>
+          {benchmarkCards.map(card => (
+            <div key={card.title} style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 10px" }}>{card.title}</p>
+              <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 32, fontWeight: 800, color: card.color, lineHeight: 1, margin: "0 0 10px" }}>{card.yours}</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF" }}>Industry avg: <strong style={{ color: "#374151" }}>{card.avg}</strong></span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: G }}>Top performers: <strong>{card.top}</strong></span>
+              </div>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: card.color }}>{card.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── Customers Tab ───
-function CustomersTab({ customers, demoToast }: { customers: Customer[]; demoToast: (msg: string) => void }) {
+const CUSTOMER_STATUS_OPTIONS = [
+  { value: "all",                          label: "All" },
+  { value: "pending",                      label: "Pending" },
+  { value: "scheduled",                    label: "Scheduled" },
+  { value: "sms_sent",                     label: "SMS Sent" },
+  { value: "form_opened",                  label: "Opened" },
+  { value: "form_submitted",               label: "Rated" },
+  { value: "redirected_to_google",         label: "Sent to Google" },
+  { value: "private_feedback",             label: "Private Feedback" },
+  { value: "private_feedback_from_positive", label: "Gave Feedback" },
+  { value: "failed",                       label: "Failed" },
+];
+
+function CustomersTab({ customers }: { customers: Customer[]; demoToast: (msg: string) => void }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return customers
@@ -286,185 +501,337 @@ function CustomersTab({ customers, demoToast }: { customers: Customer[]; demoToa
   }, [customers, searchQuery, statusFilter]);
 
   return (
-    <div>
-      {/* Search & Filter */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative flex-1 max-w-sm">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+    <div style={{ padding: "32px 0", maxWidth: 1300, margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+        <div>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: 0 }}>
+            Customers
+          </h1>
+          <p style={{ marginTop: 6, fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
+            <span style={{ fontWeight: 600, color: N }}>{customers.length}</span> customer{customers.length !== 1 ? "s" : ""}
+            {" · "}
+            <span style={{ fontWeight: 600, color: G }}>{customers.filter(c => c.reviewRequestStatus === "redirected_to_google" || c.reviewRequestStatus === "redirected").length}</span> sent to Google
+            {" · "}
+            <span style={{ fontWeight: 600, color: AM }}>{customers.filter(c => c.reviewRequestStatus === "private_feedback" || c.reviewRequestStatus === "private_feedback_from_positive" || (c.reviewRequestStatus as string) === "reviewed_negative").length}</span> negative caught
+          </p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
+        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 200 }}>
+          <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
           <input
             type="text"
-            placeholder="Search customers..."
+            placeholder="Search name, email, service…"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-lg border border-gray-200 py-2 pl-9 pr-4 text-sm outline-none"
-            onFocus={(e) => { e.currentTarget.style.borderColor = G; e.currentTarget.style.boxShadow = `0 0 0 3px rgba(0,200,150,0.12)`; }}
-            onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.boxShadow = 'none'; }}
+            style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 10, paddingBottom: 10, border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box" }}
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none"
-          onFocus={(e) => { e.currentTarget.style.borderColor = G; }}
-          onBlur={(e) => { e.currentTarget.style.borderColor = '#E5E7EB'; }}
+          style={{ padding: "10px 12px", border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", background: "#fff", minWidth: 180 }}
         >
-          <option value="all">All Statuses</option>
-          <option value="scheduled">Scheduled</option>
-          <option value="sent">Sent</option>
-          <option value="opened">Opened</option>
-          <option value="redirected">Redirected</option>
-          <option value="private_feedback">Private Feedback</option>
-          <option value="failed">Failed</option>
+          {CUSTOMER_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       </div>
 
+      {/* Legend */}
+      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
+        {[
+          { color: "#9CA3AF", label: "Pending" },
+          { color: AM,        label: "SMS Sent" },
+          { color: AM,        label: "Form Opened" },
+          { color: G,         label: "Positive / Redirected" },
+          { color: RD,        label: "Negative" },
+        ].map(l => (
+          <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <div style={{ width: 10, height: 10, borderRadius: "50%", background: l.color }} />
+            <span style={{ fontSize: 12, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>{l.label}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Table */}
-      <div className="mt-4 overflow-hidden bg-white shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 24px", background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB" }}>
+          <p style={{ fontSize: 15, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>No customers match your search.</p>
+        </div>
+      ) : (
+        <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/50">
-                <th className="px-5 py-3 font-medium text-gray-500">Customer</th>
-                <th className="hidden px-5 py-3 font-medium text-gray-500 sm:table-cell">Service</th>
-                <th className="hidden px-5 py-3 font-medium text-gray-500 md:table-cell">Date</th>
-                <th className="px-5 py-3 font-medium text-gray-500">Rating</th>
-                <th className="px-5 py-3 font-medium text-gray-500">Status</th>
-                <th className="px-5 py-3 font-medium text-gray-500"></th>
+              <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                {["Customer", "Service", "Date", "Journey", "Status"].map(h => (
+                  <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+                ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {filtered.map((c) => {
-                const badge = STATUS_BADGES[c.reviewRequestStatus] ?? STATUS_BADGES.scheduled;
-                const isExpanded = expandedId === c.id;
+            <tbody>
+              {filtered.map((c, idx) => {
+                const badge = STATUS_BADGES[c.reviewRequestStatus] ?? STATUS_BADGES.pending;
+                const dateStr = c.bookingDate ? `${c.bookingDate} ${c.bookingTime ?? ""}`.trim() : "-";
                 return (
-                  <tr key={c.id} className="group">
-                    <td className="px-5 py-3">
-                      <div>
-                        <p className="font-medium text-gray-900">{c.name}</p>
-                        <p className="text-xs text-gray-400 sm:hidden">{c.service}</p>
-                      </div>
+                  <tr key={c.id} style={{ borderTop: idx > 0 ? "1px solid #F3F4F6" : "none" }}>
+                    <td style={{ padding: "14px 16px" }}>
+                      <p style={{ fontWeight: 500, color: N, fontSize: 14, margin: 0 }}>{c.name}</p>
+                      {c.email && <p style={{ fontSize: 12, color: "#9CA3AF", margin: "2px 0 0" }}>{c.email}</p>}
                     </td>
-                    <td className="hidden px-5 py-3 text-gray-600 sm:table-cell">{c.service}</td>
-                    <td className="hidden px-5 py-3 text-gray-500 md:table-cell">
-                      {c.bookingDate} {c.bookingTime}
+                    <td style={{ padding: "14px 16px", fontSize: 14, color: "#374151" }}>{c.service ?? "-"}</td>
+                    <td style={{ padding: "14px 16px", fontSize: 13, color: "#6B7280" }}>{dateStr}</td>
+                    <td style={{ padding: "14px 16px" }}>
+                      <JourneyTrack status={c.reviewRequestStatus} />
                     </td>
-                    <td className="px-5 py-3">
-                      {c.rating ? <StarRating rating={c.rating} /> : <span className="text-gray-300">--</span>}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={badge.style}>
+                    <td style={{ padding: "14px 16px" }}>
+                      <span style={{ fontSize: 12, fontWeight: 500, borderRadius: 9999, padding: "3px 10px", ...badge.style }}>
                         {badge.label}
                       </span>
                     </td>
-                    <td className="px-5 py-3">
-                      <button
-                        onClick={() => setExpandedId(isExpanded ? null : c.id)}
-                        className="text-gray-400 hover:text-gray-600"
-                      >
-                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                      </button>
-                    </td>
-                    {isExpanded && (
-                      <td colSpan={6} className="bg-gray-50 px-5 py-4">
-                        <div className="space-y-2 text-xs text-gray-600">
-                          <p><span className="font-medium">Phone:</span> {c.phone}</p>
-                          <p><span className="font-medium">Staff:</span> {c.staffMember}</p>
-                          <p><span className="font-medium">Parse Confidence:</span> {c.parsingConfidence}%</p>
-                          {c.reviewRequestSentAt && (
-                            <p><span className="font-medium">Request Sent:</span> {new Date(c.reviewRequestSentAt).toLocaleString()}</p>
-                          )}
-                          {c.reviewRequestOpenedAt && (
-                            <p><span className="font-medium">Opened:</span> {new Date(c.reviewRequestOpenedAt).toLocaleString()}</p>
-                          )}
-                          {c.redirectedAt && (
-                            <p><span className="font-medium">Redirected to Google:</span> {new Date(c.redirectedAt).toLocaleString()}</p>
-                          )}
-                        </div>
-                      </td>
-                    )}
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && (
-          <p className="px-5 py-8 text-center text-sm text-gray-400">No customers match your search.</p>
-        )}
+      )}
+    </div>
+  );
+}
+
+// ─── Feedback AI Reply Box (demo version with tone tabs) ───
+function DemoAiReplyBox({ aiReplies, aiSuggestedReply }: { aiReplies?: { apologetic: string; professional: string; personal: string }; aiSuggestedReply: string }) {
+  const [activeTone, setActiveTone] = useState<"apologetic" | "professional" | "personal">("apologetic");
+  const [copyLabel, setCopyLabel] = useState("Copy");
+
+  const tones = aiReplies ?? {
+    apologetic:   aiSuggestedReply,
+    professional: aiSuggestedReply,
+    personal:     aiSuggestedReply,
+  };
+
+  function copyToClipboard() {
+    navigator.clipboard.writeText(tones[activeTone]).then(() => {
+      setCopyLabel("Copied!");
+      setTimeout(() => setCopyLabel("Copy"), 2000);
+    });
+  }
+
+  return (
+    <div style={{ marginTop: 16, padding: 16, background: "rgba(0,200,150,0.04)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 12 }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, color: G, textTransform: "uppercase", letterSpacing: "0.08em", margin: 0 }}>
+          AI Suggested Reply
+        </p>
+        <button
+          style={{ display: "flex", alignItems: "center", gap: 5, padding: "4px 10px", border: "1px solid rgba(0,200,150,0.3)", borderRadius: 8, background: "transparent", cursor: "default", fontFamily: "Inter, sans-serif", fontSize: 12, color: G, opacity: 0.6 }}
+        >
+          <RefreshCw size={11} />
+          Regenerate
+        </button>
+      </div>
+
+      {/* Tone selector */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
+        {(["apologetic", "professional", "personal"] as const).map(tone => (
+          <button
+            key={tone}
+            onClick={() => setActiveTone(tone)}
+            style={{
+              padding: "5px 12px", borderRadius: 8, border: "1px solid", cursor: "pointer",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 500,
+              background: activeTone === tone ? G : "#fff",
+              color:      activeTone === tone ? "#fff" : "#6B7280",
+              borderColor: activeTone === tone ? G : "#E5E7EB",
+              textTransform: "capitalize",
+            }}
+          >
+            {tone}
+          </button>
+        ))}
+      </div>
+
+      {/* Reply text */}
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: N, lineHeight: 1.65, margin: "0 0 12px" }}>
+        {tones[activeTone]}
+      </p>
+
+      {/* Copy button */}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          onClick={copyToClipboard}
+          style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, border: "1px solid rgba(0,200,150,0.35)", background: "#fff", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: G, cursor: "pointer" }}
+        >
+          <Copy size={12} />
+          {copyLabel}
+        </button>
       </div>
     </div>
   );
 }
 
 // ─── Feedback Tab ───
+const TOPIC_CONFIG: Record<string, { label: string; bg: string; color: string }> = {
+  wait_time:   { label: "Wait Time",   bg: "#FEF3C7", color: "#B45309" },
+  quality:     { label: "Quality",     bg: "#FEE2E2", color: "#DC2626" },
+  staff:       { label: "Staff",       bg: "#FEE2E2", color: "#DC2626" },
+  price:       { label: "Price",       bg: "#F3F4F6", color: "#6B7280" },
+  cleanliness: { label: "Cleanliness", bg: "#FEF3C7", color: "#B45309" },
+  other:       { label: "Other",       bg: "#F3F4F6", color: "#6B7280" },
+};
+
+// Map feedback IDs to sentiment data for demo
+const DEMO_SENTIMENT: Record<string, { topic: string; urgency: string }> = {
+  "fb-1": { topic: "quality", urgency: "24_hours" },
+  "fb-2": { topic: "wait_time", urgency: "this_week" },
+  "fb-3": { topic: "staff", urgency: "1_hour" },
+  "bv-fb-1": { topic: "quality", urgency: "24_hours" },
+  "bv-fb-2": { topic: "cleanliness", urgency: "this_week" },
+  "bv-fb-3": { topic: "staff", urgency: "1_hour" },
+};
+
+const URGENCY_CONFIG: Record<string, { label: string; color: string }> = {
+  "1_hour":    { label: "Respond within 1 hour",    color: RD },
+  "24_hours":  { label: "Respond within 24 hours",  color: AM },
+  "this_week": { label: "Respond this week",         color: "#6B7280" },
+};
+
+const FEEDBACK_FILTER_TABS = [
+  { value: "all",         label: "All" },
+  { value: "new",         label: "New" },
+  { value: "in_progress", label: "In Progress" },
+  { value: "resolved",    label: "Resolved" },
+];
+
 function FeedbackTab({ feedback, demoToast }: { feedback: FeedbackItem[]; demoToast: (msg: string) => void }) {
+  const [filter, setFilter] = useState("all");
+  const filtered = filter === "all" ? feedback : feedback.filter(f => f.status === filter);
+
   return (
-    <div className="space-y-4">
-      {feedback.length === 0 ? (
-        <p className="text-sm text-gray-400">No feedback items yet.</p>
+    <div style={{ padding: "32px 0", maxWidth: 900, margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: 0 }}>
+          Feedback Inbox
+        </h1>
+        <p style={{ marginTop: 4, fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
+          {feedback.filter(f => f.status === "new").length} new · {feedback.length} total
+        </p>
+      </div>
+
+      {/* Filter tabs */}
+      <div style={{ display: "flex", gap: 8, marginBottom: 24, borderBottom: "1px solid #E5E7EB" }}>
+        {FEEDBACK_FILTER_TABS.map(tab => (
+          <button
+            key={tab.value}
+            onClick={() => setFilter(tab.value)}
+            style={{ padding: "8px 16px", border: "none", background: "none", cursor: "pointer", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: filter === tab.value ? 600 : 400, color: filter === tab.value ? G : "#6B7280", borderBottom: filter === tab.value ? `2px solid ${G}` : "2px solid transparent", marginBottom: -1, transition: "all 0.15s" }}
+          >
+            {tab.label}
+            {tab.value !== "all" && (
+              <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 600, padding: "2px 6px", borderRadius: 9999, background: filter === tab.value ? "rgba(0,200,150,0.15)" : "#F3F4F6", color: filter === tab.value ? G : "#6B7280" }}>
+                {feedback.filter(f => f.status === tab.value).length}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Items */}
+      {filtered.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "64px 24px", background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB" }}>
+          <p style={{ fontSize: 15, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>No items in this category.</p>
+        </div>
       ) : (
-        feedback.map((item) => {
-          const badge = FEEDBACK_STATUS_BADGES[item.status] ?? FEEDBACK_STATUS_BADGES.new;
-          return (
-            <div key={item.id} className="bg-white p-5 shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="font-medium text-gray-900">{item.customerName}</p>
-                <StarRating rating={item.rating} />
-                <span className="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium" style={badge.style}>
-                  {badge.label}
-                </span>
-                <span className="text-xs text-gray-400">
-                  {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-                </span>
-              </div>
-              <p className="mt-3 text-sm text-gray-600">{item.feedback}</p>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {filtered.map(item => {
+            const cfg       = FEEDBACK_STATUS_CONFIG[item.status] ?? FEEDBACK_STATUS_CONFIG.new;
+            const sentiment = DEMO_SENTIMENT[item.id];
+            const topicCfg  = sentiment ? (TOPIC_CONFIG[sentiment.topic] ?? TOPIC_CONFIG.other) : null;
+            const urgencyCfg = sentiment ? (URGENCY_CONFIG[sentiment.urgency] ?? null) : null;
 
-              {/* AI Suggested Reply */}
-              {item.aiSuggestedReply && (
-                <div className="mt-4 rounded-lg p-4" style={{ border: '1px solid rgba(0,200,150,0.2)', background: 'rgba(0,200,150,0.05)' }}>
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs font-semibold" style={{ color: G }}>AI Suggested Reply</p>
-                    <DemoCopyButton text={item.aiSuggestedReply} />
+            return (
+              <div key={item.id} style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+                {/* Top row */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+                  <div>
+                    <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: 0 }}>
+                      {item.customerName}
+                    </p>
+                    <p style={{ fontSize: 12, color: "#9CA3AF", margin: "4px 0 0", fontFamily: "Inter, sans-serif" }}>
+                      {new Date(item.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}
+                    </p>
                   </div>
-                  <p className="mt-2 text-sm text-gray-700 leading-relaxed">{item.aiSuggestedReply}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                    <StarRating rating={item.rating} />
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, borderRadius: 9999, padding: "5px 13px", ...cfg.style }}>
+                      {cfg.label}
+                    </span>
+                  </div>
                 </div>
-              )}
 
-              {item.internalNotes && (
-                <p className="mt-3 text-xs text-gray-500">
-                  <span className="font-medium">Internal Notes:</span> {item.internalNotes}
-                </p>
-              )}
+                {/* Sentiment pills */}
+                {(topicCfg || urgencyCfg) && (
+                  <div style={{ display: "flex", gap: 8, marginTop: 12, flexWrap: "wrap" }}>
+                    {topicCfg && (
+                      <span style={{ padding: "3px 10px", borderRadius: 9999, fontSize: 12, fontWeight: 500, background: topicCfg.bg, color: topicCfg.color, fontFamily: "Inter, sans-serif" }}>
+                        {topicCfg.label}
+                      </span>
+                    )}
+                    {urgencyCfg && (
+                      <span style={{ padding: "3px 10px", borderRadius: 9999, fontSize: 12, fontWeight: 600, background: "transparent", border: `1px solid ${urgencyCfg.color}`, color: urgencyCfg.color, fontFamily: "Inter, sans-serif" }}>
+                        {urgencyCfg.label}
+                      </span>
+                    )}
+                  </div>
+                )}
 
-              {item.resolution && (
-                <p className="mt-2 text-xs text-green-600">
-                  <span className="font-medium">Resolution:</span> {item.resolution}
-                </p>
-              )}
+                {/* Feedback text */}
+                {item.feedback && (
+                  <div style={{ marginTop: 16, padding: "14px 16px", background: "#F9FAFB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
+                    &ldquo;{item.feedback}&rdquo;
+                  </div>
+                )}
 
-              <div className="mt-4 flex gap-2">
-                <button
-                  onClick={() => demoToast("This is a demo — sign up to manage your own feedback")}
-                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  Mark In Progress
-                </button>
-                <button
-                  onClick={() => demoToast("This is a demo — sign up to manage your own feedback")}
-                  className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  Mark Resolved
-                </button>
+                {/* AI Reply Box with tone selector */}
+                {item.aiSuggestedReply && (
+                  <DemoAiReplyBox aiReplies={item.aiReplies} aiSuggestedReply={item.aiSuggestedReply} />
+                )}
+
+                {/* Action buttons */}
+                {item.status !== "resolved" && (
+                  <div style={{ marginTop: 16, display: "flex", gap: 10 }}>
+                    {item.status === "new" && (
+                      <button
+                        onClick={() => demoToast("This is a demo - sign up to manage your own feedback")}
+                        style={{ padding: "8px 16px", border: "1px solid #E5E7EB", borderRadius: 8, background: "#fff", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: "#374151", cursor: "pointer" }}
+                      >
+                        Mark In Progress
+                      </button>
+                    )}
+                    <button
+                      onClick={() => demoToast("This is a demo - sign up to manage your own feedback")}
+                      style={{ padding: "8px 16px", border: "none", borderRadius: 8, background: G, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: "#fff", cursor: "pointer" }}
+                    >
+                      Mark Resolved
+                    </button>
+                  </div>
+                )}
               </div>
-            </div>
-          );
-        })
+            );
+          })}
+        </div>
       )}
     </div>
   );
 }
 
 // ─── Analytics Tab ───
+const BRAND_PIE_COLORS = ["#00C896", "#00A87D", "#F59E0B", "#F97316", "#EF4444"];
+
 function AnalyticsTab({
   analytics,
   customers,
@@ -479,196 +846,171 @@ function AnalyticsTab({
     customers.forEach((c) => {
       if (c.rating) counts[c.rating - 1]++;
     });
-    return counts.map((count, i) => ({ name: `${i + 1} Star`, value: count }));
+    return counts.map((count, i) => ({ name: `${i + 1} star${count !== 1 ? "s" : ""}`, value: count })).reverse();
   }, [customers]);
 
   const insights =
     businessSlug === "kings-cuts"
       ? [
-          {
-            type: "positive" as const,
-            title: "Completion Rate Above Industry Average",
-            body: "Your 66% completion rate crushes the 25-30% industry average. Businesses above 40% generate 2x more reviews per month. You're in elite territory.",
-            action: "Keep your current SMS timing and template — it's clearly working.",
-          },
-          {
-            type: "opportunity" as const,
-            title: "Rating Trend Is Strong",
-            body: "You've climbed from 3.9 to 4.3 average rating in 6 months. Crossing 4.0 stars means +20% sales and 2x traffic. Every additional 0.1 star = +25% conversion.",
-            action: "Aim for 4.5+ by addressing the common themes in your negative feedback.",
-          },
-          {
-            type: "warning" as const,
-            title: "3 Negative Reviews This Month - Highest Yet",
-            body: "Each negative review drives away 22% of prospects. 3 negative reviews = 59% potential customers lost. Your AI recovery system caught them all before Google.",
-            action: "Review the feedback from Tyler and Isaac - there may be a training opportunity with one staff member.",
-          },
-          {
-            type: "positive" as const,
-            title: "Google Review Velocity Is Excellent",
-            body: "28 Google reviews this month puts you well above the 10+/month target. Consistent weekly reviews boost rankings by up to 15%. You're building a compounding advantage.",
-            action: "Maintain this pace - your competitors likely get fewer than 5 reviews per month.",
-          },
+          { type: "positive" as const,    title: "Completion Rate Above Average",   body: "Your 66% completion rate is 26pp above the 40% industry average - excellent performance." },
+          { type: "warning"  as const,    title: "3 Negative Reviews Caught",       body: "3 complaints were resolved privately this month, protecting your public Google rating." },
+          { type: "positive" as const,    title: "Google Review Velocity Strong",   body: "28 Google reviews this month is well above the 10+/month target for ranking momentum." },
         ]
       : [
-          {
-            type: "warning" as const,
-            title: "Completion Rate Needs Urgent Attention",
-            body: "Your 29% completion rate is below the 25-30% industry average. Businesses above 40% generate 2x more reviews. You're leaving significant revenue on the table.",
-            action: "Review your SMS template and timing - try sending within 2-3 hours of dining instead of 3+.",
-          },
-          {
-            type: "warning" as const,
-            title: "High Volume of Negative Feedback",
-            body: "3 negative reviews caught this month from only 11 completions is a 27% negative rate. 1 bad review drives away 22% of prospects and costs $3,750-$15,000 in lost lifetime value.",
-            action: "Address the recurring service speed complaints - multiple customers mention long waits.",
-          },
-          {
-            type: "opportunity" as const,
-            title: "Rating Can Improve Significantly",
-            body: "Moving from 3.7 to 4.0 stars would mean +20% sales and 2x traffic. The jump from 3.5 to 3.7 alone was +120% conversion growth. Every 0.1 matters enormously.",
-            action: "Focus on resolving the service speed issues - this single fix could move your rating above 4.0.",
-          },
-          {
-            type: "warning" as const,
-            title: "Many Requests Going Unanswered",
-            body: "You're sending 38 requests but only getting 11 completions. 27 customers are ignoring your review request. 94% of consumers are open to leaving a review when asked at the right moment.",
-            action: "Test a shorter, more personalized SMS template. Mention the specific dish or occasion.",
-          },
+          { type: "warning"     as const, title: "Completion Rate Below Average",   body: "Your 29% completion rate is below the 40% benchmark. You're missing review opportunities." },
+          { type: "warning"     as const, title: "3 Negative Reviews Caught",       body: "3 complaints caught privately this month - each one protects your public Google rating." },
+          { type: "opportunity" as const, title: "Rating Improvement Within Reach", body: "Moving from 3.7 to 4.0 stars means +20% sales and 2x traffic - every 0.1 star counts." },
         ];
 
-  const insightStyles: Record<string, React.CSSProperties> = {
-    positive: { borderColor: '#A7F3D0', background: 'rgba(236,253,245,0.8)', borderLeft: `4px solid ${G}` },
-    warning: { borderColor: '#FDE68A', background: 'rgba(255,251,235,0.8)', borderLeft: '4px solid #F59E0B' },
-    opportunity: { borderColor: '#FDE68A', background: 'rgba(255,251,235,0.8)', borderLeft: '4px solid #F59E0B' },
-    alert: { borderColor: '#FECACA', background: 'rgba(254,242,242,0.8)', borderLeft: '4px solid #EF4444' },
+  const INSIGHT_COLORS: Record<string, { title: string; bg: string; border: string }> = {
+    positive:    { title: G,         bg: "rgba(0,200,150,0.05)",  border: `${G}22` },
+    warning:     { title: AM,        bg: "rgba(245,158,11,0.05)", border: `${AM}22` },
+    opportunity: { title: "#0D9488", bg: "rgba(13,148,136,0.05)", border: "#0D948822" },
   };
 
-  const insightIconColors: Record<string, string> = {
-    positive: G,
-    warning: "#F59E0B",
-    opportunity: "#F59E0B",
-    alert: "#EF4444",
-  };
-
-  const insightIcons: Record<string, React.ReactNode> = {
-    positive: <CheckCircle size={18} />,
-    warning: <TriangleAlert size={18} />,
-    opportunity: <Lightbulb size={18} />,
-    alert: <AlertTriangle size={18} />,
-  };
-
-  const ChartCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
-    <div className="bg-white p-5 shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
-      <h3 className="text-sm font-semibold text-gray-700">{title}</h3>
-      <p className="text-xs text-gray-400 mt-1">{subtitle}</p>
-      <div className="mt-4 h-64">{children}</div>
+  const ChartCard = ({ title, children, tall }: { title: string; children: React.ReactNode; tall?: boolean }) => (
+    <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", height: tall ? 420 : 320 }}>
+      <h3 style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, margin: "0 0 16px" }}>{title}</h3>
+      <div style={{ height: "calc(100% - 40px)" }}>{children}</div>
     </div>
   );
 
+  const activeRatingDist = ratingDist.filter(d => d.value > 0);
+  const ratingTotal      = activeRatingDist.reduce((s, d) => s + d.value, 0);
+
+  const areaData = analytics.map((d) => ({
+    ...d,
+    rate: d.sent > 0 ? Math.round((d.completed / d.sent) * 100) : 0,
+  }));
+
   return (
-    <div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ChartCard title="Rating Distribution" subtitle="96% of consumers read reviews before visiting a local business">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={ratingDist}
-                cx="50%"
-                cy="50%"
-                innerRadius={50}
-                outerRadius={90}
-                paddingAngle={3}
-                dataKey="value"
-                label={({ name, value }) => (value > 0 ? `${name}: ${value}` : "")}
-              >
-                {ratingDist.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={PIE_COLORS[index]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+    <div style={{ padding: "32px 0", maxWidth: 1200, margin: "0 auto" }}>
+      {/* Header */}
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: 0 }}>Analytics</h1>
+        <p style={{ marginTop: 4, fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>Charts, trends, and insights</p>
+      </div>
+
+      {/* 2×2 Chart Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+
+        {/* Rating Distribution - interactive donut */}
+        <ChartCard title="Rating Distribution" tall>
+          <div style={{ display: "flex", alignItems: "center", height: "100%", gap: 8 }}>
+            <div style={{ flex: "0 0 70%", height: "100%" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={activeRatingDist}
+                    cx="50%" cy="50%"
+                    innerRadius="52%" outerRadius="82%"
+                    paddingAngle={2}
+                    dataKey="value"
+                    nameKey="name"
+                    startAngle={90} endAngle={-270}
+                    stroke="none"
+                  >
+                    {activeRatingDist.map((_, i) => (
+                      <Cell key={i} fill={BRAND_PIE_COLORS[i]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (!active || !payload?.length) return null;
+                      const d = payload[0];
+                      return (
+                        <div style={{ background: N, color: "#fff", borderRadius: 8, padding: "8px 14px", fontFamily: "Inter, sans-serif", fontSize: 13, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }}>
+                          <span style={{ fontWeight: 600 }}>{d.name}</span>
+                          <span style={{ marginLeft: 8, opacity: 0.7 }}>{d.value} review{(d.value as number) !== 1 ? "s" : ""}</span>
+                        </div>
+                      );
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {activeRatingDist.map((seg, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: BRAND_PIE_COLORS[i], flexShrink: 0 }} />
+                  <span style={{ fontSize: 13, color: "#374151", fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" }}>{seg.name}</span>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: N, fontFamily: "Inter, sans-serif" }}>
+                    {ratingTotal > 0 ? Math.round((seg.value / ratingTotal) * 100) : 0}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
         </ChartCard>
 
-        <ChartCard title="Requests Over Time" subtitle="SMS open rate: 98% vs email: 20-45%">
+        {/* Requests Sent - Bar */}
+        <ChartCard title="Requests Sent" tall>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={analytics}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
-              <Tooltip />
-              <Bar dataKey="sent" fill={G} radius={[4, 4, 0, 0]} name="Sent" />
-              <Bar dataKey="completed" fill="#22c55e" radius={[4, 4, 0, 0]} name="Completed" />
+            <BarChart data={analytics} barSize={28}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip cursor={{ fill: "rgba(0,200,150,0.06)" }} />
+              <Bar dataKey="sent" fill={G} radius={[4, 4, 0, 0]} name="Requests" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Completion Rate Trend" subtitle="Businesses above 40% completion generate 2x more reviews">
+        {/* Completion Rate % - Area */}
+        <ChartCard title="Completion Rate %">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart
-              data={analytics.map((d) => ({
-                ...d,
-                rate: d.sent > 0 ? Math.round((d.completed / d.sent) * 100) : 0,
-              }))}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} domain={[0, 100]} unit="%" />
-              <Tooltip formatter={(value: number) => [`${value}%`, "Completion Rate"]} />
-              <Line
-                type="monotone"
-                dataKey="rate"
-                stroke={G}
-                strokeWidth={2}
-                dot={{ fill: G, r: 4 }}
-                name="Completion Rate"
-              />
-            </LineChart>
+            <AreaChart data={areaData}>
+              <defs>
+                <linearGradient id="demoFill1" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={G} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={G} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} domain={[0, 100]} tickFormatter={v => `${v}`} />
+              <Tooltip formatter={(v: number) => [`${v}%`, "Completion Rate"]} />
+              <Area type="monotone" dataKey="rate" stroke={G} strokeWidth={2} fill="url(#demoFill1)" dot={{ r: 3, fill: G }} name="Completion Rate" />
+            </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        <ChartCard title="Google Reviews Generated" subtitle="108% more revenue for businesses with 25+ reviews">
+        {/* Google Reviews - Area */}
+        <ChartCard title="Google Reviews">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={analytics}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} />
+            <AreaChart data={analytics}>
+              <defs>
+                <linearGradient id="demoFill2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={G} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={G} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="redirected"
-                stroke={G}
-                strokeWidth={2}
-                dot={{ fill: G, r: 4 }}
-                name="Google Reviews"
-              />
-            </LineChart>
+              <Area type="monotone" dataKey="redirected" stroke={G} strokeWidth={2} fill="url(#demoFill2)" dot={{ r: 3, fill: G }} name="Google Reviews" />
+            </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
+
       </div>
 
-      {/* AI Insights Panel */}
-      <div className="mt-8">
-        <h2 className="flex items-center gap-2" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 600, color: N }}>
-          <Lightbulb size={20} style={{ color: G }} />
-          AI Insights
-        </h2>
-        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {insights.map((insight, i) => (
-            <div key={i} className="rounded-xl border p-5" style={insightStyles[insight.type]}>
-              <div className="flex items-center gap-2" style={{ color: insightIconColors[insight.type] }}>
-                {insightIcons[insight.type]}
-                <h3 className="text-sm font-semibold text-gray-900">{insight.title}</h3>
-              </div>
-              <p className="mt-2 text-sm text-gray-600 leading-relaxed">{insight.body}</p>
-              <div className="mt-3 flex items-start gap-2 rounded-lg bg-white/60 p-3">
-                <ArrowRight size={14} className="mt-0.5 shrink-0" style={{ color: G }} />
-                <p className="text-xs font-medium text-gray-700">{insight.action}</p>
-              </div>
+      {/* Minimal insight cards - 3 max, no action buttons */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+        {insights.map((ins, i) => {
+          const c = INSIGHT_COLORS[ins.type] ?? INSIGHT_COLORS.opportunity;
+          return (
+            <div key={i} style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: 12, padding: "18px 20px" }}>
+              <h3 style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: c.title, margin: "0 0 8px" }}>
+                {ins.title}
+              </h3>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", lineHeight: 1.6, margin: 0 }}>
+                {ins.body}
+              </p>
             </div>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -707,51 +1049,57 @@ export default function DemoDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={{ minHeight: "100vh", background: "#F9FAFB" }}>
       {/* Sticky Demo Banner */}
       <div
-        className="sticky top-0 z-40 flex items-center justify-between px-4 py-2.5 sm:px-6"
-        style={{ background: N }}
+        style={{ position: "sticky", top: 0, zIndex: 40, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 24px", background: N }}
       >
-        <p className="text-sm font-medium text-white">
-          You&apos;re viewing a demo account &mdash; {business.name}
+        <p style={{ fontSize: 14, fontWeight: 500, color: "#fff", fontFamily: "Inter, sans-serif", margin: 0 }}>
+          You&apos;re viewing a demo account - {business.name}
         </p>
         <Link
           href="/signup"
-          className="rounded-lg px-4 py-1.5 text-xs font-semibold transition-colors"
-          style={{ background: G, color: '#fff' }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#00A87D'; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = G; }}
+          style={{ borderRadius: 8, padding: "6px 16px", fontSize: 12, fontWeight: 600, background: G, color: "#fff", textDecoration: "none", fontFamily: "Inter, sans-serif" }}
         >
           Start Getting Reviews
         </Link>
       </div>
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "24px 32px" }}>
         {/* Header */}
-        <div className="mb-6">
-          <Link href="/demo" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+        <div style={{ marginBottom: 24 }}>
+          <Link href="/demo" style={{ fontSize: 14, color: "#6B7280", textDecoration: "none", fontFamily: "Inter, sans-serif" }}>
             &larr; Back to Demos
           </Link>
-          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, marginTop: 8 }}>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, marginTop: 8, marginBottom: 4 }}>
             {business.name}
           </h1>
-          <p className="mt-1 text-sm text-gray-500">{business.address}</p>
+          <p style={{ marginTop: 4, fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>{business.address}</p>
         </div>
 
         {/* Tabs */}
-        <div className="mb-8 border-b border-gray-200">
-          <nav className="-mb-px flex gap-6 overflow-x-auto">
+        <div style={{ marginBottom: 32, borderBottom: "1px solid #E5E7EB" }}>
+          <nav style={{ display: "flex", gap: 24, overflowX: "auto", marginBottom: -1 }}>
             {TABS.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className="whitespace-nowrap border-b-2 pb-3 text-sm font-medium transition-colors"
-                style={
-                  activeTab === tab
-                    ? { borderBottomColor: G, color: G }
-                    : { borderBottomColor: 'transparent', color: '#6B7280' }
-                }
+                style={{
+                  whiteSpace: "nowrap",
+                  paddingBottom: 12,
+                  paddingTop: 0,
+                  paddingLeft: 0,
+                  paddingRight: 0,
+                  background: "none",
+                  border: "none",
+                  borderBottom: activeTab === tab ? `2px solid ${G}` : "2px solid transparent",
+                  fontSize: 14,
+                  fontWeight: activeTab === tab ? 600 : 400,
+                  color: activeTab === tab ? G : "#6B7280",
+                  cursor: "pointer",
+                  fontFamily: "Inter, sans-serif",
+                  transition: "color 0.15s",
+                }}
               >
                 {tab}
               </button>
@@ -761,7 +1109,7 @@ export default function DemoDashboardPage() {
 
         {/* Tab Content */}
         {activeTab === "Overview" && (
-          <OverviewTab business={business} customers={customers} feedback={feedback} analytics={analytics} />
+          <OverviewTab business={business} customers={customers} feedback={feedback} analytics={analytics} businessSlug={slug} />
         )}
         {activeTab === "Customers" && <CustomersTab customers={customers} demoToast={showToast} />}
         {activeTab === "Feedback" && <FeedbackTab feedback={feedback} demoToast={showToast} />}
