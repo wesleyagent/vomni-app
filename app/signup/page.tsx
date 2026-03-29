@@ -238,6 +238,15 @@ export default function SignupPage() {
       console.warn("[signup] businesses insert:", bizError.message);
     }
 
+    // If trial signup, always do a follow-up UPDATE to guarantee trial_start_date is set
+    // even if a DB trigger created the row first (causing the insert above to 23505).
+    if (isTrial && userId) {
+      await supabase
+        .from("businesses")
+        .update({ trial_start_date: new Date().toISOString(), plan: "pro" })
+        .eq("id", userId);
+    }
+
     // 3. Legacy localStorage + admin tracking (keep for backward compat)
     const business: Business = {
       id: authData.user?.id ?? generateId(),
