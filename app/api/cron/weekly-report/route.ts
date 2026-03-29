@@ -142,7 +142,8 @@ async function processBusiness(
   });
 
   if (emailRes.ok) {
-    await admin.from("weekly_reports").insert({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (admin as any).from("weekly_reports").insert({
       business_id:   biz.id,
       week_starting: weekStart,
       data_json: { googleReviews, negativeCaught, reviewsSent, avgRating },
