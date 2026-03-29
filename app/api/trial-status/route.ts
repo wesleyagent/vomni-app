@@ -3,18 +3,6 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const TRIAL_DAYS = 14;
 
-// Ensure the trial_start_date column exists (idempotent)
-let _migrated = false;
-async function ensureColumn() {
-  if (_migrated) return;
-  await supabaseAdmin.rpc("exec_sql", {
-    query: "ALTER TABLE businesses ADD COLUMN IF NOT EXISTS trial_start_date TIMESTAMPTZ DEFAULT NULL",
-  }).catch(() => {
-    // If rpc doesn't exist, the column may already be there — not fatal
-  });
-  _migrated = true;
-}
-
 // GET /api/trial-status?business_id=xxx
 // Returns { isTrial, daysRemaining, trialExpired } calculated server-side
 export async function GET(req: NextRequest) {
@@ -22,8 +10,6 @@ export async function GET(req: NextRequest) {
   if (!businessId) {
     return NextResponse.json({ error: "Missing business_id" }, { status: 400 });
   }
-
-  await ensureColumn();
 
   const { data: biz, error } = await supabaseAdmin
     .from("businesses")
