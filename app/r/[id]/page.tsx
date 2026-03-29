@@ -348,7 +348,7 @@ export default function RatingPage() {
             <div style={card}>
               <BizHeader business={business} bizName={bizName} />
               <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 8px" }}>
-                Before you decide — can we make this right?
+                We&apos;d love to make this right
               </h1>
               <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
                 {business?.owner_name ? `${business.owner_name} personally` : "The owner"} reads every response and follows up within 24 hours. Your honest feedback gives us a real chance to fix what went wrong.
@@ -381,7 +381,7 @@ export default function RatingPage() {
               {/* Google review option — equal opportunity, FTC/Google compliant */}
               <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: `1px solid ${BD}` }}>
                 <p style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "#6B7280", textAlign: "center", margin: "0 0 10px" }}>
-                  You can also share your experience publicly
+                  Or leave us a Google review
                 </p>
                 <a
                   href={business?.google_review_link ?? "#"}
