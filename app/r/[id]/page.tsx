@@ -348,16 +348,16 @@ export default function RatingPage() {
             <div style={card}>
               <BizHeader business={business} bizName={bizName} />
               <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 8px" }}>
-                We&apos;d love to make this right
+                I&apos;d like to personally make this right.
               </h1>
               <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
-                {business?.owner_name ? `${business.owner_name} personally` : "The owner"} reads every response and follows up within 24 hours. Your honest feedback gives us a real chance to fix what went wrong.
+                Your message goes directly to my personal inbox. I aim to resolve all concerns within 24 business hours.
               </p>
 
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                placeholder="What could we have done better?"
+                placeholder="Please tell me what happened and how I can fix it for you today..."
                 style={{ width: "100%", minHeight: 140, padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${BD}`, color: "#111827", background: "#FAFAFA", display: "block", marginBottom: 16 }}
               />
 
@@ -375,7 +375,7 @@ export default function RatingPage() {
                   minHeight: 52, opacity: sending ? 0.7 : 1,
                 }}
               >
-                {sending ? "Sending..." : "Send feedback →"}
+                {sending ? "Sending..." : `Send directly to ${first(business?.owner_name)} →`}
               </button>
 
               {/* Google review option — equal opportunity, FTC/Google compliant */}
