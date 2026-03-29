@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
+  turbopack: {},
   experimental: {
     serverActions: {
       allowedOrigins: ["vomni.io", "www.vomni.io", "localhost:3000", "localhost:3001"],
