@@ -52,10 +52,54 @@ function IPhone({ children, slideLeft }: { children: React.ReactNode; slideLeft?
   );
 }
 
+// StarRatingWidget — MUST be outside PlatformLiveDemo so hover state never re-renders parent
+function StarRatingWidget({ onSelect, selected }: { onSelect: (n: number) => void; selected: number }) {
+  const [hover, setHover] = useState(0);
+  return (
+    <div style={{ display: "flex", gap: 4 }}>
+      {[1, 2, 3, 4, 5].map((i) => {
+        const filled = selected > 0 ? i <= selected : i <= hover;
+        const color =
+          selected > 0
+            ? selected <= 3
+              ? i <= selected ? "#F5A623" : "#D1D5DB"
+              : i <= selected ? "#00C896"  : "#D1D5DB"
+            : filled ? "#00C896" : "#D1D5DB";
+        return (
+          <span
+            key={i}
+            onClick={() => onSelect(i)}
+            onPointerEnter={() => setHover(i)}
+            onPointerLeave={() => setHover(0)}
+            style={{
+              fontSize: 40,
+              color,
+              cursor: "pointer",
+              transition: "color 0.15s ease",
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 52,
+              height: 52,
+              WebkitTapHighlightColor: "transparent",
+              userSelect: "none",
+              animation:
+                selected >= 4 && i <= selected
+                  ? `starPop 0.3s ease ${(i - 1) * 0.08}s both`
+                  : "none",
+            }}
+          >
+            ★
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function PlatformLiveDemo() {
   const [stage, setStage] = useState<1 | 2 | 3 | 4 | 5 | 6 | 7>(1);
   const [stars, setStars] = useState(0);
-  const [hoverStar, setHoverStar] = useState(0);
   const [presenterMode, setPresenterMode] = useState(false);
   const [soundOn, setSoundOn] = useState(false);
   const [reviewText, setReviewText] = useState("");
@@ -165,14 +209,12 @@ export default function PlatformLiveDemo() {
 
   function backToStars() {
     setStars(0);
-    setHoverStar(0);
     setStage(2);
   }
 
   function resetDemo() {
     setStage(1);
     setStars(0);
-    setHoverStar(0);
     setNotifVisible(false);
     setNotifTapped(false);
     setDashboardAnimating(false);
@@ -490,45 +532,8 @@ export default function PlatformLiveDemo() {
               How was your visit?
             </h2>
 
-            {/* Stars — pointer events prevent flicker on desktop; large touch targets for mobile */}
-            <div style={{ display: "flex", gap: 4 }}>
-              {[1, 2, 3, 4, 5].map((i) => {
-                const filled = stars > 0 ? i <= stars : i <= hoverStar;
-                const color =
-                  stars > 0
-                    ? stars <= 3
-                      ? i <= stars ? "#F5A623" : "#D1D5DB"
-                      : i <= stars ? "#00C896"  : "#D1D5DB"
-                    : filled ? "#00C896" : "#D1D5DB";
-                return (
-                  <span
-                    key={i}
-                    onClick={() => selectStars(i)}
-                    onPointerEnter={() => setHoverStar(i)}
-                    onPointerLeave={() => setHoverStar(0)}
-                    style={{
-                      fontSize: 40,
-                      color,
-                      cursor: "pointer",
-                      transition: "color 0.15s ease",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      width: 52,
-                      height: 52,
-                      WebkitTapHighlightColor: "transparent",
-                      userSelect: "none",
-                      animation:
-                        stars >= 4 && i <= stars
-                          ? `starPop 0.3s ease ${(i - 1) * 0.08}s both`
-                          : "none",
-                    }}
-                  >
-                    ★
-                  </span>
-                );
-              })}
-            </div>
+            {/* Stars — isolated component so hover state never re-renders parent */}
+            <StarRatingWidget onSelect={selectStars} selected={stars} />
 
             {/* No buttons here — options appear after star selection */}
           </div>

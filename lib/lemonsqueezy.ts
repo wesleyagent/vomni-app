@@ -63,9 +63,7 @@ export async function createLSCheckoutUrl(opts: {
     checkoutData: {
       email: opts.email ?? undefined,
       name: opts.name ?? undefined,
-      custom: {
-        business_id: opts.businessId ?? "",
-      },
+      ...(opts.businessId ? { custom: { business_id: opts.businessId } } : {}),
     },
     productOptions: {
       redirectUrl: redirect,
