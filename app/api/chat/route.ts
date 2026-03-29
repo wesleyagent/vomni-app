@@ -1,6 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
+// ── Rate limiting (in-memory, per serverless instance) ────────────────────────
+// Protects against a single IP hammering the Claude endpoint and driving up costs.
+// Limit: 20 requests per hour per IP. Warm Vercel instances share this map.
+const _rl = new Map<string, { count: number; resetAt: number }>();
+const RL_MAX = 20;
+const RL_WINDOW = 60 * 60 * 1000; // 1 hour
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = _rl.get(ip);
+  if (!entry || now > entry.resetAt) {
+    _rl.set(ip, { count: 1, resetAt: now + RL_WINDOW });
+    return false;
+  }
+  if (entry.count >= RL_MAX) return true;
+  entry.count++;
+  return false;
+}
+
+function getClientIp(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    "unknown"
+  );
+}
+
 // ── System prompt ─────────────────────────────────────────────────────────────
 
 const BASE_SYSTEM_PROMPT = `You are Vomni's support assistant. You are friendly, helpful, and concise. You represent a premium product and your tone should reflect that - warm but professional, direct but never cold.
@@ -92,6 +119,15 @@ function randomId(): string {
 
 export async function POST(req: NextRequest) {
   try {
+    // ── Rate limit check ────────────────────────────────────────────────────
+    const clientIp = getClientIp(req);
+    if (isRateLimited(clientIp)) {
+      return NextResponse.json(
+        { error: "Too many requests. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const {
       messages,
       sessionId,
@@ -103,6 +139,14 @@ export async function POST(req: NextRequest) {
       businessName,
       ownerFirstName,
     } = await req.json();
+
+    // ── Guard against oversized message arrays ──────────────────────────────
+    if (Array.isArray(messages) && messages.length > 40) {
+      return NextResponse.json(
+        { error: "Conversation too long." },
+        { status: 400 }
+      );
+    }
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
