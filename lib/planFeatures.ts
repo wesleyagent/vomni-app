@@ -38,6 +38,7 @@ export type PlanName = keyof typeof PLAN_FEATURES;
 export type PlanFeatureKey = keyof typeof PLAN_FEATURES.growth;
 
 export function hasFeature(plan: string | null | undefined, feature: PlanFeatureKey): boolean {
+  if (plan === 'trial_expired') return false; // Expired trial — no pro features
   const p = (plan ?? 'growth') as PlanName;
   return !!(PLAN_FEATURES[p]?.[feature] ?? false);
 }

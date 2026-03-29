@@ -42,6 +42,7 @@ export interface DBBusiness {
   lemon_subscription_id?: string | null;
   subscription_status?: string | null;   // active | cancelled | paused | past_due | expired
   subscription_period?: string | null;   // monthly | yearly
+  trial_start_date?: string | null;      // ISO timestamp — set when user signs up via free trial
 }
 
 export interface DBBooking {

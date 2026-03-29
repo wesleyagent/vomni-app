@@ -43,6 +43,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [loading,       setLoading]       = useState(true);
   const [notifOpen,     setNotifOpen]     = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [trialInfo,     setTrialInfo]     = useState<{ isTrial: boolean; daysRemaining: number; trialExpired: boolean } | null>(null);
+  const [subscribing,   setSubscribing]   = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -77,12 +79,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         setSmsUsed(0);
         setSmsLimit(null);
         loadNotifications(biz.id);
+        loadTrialStatus(biz.id);
       } else {
         setCtx({ businessId: user.id, businessName: "My Business", ownerName: "", email: user.email });
       }
       setLoading(false);
     })();
   }, [router]);
+
+  async function loadTrialStatus(businessId: string) {
+    try {
+      const res = await fetch(`/api/trial-status?business_id=${businessId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTrialInfo(data);
+        // If trial expired, update the plan badge to reflect it
+        if (data.trialExpired) setBizPlan("trial_expired");
+      }
+    } catch { /* silently fail */ }
+  }
+
+  async function handleSubscribe() {
+    if (!ctx?.email || subscribing) return;
+    setSubscribing(true);
+    try {
+      const res = await fetch("/api/lemonsqueezy/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variantId: 1460277, email: ctx.email, businessId: ctx.businessId, isUpgrade: true }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        // Append checkout[email] param for pre-fill
+        const checkoutUrl = new URL(data.url);
+        checkoutUrl.searchParams.set("checkout[email]", ctx.email);
+        window.location.href = checkoutUrl.toString();
+      }
+    } catch { /* silently fail */ }
+    setSubscribing(false);
+  }
 
   async function loadNotifications(businessId: string) {
     try {
@@ -169,11 +204,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span style={{
                     padding: "3px 10px", borderRadius: 9999,
                     fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                    background: bizPlan === "pro" ? "rgba(245,166,35,0.15)" : bizPlan === "starter" ? "#F3F4F6" : "rgba(0,200,150,0.12)",
-                    color: bizPlan === "pro" ? "#F5A623" : bizPlan === "starter" ? "#6B7280" : "#00C896",
+                    background: bizPlan === "trial_expired" ? "#FEE2E2"
+                      : trialInfo?.isTrial ? "rgba(59,130,246,0.12)"
+                      : bizPlan === "pro" ? "rgba(245,166,35,0.15)"
+                      : bizPlan === "starter" ? "#F3F4F6"
+                      : "rgba(0,200,150,0.12)",
+                    color: bizPlan === "trial_expired" ? "#DC2626"
+                      : trialInfo?.isTrial ? "#3B82F6"
+                      : bizPlan === "pro" ? "#F5A623"
+                      : bizPlan === "starter" ? "#6B7280"
+                      : "#00C896",
                     cursor: "pointer",
                   }}>
-                    {bizPlan === "pro" ? "Pro ★" : bizPlan === "starter" ? "Starter" : getPlanName(bizPlan)}
+                    {bizPlan === "trial_expired" ? "Trial Ended"
+                      : trialInfo?.isTrial ? "Pro Trial"
+                      : bizPlan === "pro" ? "Pro ★"
+                      : bizPlan === "starter" ? "Starter"
+                      : getPlanName(bizPlan)}
                   </span>
                 </a>
               )}
@@ -275,8 +322,90 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })()}
         </header>
 
-        {/* Page content */}
-        <main style={{ flex: 1 }}>{children}</main>
+        {/* Trial Banner */}
+        {trialInfo?.isTrial && !trialInfo.trialExpired && (
+          <div style={{
+            background: "linear-gradient(90deg, #0A0F1E 0%, #1a2332 100%)",
+            padding: "14px 40px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 16,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 20 }}>⏱️</span>
+              <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff" }}>
+                Your free trial: {trialInfo.daysRemaining} day{trialInfo.daysRemaining !== 1 ? "s" : ""} remaining
+              </span>
+            </div>
+            <button
+              onClick={handleSubscribe}
+              disabled={subscribing}
+              style={{
+                background: G,
+                color: "#fff",
+                border: "none",
+                borderRadius: 9999,
+                padding: "10px 24px",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: subscribing ? "not-allowed" : "pointer",
+                whiteSpace: "nowrap",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={e => { if (!subscribing) (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
+              onMouseLeave={e => { if (!subscribing) (e.currentTarget as HTMLElement).style.background = G; }}
+            >
+              {subscribing ? "Loading…" : "Subscribe now →"}
+            </button>
+          </div>
+        )}
+
+        {/* Trial Expired Overlay */}
+        {trialInfo?.trialExpired && (
+          <div style={{
+            background: "#fff",
+            border: "1px solid #E5E7EB",
+            borderRadius: 16,
+            margin: "40px auto",
+            maxWidth: 520,
+            padding: "48px 40px",
+            textAlign: "center",
+            boxShadow: "0 8px 40px rgba(0,0,0,0.08)",
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+            <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: N, margin: "0 0 12px" }}>
+              Your free trial has ended
+            </h2>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: "#6B7280", lineHeight: 1.6, margin: "0 0 28px" }}>
+              Subscribe to keep using all Pro features — AI insights, advanced analytics, custom SMS numbers, and more.
+            </p>
+            <button
+              onClick={handleSubscribe}
+              disabled={subscribing}
+              style={{
+                background: G,
+                color: "#fff",
+                border: "none",
+                borderRadius: 9999,
+                padding: "16px 40px",
+                fontFamily: "Inter, sans-serif",
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: subscribing ? "not-allowed" : "pointer",
+                transition: "background 0.15s",
+              }}
+              onMouseEnter={e => { if (!subscribing) (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
+              onMouseLeave={e => { if (!subscribing) (e.currentTarget as HTMLElement).style.background = G; }}
+            >
+              {subscribing ? "Loading…" : "Subscribe to Pro — £149/mo →"}
+            </button>
+          </div>
+        )}
+
+        {/* Page content — hidden when trial expired */}
+        <main style={{ flex: 1, ...(trialInfo?.trialExpired ? { display: "none" } : {}) }}>{children}</main>
 
         {/* Notification Panel (slide-in from right) */}
         {notifOpen && (

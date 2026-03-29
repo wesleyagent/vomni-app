@@ -127,6 +127,7 @@ export default function SignupPage() {
 
   // ── Read payment proof + plan from URL (set by Lemon Squeezy redirect) ─────
   const [paymentVerified, setPaymentVerified] = useState<boolean | null>(null); // null = checking
+  const [isTrial,         setIsTrial]         = useState(false);
   const [businessName,     setBusinessName]     = useState("");
   const [ownerName,        setOwnerName]        = useState("");
   const [email,            setEmail]            = useState("");
@@ -140,11 +141,17 @@ export default function SignupPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const paid   = params.get("payment") === "success";
-    setPaymentVerified(paid);
-    // Pre-select the plan the user chose on the pricing page
-    const urlPlan = params.get("plan") as Plan | null;
-    if (urlPlan && ["starter", "growth", "pro"].includes(urlPlan)) {
-      setPlan(urlPlan);
+    const trial  = params.get("trial") === "privatetrialisrael";
+    setPaymentVerified(paid || trial);
+    setIsTrial(trial);
+    if (trial) {
+      setPlan("pro"); // Trial users get pro access
+    } else {
+      // Pre-select the plan the user chose on the pricing page
+      const urlPlan = params.get("plan") as Plan | null;
+      if (urlPlan && ["starter", "growth", "pro"].includes(urlPlan)) {
+        setPlan(urlPlan);
+      }
     }
   }, []);
 
@@ -209,7 +216,7 @@ export default function SignupPage() {
 
     // 2. Insert into businesses table - use the Auth UUID as the row id so
     //    the dashboard can always look up the record with a single equality check.
-    const { error: bizError } = await supabase.from("businesses").insert({
+    const bizRow: Record<string, unknown> = {
       id:               userId,
       name:             trimmedBizName,
       owner_name:       trimmedOwner,
@@ -219,7 +226,11 @@ export default function SignupPage() {
       onboarding_step:  1,
       notification_email: trimmedEmail,
       created_at:       new Date().toISOString(),
-    });
+    };
+    if (isTrial) {
+      bizRow.trial_start_date = new Date().toISOString();
+    }
+    const { error: bizError } = await supabase.from("businesses").insert(bizRow);
 
     if (bizError && bizError.code !== "23505") {
       // 23505 = unique-violation (row already created by trigger) - safe to ignore.
@@ -317,10 +328,12 @@ export default function SignupPage() {
             Start Getting More Google Reviews
           </h2>
 
-          {/* Payment confirmed badge */}
+          {/* Payment confirmed / Trial badge */}
           <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(0,200,150,0.1)", color: "#00A87D", borderRadius: 9999, padding: "6px 14px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600 }}>
-              ✓ Payment confirmed — set up your account below
+              {isTrial
+                ? "✓ 14-day free trial — set up your account below"
+                : "✓ Payment confirmed — set up your account below"}
             </span>
           </div>
 
@@ -451,7 +464,13 @@ export default function SignupPage() {
               )}
             </div>
 
-            {/* Plan selector */}
+            {/* Plan selector — hidden for trial users (auto-pro) */}
+            {isTrial ? (
+              <div style={{ padding: "14px 16px", borderRadius: 12, border: `2px solid ${G}`, background: "rgba(0,200,150,0.05)" }}>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Pro Plan — 14-day free trial</div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Full access to all features. No payment required.</div>
+              </div>
+            ) : (
             <div style={{ paddingTop: 4 }}>
               <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 12 }}>
                 Choose your plan
@@ -508,6 +527,7 @@ export default function SignupPage() {
 
               </div>
             </div>
+            )}
 
             {/* Submit */}
             <button
