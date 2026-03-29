@@ -646,10 +646,10 @@ export default function LandingPage() {
           {/* Left */}
           <div>
             <h1 className="hero-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 80, fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.03em", color: N }}>
-              More 5-star<br /><span style={{ color: G }}>reviews.</span><br />Fewer surprises.
+              Put your reputation<br /><span style={{ color: G }}>on autopilot.</span>
             </h1>
             <p className="hero-sub" style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, lineHeight: 1.6, maxWidth: 460, marginTop: 24 }}>
-              Vomni sends review requests after every appointment. Every customer gets a voice - and you get the chance to make it right.
+              Vomni captures every customer experience instantly - giving everyone a voice and ensuring your business gets the recognition it deserves.
             </p>
             <div className="hero-buttons" style={{ marginTop: 40, display: "flex", gap: 16, alignItems: "center" }}>
               <a href="/signup" className="cta-primary" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>
