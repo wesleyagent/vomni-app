@@ -379,15 +379,23 @@ export default function RatingPage() {
               </button>
 
               {/* Google review option — equal opportunity, FTC/Google compliant */}
-              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: `1px solid ${BD}`, textAlign: "center" }}>
+              <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: `1px solid ${BD}` }}>
                 <a
                   href={business?.google_review_link ?? "#"}
                   target="_blank"
                   rel="noopener noreferrer"
+                  className="btn"
                   onClick={onGoogleClick}
-                  style={{ fontFamily: "Inter,sans-serif", fontSize: 13, color: "#9CA3AF", textDecoration: "underline", cursor: "pointer" }}
+                  style={{
+                    display: "block", width: "100%", padding: "16px",
+                    backgroundColor: G, color: "#fff", border: "none",
+                    textAlign: "center", borderRadius: "9999px",
+                    fontSize: "16px", fontWeight: "700",
+                    fontFamily: "'Bricolage Grotesque', sans-serif",
+                    textDecoration: "none", boxSizing: "border-box",
+                  }}
                 >
-                  Or leave us a Google review
+                  Leave us a Google review ★
                 </a>
               </div>
             </div>
