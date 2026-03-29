@@ -17,7 +17,8 @@ interface BizWithEmail {
 // Prevents timeouts at scale without overwhelming Claude/Resend APIs.
 async function processBatch(
   batch: BizWithEmail[],
-  admin: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
   weekStart: string,
   weekAgo: string,
   resendKey: string,
@@ -31,7 +32,8 @@ async function processBatch(
 
 async function processBusiness(
   biz: BizWithEmail,
-  admin: ReturnType<typeof createClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  admin: any,
   weekStart: string,
   weekAgo: string,
   resendKey: string,
