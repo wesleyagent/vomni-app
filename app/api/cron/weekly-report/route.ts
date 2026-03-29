@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
+// Allow up to 300s — needed at scale (50+ businesses)
+export const maxDuration = 300;
+
 interface BizWithEmail {
   id: string;
   name: string | null;
@@ -10,98 +13,78 @@ interface BizWithEmail {
   business_type: string | null;
 }
 
-export async function GET(req: NextRequest) {
-  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+// Process businesses in batches of 5 in parallel, with a pause between batches.
+// Prevents timeouts at scale without overwhelming Claude/Resend APIs.
+async function processBatch(
+  batch: BizWithEmail[],
+  admin: ReturnType<typeof createClient>,
+  weekStart: string,
+  weekAgo: string,
+  resendKey: string,
+  anthropicKey: string
+): Promise<number> {
+  const results = await Promise.allSettled(
+    batch.map(biz => processBusiness(biz, admin, weekStart, weekAgo, resendKey, anthropicKey))
+  );
+  return results.filter(r => r.status === "fulfilled" && r.value).length;
+}
+
+async function processBusiness(
+  biz: BizWithEmail,
+  admin: ReturnType<typeof createClient>,
+  weekStart: string,
+  weekAgo: string,
+  resendKey: string,
+  anthropicKey: string
+): Promise<boolean> {
+  const toEmail = biz.notification_email || biz.owner_email;
+  if (!toEmail) return false;
+
+  // Get this week's stats
+  const { data: bookings } = await admin
+    .from("bookings")
+    .select("id, review_status, rating")
+    .eq("business_id", biz.id)
+    .gte("created_at", weekAgo);
+
+  const allBookings = bookings ?? [];
+  const reviewsSent    = allBookings.filter((b: { review_status: string | null }) => b.review_status && b.review_status !== "pending").length;
+  const googleReviews  = allBookings.filter((b: { review_status: string | null }) => b.review_status === "redirected").length;
+  const negativeCaught = allBookings.filter((b: { review_status: string | null }) => b.review_status === "reviewed_negative").length;
+  const ratingArr      = allBookings.filter((b: { rating: number | null }) => b.rating != null).map((b: { rating: number }) => b.rating);
+  const avgRating      = ratingArr.length > 0 ? (ratingArr.reduce((a: number, b: number) => a + b, 0) / ratingArr.length).toFixed(1) : null;
+
+  // Generate one AI insight
+  let aiInsight = "";
+  if (anthropicKey && allBookings.length > 0) {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "x-api-key": anthropicKey,
+          "anthropic-version": "2023-06-01",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "claude-haiku-4-20250514",
+          max_tokens: 150,
+          system: "You generate concise, specific weekly insights for service business owners about their review performance. One sentence only. Actionable. No fluff.",
+          messages: [{
+            role: "user",
+            content: `Business: ${biz.name} (${biz.business_type || "service business"}). This week: ${googleReviews} Google reviews, ${negativeCaught} negative caught, ${reviewsSent} total requests, avg rating ${avgRating ?? "unknown"}. Write one specific actionable insight.`,
+          }],
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        aiInsight = data.content?.[0]?.text?.trim() || "";
+      }
+    } catch { /* skip AI insight */ }
   }
 
-  const url        = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
-  const resendKey  = process.env.RESEND_API_KEY ?? "";
-  const anthropicKey = process.env.ANTHROPIC_API_KEY ?? "";
+  const firstName = biz.owner_name?.split(" ")[0] ?? "there";
 
-  if (!serviceKey || !url || !resendKey) {
-    return NextResponse.json({ error: "Missing env vars" }, { status: 500 });
-  }
-
-  const admin = createClient(url, serviceKey);
-
-  // Find all active businesses
-  const { data: businesses } = await admin
-    .from("businesses")
-    .select("id, name, owner_name, notification_email, owner_email, business_type")
-    .eq("status", "active")
-    .not("plan", "is", null);
-
-  if (!businesses || businesses.length === 0) {
-    return NextResponse.json({ sent: 0 });
-  }
-
-  const now = new Date();
-  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString().split("T")[0];
-
-  // Filter: only send if not already sent this week
-  const { data: alreadySent } = await admin
-    .from("weekly_reports")
-    .select("business_id")
-    .eq("week_starting", weekStart);
-
-  const sentIds = new Set((alreadySent ?? []).map((r: { business_id: string }) => r.business_id));
-
-  let sentCount = 0;
-
-  for (const biz of (businesses as BizWithEmail[])) {
-    if (sentIds.has(biz.id)) continue;
-
-    const toEmail = biz.notification_email || biz.owner_email;
-    if (!toEmail) continue;
-
-    // Get this week's stats
-    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { data: bookings } = await admin
-      .from("bookings")
-      .select("id, review_status, rating")
-      .eq("business_id", biz.id)
-      .gte("created_at", weekAgo);
-
-    const allBookings = bookings ?? [];
-    const reviewsSent     = allBookings.filter((b: { review_status: string | null }) => b.review_status && b.review_status !== "pending").length;
-    const googleReviews   = allBookings.filter((b: { review_status: string | null }) => b.review_status === "redirected").length;
-    const negativeCaught  = allBookings.filter((b: { review_status: string | null }) => b.review_status === "reviewed_negative").length;
-    const ratingArr       = allBookings.filter((b: { rating: number | null }) => b.rating != null).map((b: { rating: number }) => b.rating);
-    const avgRating       = ratingArr.length > 0 ? (ratingArr.reduce((a: number, b: number) => a + b, 0) / ratingArr.length).toFixed(1) : null;
-
-    // Generate one AI insight
-    let aiInsight = "";
-    if (anthropicKey && allBookings.length > 0) {
-      try {
-        const res = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "x-api-key": anthropicKey,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "claude-haiku-4-20250514",
-            max_tokens: 150,
-            system: "You generate concise, specific weekly insights for service business owners about their review performance. One sentence only. Actionable. No fluff.",
-            messages: [{
-              role: "user",
-              content: `Business: ${biz.name} (${biz.business_type || "service business"}). This week: ${googleReviews} Google reviews, ${negativeCaught} negative caught, ${reviewsSent} total requests, avg rating ${avgRating ?? "unknown"}. Write one specific actionable insight.`,
-            }],
-          }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          aiInsight = data.content?.[0]?.text?.trim() || "";
-        }
-      } catch { /* skip */ }
-    }
-
-    const firstName = biz.owner_name?.split(" ")[0] ?? "there";
-
-    const htmlBody = `
+  const htmlBody = `
 <!DOCTYPE html>
 <html>
 <body style="font-family: Inter, -apple-system, sans-serif; color: #0A0F1E; background: #F7F8FA; padding: 32px;">
@@ -143,32 +126,86 @@ export async function GET(req: NextRequest) {
 </body>
 </html>`;
 
-    // Send email
-    try {
-      const emailRes = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${resendKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from:    "Vomni Weekly <nicky@vomni.app>",
-          to:      [toEmail],
-          subject: `Your Vomni weekly summary - ${googleReviews} reviews, ${negativeCaught} caught`,
-          html:    htmlBody,
-        }),
-      });
+  // Send email
+  const emailRes = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${resendKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from:    "Vomni Weekly <nicky@vomni.app>",
+      to:      [toEmail],
+      subject: `Your Vomni weekly summary - ${googleReviews} reviews, ${negativeCaught} caught`,
+      html:    htmlBody,
+    }),
+  });
 
-      if (emailRes.ok) {
-        // Record the report
-        await admin.from("weekly_reports").insert({
-          business_id:   biz.id,
-          week_starting: weekStart,
-          data_json: { googleReviews, negativeCaught, reviewsSent, avgRating },
-        });
-        sentCount++;
-      }
-    } catch { /* skip this business */ }
+  if (emailRes.ok) {
+    await admin.from("weekly_reports").insert({
+      business_id:   biz.id,
+      week_starting: weekStart,
+      data_json: { googleReviews, negativeCaught, reviewsSent, avgRating },
+    });
+    return true;
+  }
+  return false;
+}
+
+export async function GET(req: NextRequest) {
+  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const url          = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
+  const serviceKey   = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+  const resendKey    = process.env.RESEND_API_KEY ?? "";
+  const anthropicKey = process.env.ANTHROPIC_API_KEY ?? "";
+
+  if (!serviceKey || !url || !resendKey) {
+    return NextResponse.json({ error: "Missing env vars" }, { status: 500 });
+  }
+
+  const admin = createClient(url, serviceKey);
+
+  // Find all active businesses
+  const { data: businesses } = await admin
+    .from("businesses")
+    .select("id, name, owner_name, notification_email, owner_email, business_type")
+    .eq("status", "active")
+    .not("plan", "is", null);
+
+  if (!businesses || businesses.length === 0) {
+    return NextResponse.json({ sent: 0 });
+  }
+
+  const now = new Date();
+  const weekStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7).toISOString().split("T")[0];
+  const weekAgo   = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Filter: only send if not already sent this week
+  const { data: alreadySent } = await admin
+    .from("weekly_reports")
+    .select("business_id")
+    .eq("week_starting", weekStart);
+
+  const sentIds = new Set((alreadySent ?? []).map((r: { business_id: string }) => r.business_id));
+  const pending = (businesses as BizWithEmail[]).filter(b => !sentIds.has(b.id));
+
+  // ── Process in batches of 5 ───────────────────────────────────────────────
+  // Prevents timeouts at scale. 5 parallel × N batches with 1s pause between.
+  const BATCH_SIZE = 5;
+  let sentCount = 0;
+
+  for (let i = 0; i < pending.length; i += BATCH_SIZE) {
+    const batch = pending.slice(i, i + BATCH_SIZE);
+    const batchSent = await processBatch(batch, admin, weekStart, weekAgo, resendKey, anthropicKey);
+    sentCount += batchSent;
+
+    // Small pause between batches to avoid overwhelming external APIs
+    if (i + BATCH_SIZE < pending.length) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
   }
 
   return NextResponse.json({ sent: sentCount, total: businesses.length });
