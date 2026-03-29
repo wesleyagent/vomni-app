@@ -116,7 +116,7 @@ export default function ReviewGatingPage() {
           )}
         </div>
 
-        {/* Not submitted yet — show star selector */}
+        {/* Not submitted yet - show star selector */}
         {!submitted && (
           <div className="mt-8 text-center">
             <h1 className="text-2xl font-bold text-gray-900">
@@ -172,7 +172,7 @@ export default function ReviewGatingPage() {
           </div>
         )}
 
-        {/* Negative rating (1-3 stars) — feedback form */}
+        {/* Negative rating (1-3 stars) - feedback form */}
         {submitted && selectedRating <= 3 && !feedbackSubmitted && (
           <div className="mt-8 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-orange-100">

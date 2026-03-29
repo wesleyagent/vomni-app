@@ -335,8 +335,13 @@ export const kingsCutsFeedback: FeedbackItem[] = [
       "The fade was uneven on the left side. I pointed it out and felt like it wasn't really addressed properly. Not what I expected for the price.",
     status: "in_progress",
     aiSuggestedReply:
-      "Hi Tyler, I'm really sorry to hear that. An uneven fade is not the standard we set for ourselves, and I completely understand your frustration. That's not acceptable. I'd love to have you back in so we can make it right — no charge, of course. Could you call us on 07911 234567 or just reply to this message and we'll sort out a time that works for you? — Marcus at Kings Cuts",
-    internalNotes: "Spoke with Deon — he remembers the cut. Will address technique.",
+      "Hi Tyler, I'm really sorry to hear that. An uneven fade that wasn't fixed when you raised it is exactly the kind of thing we should never let leave the shop. That's on us, not you. I'd love to have you back in so we can make it right - no charge, of course. Just reply to this or call 07911 234567 and we'll sort a time. - Marcus at Kings Cuts",
+    aiReplies: {
+      apologetic: "Hi Tyler, I'm really sorry to hear that. An uneven fade that wasn't fixed when you raised it is exactly the kind of thing we should never let leave the shop. That's on us, not you. I'd love to have you back in so we can make it right - no charge, of course. Just reply to this or call 07911 234567 and we'll sort a time. - Marcus at Kings Cuts",
+      professional: "Hi Tyler, thank you for letting us know. An uneven finish is below the standard we hold ourselves to, and I understand your frustration when it wasn't corrected on the day. We'd like to make this right - please call us on 07911 234567 or reply here to book a complimentary visit at your convenience. - Kings Cuts",
+      personal: "Tyler - honestly, gutted to hear this. An uneven fade is one thing, but not being listened to when you flagged it? That's not us. Come back in, ask for Marcus, and I'll sort it personally. On the house. - Marcus",
+    },
+    internalNotes: "Spoke with Deon - he remembers the cut. Will address technique.",
     createdAt: "2026-03-23T18:15:00Z",
   },
   {
@@ -347,11 +352,16 @@ export const kingsCutsFeedback: FeedbackItem[] = [
     customerPhone: "+44 7700 900010",
     rating: 3,
     feedback:
-      "Wait was longer than expected — I was kept waiting 20 mins past my appointment. Cut itself was fine but the wait put me off.",
+      "Wait was longer than expected - I was kept waiting 20 mins past my appointment. Cut itself was fine but the wait put me off.",
     status: "resolved",
     aiSuggestedReply:
-      "Hi Aiden, I'm really sorry about the wait — that's not how we operate and I completely understand how frustrating it is when your time isn't respected. We've been looking at our scheduling and making some changes. I'd love to show you a better experience — next time you book, mention this and your next cut is on us. Thanks for the honest feedback. — Marcus",
-    internalNotes: "Resolved — offered free cut. Aiden replied and accepted.",
+      "Hi Aiden, I'm really sorry about the wait - 20 minutes past your appointment is genuinely not good enough. Your time matters and we didn't respect that. We're working on our scheduling to make sure this doesn't happen again. I'd love to give you a better experience - your next cut is on us. Just mention this when you book. - Marcus",
+    aiReplies: {
+      apologetic: "Hi Aiden, I'm really sorry about the wait - 20 minutes past your appointment is genuinely not good enough. Your time matters and we didn't respect that. We're working on our scheduling to make sure this doesn't happen again. I'd love to give you a better experience - your next cut is on us. Just mention this when you book. - Marcus",
+      professional: "Hi Aiden, thank you for the feedback. A 20-minute delay past your appointment time is not the standard we operate to, and I appreciate you flagging it. As a gesture of goodwill, your next visit will be complimentary - please mention this when booking. We are actively reviewing our scheduling processes. - Kings Cuts",
+      personal: "Aiden - 20 mins over? That's rough, especially when you've planned your day around it. Totally fair to be put off. Next one's on us - just mention it when you book and I'll make sure you're in and out on time. - Marcus",
+    },
+    internalNotes: "Resolved - offered free cut. Aiden replied and accepted.",
     resolvedAt: "2026-03-21T10:00:00Z",
     resolution: "Offered complimentary cut on next visit. Customer accepted.",
     createdAt: "2026-03-20T16:30:00Z",
@@ -367,7 +377,12 @@ export const kingsCutsFeedback: FeedbackItem[] = [
       "Hot towel shave nicked my chin twice. Felt rushed. The barber seemed distracted. Skin was irritated for two days after.",
     status: "new",
     aiSuggestedReply:
-      "Hi Isaac, I'm genuinely sorry to hear this — a nick during a shave is uncomfortable and I completely understand your frustration, especially if your skin was irritated afterwards. That's not the standard we hold ourselves to. I'd really like to speak with you directly about this. Please call me, Marcus, on 07911 234567 — I'd like to personally make this right for you, whether that's a refund, a complimentary service, or just a chat. Thank you for letting us know.",
+      "Hi Isaac, I'm genuinely sorry - a nick during a shave is uncomfortable at the best of times, but skin irritation for two days afterwards is not acceptable. That's not a standard we can stand behind. I'd like to speak with you directly. Please call me, Marcus, on 07911 234567 - I'd like to personally make this right, whether that's a refund, a complimentary service, or just a conversation. Thank you for telling us.",
+    aiReplies: {
+      apologetic: "Hi Isaac, I'm genuinely sorry - a nick during a shave is uncomfortable at the best of times, but skin irritation for two days afterwards is not acceptable. That's not a standard we can stand behind. I'd like to speak with you directly. Please call me, Marcus, on 07911 234567 - I'd like to personally make this right, whether that's a refund, a complimentary service, or just a conversation. Thank you for telling us.",
+      professional: "Hi Isaac, thank you for bringing this to our attention. A nick resulting in two days of skin irritation is below the standard we hold, and I understand how unpleasant that experience must have been. Please call us on 07911 234567 so we can discuss how to resolve this for you. We take all feedback of this nature seriously. - Kings Cuts",
+      personal: "Isaac - I'm really sorry. That shouldn't have happened, full stop. Two days of irritation from a shave here is not something I can brush off. Call me directly on 07911 234567 - I'm Marcus, the owner - and let's sort this properly. Refund, free service, whatever you need. - Marcus",
+    },
     createdAt: "2026-03-17T19:22:00Z",
   },
 ];
@@ -635,7 +650,12 @@ export const bellaVistaFeedback: FeedbackItem[] = [
       "Waited 45 minutes for our table despite having a reservation. When we finally sat down, two of our six orders were wrong. The waiter was dismissive when we pointed it out. Completely ruined our anniversary dinner.",
     status: "new",
     aiSuggestedReply:
-      "Hi Rachel, I'm so sorry — this is genuinely awful and I'm embarrassed reading it. A 45-minute wait with a reservation, wrong orders, and a dismissive response from our team on your anniversary? That's the opposite of everything we stand for. I'd really like to speak with you personally. Please call me, Sofia, directly at (212) 555-0187. I want to make this right — and I mean that sincerely, not just as a business response. Thank you for taking the time to tell us.",
+      "Hi Rachel, I'm so sorry - this is genuinely awful and I'm embarrassed reading it. A 45-minute wait with a reservation, wrong orders, and a dismissive response from our team on your anniversary? That's the opposite of everything we stand for. I'd really like to speak with you personally. Please call me, Sofia, directly at (212) 555-0187. I want to make this right - and I mean that sincerely, not just as a business response. Thank you for taking the time to tell us.",
+    aiReplies: {
+      apologetic: "Hi Rachel, I'm so sorry - this is genuinely awful and I'm embarrassed reading it. A 45-minute wait with a reservation, wrong orders, and a dismissive response from our team on your anniversary? That's the opposite of everything we stand for. I'd really like to speak with you personally. Please call me, Sofia, directly at (212) 555-0187. I want to make this right - and I mean that sincerely, not just as a business response. Thank you for taking the time to tell us.",
+      professional: "Hi Rachel, thank you for taking the time to share this. A reservation wait of 45 minutes, incorrect orders, and an inadequate response from our team is not acceptable - particularly on a special occasion. I would like to speak with you directly. Please contact me, Sofia, at (212) 555-0187 at your convenience. We take experiences like this very seriously and I would like the opportunity to make amends properly. - Bella Vista",
+      personal: "Rachel - I'm mortified reading this. Your anniversary dinner, and we got it that wrong. The wait, the wrong orders, and then someone being dismissive on top of it? I'm so sorry. Please call me directly - (212) 555-0187, ask for Sofia. I'd like to make this right in a real way, not just with words. - Sofia",
+    },
     createdAt: "2026-03-23T21:18:00Z",
   },
   {
@@ -649,7 +669,12 @@ export const bellaVistaFeedback: FeedbackItem[] = [
       "The food was actually good but the service was very slow. We waited 30 minutes between courses. On a Saturday night it should be better managed. Won't be rushing back.",
     status: "in_progress",
     aiSuggestedReply:
-      "Hi Carlos, thank you for being honest with us. I'm glad you enjoyed the food, but slow service on a Saturday is unacceptable — you shouldn't be waiting 30 minutes between courses. We've been working on our pacing and I genuinely believe we're better than that experience suggested. I'd love to have you back and show you what a great night at Bella Vista looks like. Reply here or call us and I'll personally make sure your next visit is the experience you deserved the first time. — Sofia",
+      "Hi Carlos, thank you for being honest with us. I'm glad you enjoyed the food, but slow service on a Saturday is not good enough - you shouldn't be waiting 30 minutes between courses. We've been working on our pacing and I genuinely believe we're better than that experience suggested. I'd love to have you back and show you what a great night at Bella Vista looks like. Reply here or call us and I'll personally make sure your next visit is the experience you deserved. - Sofia",
+    aiReplies: {
+      apologetic: "Hi Carlos, thank you for being honest with us. I'm glad you enjoyed the food, but slow service on a Saturday is not good enough - you shouldn't be waiting 30 minutes between courses. We've been working on our pacing and I genuinely believe we're better than that experience suggested. I'd love to have you back and show you what a great night at Bella Vista looks like. Reply here or call us and I'll personally make sure your next visit is the experience you deserved. - Sofia",
+      professional: "Hi Carlos, thank you for your feedback. We're pleased the food met expectations, however a 30-minute gap between courses is not the service standard we aim to deliver, particularly on a busy Saturday evening. We are actively reviewing our floor management to address this. We'd welcome the opportunity to host you again and demonstrate the level of service you should have received. - Bella Vista",
+      personal: "Carlos - the food landing well but the pacing ruining it is probably the most frustrating thing, because you can see what we're capable of. I hear you. Come back, ask for Sofia, and I'll personally make sure the evening flows properly. That 30-minute gap shouldn't have happened. - Sofia",
+    },
     internalNotes: "Replied via SMS. Waiting for customer response.",
     createdAt: "2026-03-21T23:25:00Z",
   },
@@ -664,7 +689,12 @@ export const bellaVistaFeedback: FeedbackItem[] = [
       "Pasta was overcooked and bland. Felt like it came out of a packet. Also, the bread brought at the start was cold. For these prices I expected much better.",
     status: "new",
     aiSuggestedReply:
-      "Hi Samantha, I'm really sorry to hear this — overcooked pasta and cold bread is not what we serve, and it's especially frustrating at our price point. I completely understand your disappointment. I'd love to have you back so you can experience what our kitchen is actually capable of. Please come back as our guests — dinner for two on us. Just call (212) 555-0187 and ask for Sofia and I'll personally make sure everything is right. Thank you for the honest feedback.",
+      "Hi Samantha, I'm really sorry to hear this - overcooked pasta and cold bread is not what we serve, and I completely understand your disappointment, especially at our price point. I'd love to have you back so you can experience what our kitchen is actually capable of. Please come back as our guests - dinner for two on us. Just call (212) 555-0187 and ask for Sofia and I'll personally make sure everything is right. Thank you for the honest feedback.",
+    aiReplies: {
+      apologetic: "Hi Samantha, I'm really sorry to hear this - overcooked pasta and cold bread is not what we serve, and I completely understand your disappointment, especially at our price point. I'd love to have you back so you can experience what our kitchen is actually capable of. Please come back as our guests - dinner for two on us. Just call (212) 555-0187 and ask for Sofia and I'll personally make sure everything is right. Thank you for the honest feedback.",
+      professional: "Hi Samantha, thank you for your candid feedback. Overcooked pasta and cold bread are not standards we accept, and the combination of these issues at our price point is understandable cause for disappointment. I'd welcome the opportunity to demonstrate what our kitchen can genuinely deliver. Please contact us at (212) 555-0187 to arrange a complimentary return visit. - Bella Vista",
+      personal: "Samantha - pasta that tastes like a packet? Cold bread to start? I hope not, but the fact that's how it felt means something went wrong that night and that's on us. Come back as our guest, dinner for two on me. Call and ask for Sofia - I'll make sure it's everything it should have been the first time. - Sofia",
+    },
     createdAt: "2026-03-19T23:48:00Z",
   },
 ];

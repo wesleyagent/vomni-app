@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { ChevronDown, ChevronUp, AlertCircle, TrendingUp, TrendingDown } from "lucide-react";
-import { supabase, supabaseConfigured, type WeeklyReport } from "@/lib/supabase";
+import { ChevronDown, ChevronUp, TrendingUp, TrendingDown } from "lucide-react";
+import { type WeeklyReport } from "@/lib/supabase";
 
 const G = "#00C896";
 
@@ -59,26 +59,25 @@ export default function ResultsBoardPage() {
 
   async function fetchData() {
     setLoading(true);
-    if (supabaseConfigured) {
-      const [reportRes, leadsRes, copyRes, convRes] = await Promise.all([
-        supabase.from("weekly_reports").select("*").order("week_starting", { ascending: false }),
-        supabase.from("leads").select("status", { count: "exact" }),
-        supabase.from("copy_queue").select("status", { count: "exact" }),
-        supabase.from("conversations").select("status", { count: "exact" }),
-      ]);
-      if (reportRes.data) { setReports(reportRes.data as WeeklyReport[]); if (reportRes.data.length > 0) setExpandedId(reportRes.data[0].id); }
-
-      // Compute live stats from actual data
-      const leads = (leadsRes.data ?? []) as { status: string }[];
-      const copy = (copyRes.data ?? []) as { status: string }[];
-      const convs = (convRes.data ?? []) as { status: string }[];
-      setLiveStats({
-        leads: leads.length,
-        sent: copy.filter((c) => c.status === "sent" || c.status === "replied").length,
-        replied: convs.length,
-        demos: leads.filter((l) => l.status === "demo_booked" || l.status === "customer").length,
-      });
+    const [reportRes, leadsRes, copyRes, convRes] = await Promise.all([
+      fetch('/api/admin/db/weekly_reports?select=*&order=week_starting.desc').then(r => r.json()),
+      fetch('/api/admin/db/leads?select=status').then(r => r.json()),
+      fetch('/api/admin/db/copy_queue?select=status').then(r => r.json()),
+      fetch('/api/admin/db/conversations?select=status').then(r => r.json()),
+    ]);
+    if (Array.isArray(reportRes)) {
+      setReports(reportRes as WeeklyReport[]);
+      if (reportRes.length > 0) setExpandedId(reportRes[0].id);
     }
+    const leads = Array.isArray(leadsRes) ? leadsRes as { status: string }[] : [];
+    const copy = Array.isArray(copyRes) ? copyRes as { status: string }[] : [];
+    const convs = Array.isArray(convRes) ? convRes as { status: string }[] : [];
+    setLiveStats({
+      leads: leads.length,
+      sent: copy.filter((c) => c.status === "sent" || c.status === "replied").length,
+      replied: convs.length,
+      demos: leads.filter((l) => l.status === "demo_booked" || l.status === "customer").length,
+    });
     setLoading(false);
   }
 
@@ -101,12 +100,6 @@ export default function ResultsBoardPage() {
           <p className="mt-1 text-sm text-gray-500">Live pipeline data + weekly reports from the Analyst</p>
         </div>
 
-        {!supabaseConfigured && (
-          <div className="mb-6 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-            <AlertCircle size={16} className="text-amber-600 flex-shrink-0" />
-            <p className="text-sm text-amber-700">Supabase not configured. Add your environment variables to see live data.</p>
-          </div>
-        )}
 
         {/* Live metric cards */}
         <div className="mb-8 grid grid-cols-4 gap-4">
@@ -211,15 +204,15 @@ export default function ResultsBoardPage() {
                       <div className="border-t border-gray-100 grid grid-cols-3 gap-4 p-6">
                         <div>
                           <p className="mb-1 text-xs font-medium text-gray-400 uppercase tracking-wide">What worked</p>
-                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{report.what_worked || "—"}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{report.what_worked || "-"}</p>
                         </div>
                         <div>
                           <p className="mb-1 text-xs font-medium text-gray-400 uppercase tracking-wide">What didn&apos;t work</p>
-                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{report.what_didnt || "—"}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{report.what_didnt || "-"}</p>
                         </div>
                         <div>
                           <p className="mb-1 text-xs font-medium text-gray-400 uppercase tracking-wide">Recommendations</p>
-                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{report.recommendations || "—"}</p>
+                          <p className="text-sm text-gray-600 whitespace-pre-wrap">{report.recommendations || "-"}</p>
                         </div>
                       </div>
                     )}

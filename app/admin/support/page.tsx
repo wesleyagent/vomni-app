@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { AlertCircle, Download, Check, Send, UserCheck, Circle } from "lucide-react";
+import { AlertCircle, Download, Check, Send, UserCheck, Circle, Trash2 } from "lucide-react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
 const G = "#00C896";
@@ -73,7 +73,7 @@ function visitorLabel(conv: Conversation): string {
 
 function firstUserQuestion(conv: Conversation): string {
   const userMsg = conv.messages?.find((m) => m.role === "user");
-  return userMsg?.content?.slice(0, 80) || "—";
+  return userMsg?.content?.slice(0, 80) || "-";
 }
 
 const STATUS_STYLES: Record<string, { dot: string; label: string; bg: string; color: string }> = {
@@ -103,7 +103,10 @@ export default function SupportPage() {
   const [pageTab, setPageTab] = useState<PageTab>("inbox");
   const [adminInput, setAdminInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [contactedIds, setContactedIds] = useState<Set<string>>(new Set());
+  const [contactedIds,   setContactedIds]   = useState<Set<string>>(new Set());
+  const [deleteConfirm,  setDeleteConfirm]  = useState<string | null>(null); // id of conv pending delete
+  const [deletingAll,    setDeletingAll]    = useState(false);
+  const [confirmBulk,    setConfirmBulk]    = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // ── Fetch ───────────────────────────────────────────────────────────────────
@@ -194,6 +197,22 @@ export default function SupportPage() {
     setContactedIds((prev) => new Set([...prev, id]));
   }
 
+  async function handleDeleteOne(id: string) {
+    await supabase.from("chat_conversations").delete().eq("id", id);
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+    if (selected?.id === id) setSelected(null);
+    setDeleteConfirm(null);
+  }
+
+  async function handleDeleteAllResolved() {
+    setDeletingAll(true);
+    await supabase.from("chat_conversations").delete().eq("status", "resolved");
+    setConversations((prev) => prev.filter((c) => c.status !== "resolved"));
+    if (selected?.status === "resolved") setSelected(null);
+    setDeletingAll(false);
+    setConfirmBulk(false);
+  }
+
   function exportLeadsCSV() {
     const leads = conversations.filter((c) => c.visitor_email);
     const rows = [
@@ -241,11 +260,41 @@ export default function SupportPage() {
             <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>Support Inbox</h1>
             <p className="mt-1 text-sm text-gray-500">Live chat conversations from your website and dashboard</p>
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-start gap-3 flex-wrap">
             <StatPill label="Today" value={todayConvs.length} />
             <StatPill label="Needs Human" value={needsHumanCount} accent={needsHumanCount > 0 ? "#EF4444" : undefined} />
             <StatPill label="Leads captured" value={leadsWithEmail} accent={G} />
             <StatPill label="Resolved today" value={resolvedToday} />
+            {conversations.filter((c) => c.status === "resolved").length > 0 && (
+              confirmBulk ? (
+                <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2">
+                  <p className="text-xs text-red-700 font-medium">
+                    Delete all {conversations.filter((c) => c.status === "resolved").length} resolved?
+                  </p>
+                  <button
+                    onClick={handleDeleteAllResolved}
+                    disabled={deletingAll}
+                    className="rounded px-2 py-1 text-xs font-semibold bg-red-500 text-white hover:bg-red-600 disabled:opacity-50"
+                  >
+                    {deletingAll ? "Deleting…" : "Yes, delete"}
+                  </button>
+                  <button
+                    onClick={() => setConfirmBulk(false)}
+                    className="rounded px-2 py-1 text-xs font-medium text-gray-600 hover:bg-gray-100"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmBulk(true)}
+                  className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 transition-colors shadow-sm self-stretch"
+                >
+                  <Trash2 size={13} />
+                  Delete resolved ({conversations.filter((c) => c.status === "resolved").length})
+                </button>
+              )
+            )}
           </div>
         </div>
 
@@ -265,7 +314,7 @@ export default function SupportPage() {
       {!supabaseConfigured && (
         <div className="flex-shrink-0 flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
           <AlertCircle size={15} className="text-amber-600 flex-shrink-0" />
-          <p className="text-sm text-amber-700">Supabase not configured — conversations will not load. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment.</p>
+          <p className="text-sm text-amber-700">Supabase not configured - conversations will not load. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment.</p>
         </div>
       )}
 
@@ -307,30 +356,60 @@ export default function SupportPage() {
                   const isSelected = selected?.id === conv.id;
                   const st = STATUS_STYLES[conv.status] || STATUS_STYLES.active;
                   return (
-                    <button key={conv.id} onClick={() => setSelected(conv)}
-                      className="w-full border-b border-gray-50 p-4 text-left transition-colors"
-                      style={{ background: isSelected ? "rgba(0,200,150,0.04)" : "transparent", borderLeft: isSelected ? `3px solid ${G}` : "3px solid transparent" }}
-                      onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "#F9FAFB"; }}
-                      onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    <div key={conv.id}
+                      className="w-full border-b border-gray-50 relative group"
+                      style={{ borderLeft: isSelected ? `3px solid ${G}` : "3px solid transparent" }}
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold text-gray-900 truncate">{visitorLabel(conv)}</p>
-                        <div className="flex-shrink-0 flex items-center gap-1.5">
-                          <Circle size={8} fill={st.dot} style={{ color: st.dot }} />
-                          <span className="text-xs text-gray-400">{relativeTime(conv.updated_at)}</span>
+                      <button onClick={() => setSelected(conv)}
+                        className="w-full p-4 text-left transition-colors"
+                        style={{ background: isSelected ? "rgba(0,200,150,0.04)" : "transparent" }}
+                        onMouseEnter={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "#F9FAFB"; }}
+                        onMouseLeave={(e) => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold text-gray-900 truncate">{visitorLabel(conv)}</p>
+                          <div className="flex-shrink-0 flex items-center gap-1.5">
+                            <Circle size={8} fill={st.dot} style={{ color: st.dot }} />
+                            <span className="text-xs text-gray-400">{relativeTime(conv.updated_at)}</span>
+                          </div>
                         </div>
-                      </div>
-                      <p className="mt-1 text-xs text-gray-500 truncate">{lastMessage(conv)}</p>
-                      <div className="mt-2 flex items-center gap-2">
-                        <span className="rounded-full px-2 py-0.5 text-xs font-medium"
-                          style={{ background: conv.source === "dashboard" ? "rgba(0,200,150,0.1)" : "#F3F4F6", color: conv.source === "dashboard" ? G : "#6B7280" }}>
-                          {conv.source === "landing_page" ? "Landing page" : "Dashboard"}
-                        </span>
-                        {conv.visitor_email && (
-                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">Has email</span>
-                        )}
-                      </div>
-                    </button>
+                        <p className="mt-1 text-xs text-gray-500 truncate">{lastMessage(conv)}</p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="rounded-full px-2 py-0.5 text-xs font-medium"
+                            style={{ background: conv.source === "dashboard" ? "rgba(0,200,150,0.1)" : "#F3F4F6", color: conv.source === "dashboard" ? G : "#6B7280" }}>
+                            {conv.source === "landing_page" ? "Landing page" : "Dashboard"}
+                          </span>
+                          {conv.visitor_email && (
+                            <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-600">Has email</span>
+                          )}
+                        </div>
+                      </button>
+
+                      {/* Delete button - shown on hover, or when confirm is active for this item */}
+                      {conv.status === "resolved" && (
+                        deleteConfirm === conv.id ? (
+                          <div className="absolute bottom-2 right-2 flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-2 py-1 shadow-sm z-10">
+                            <span className="text-xs text-red-600 font-medium">Delete?</span>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteOne(conv.id); }}
+                              className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded px-2 py-0.5"
+                            >Yes</button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setDeleteConfirm(null); }}
+                              className="text-xs text-gray-500 hover:text-gray-700"
+                            >No</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDeleteConfirm(conv.id); }}
+                            className="absolute top-2 right-2 hidden group-hover:flex items-center justify-center w-6 h-6 rounded-md text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors z-10"
+                            title="Delete conversation"
+                          >
+                            <Trash2 size={12} />
+                          </button>
+                        )
+                      )}
+                    </div>
                   );
                 })
               )}
@@ -361,7 +440,7 @@ export default function SupportPage() {
                         <span className="text-xs text-gray-400">Started {formatDate(selected.created_at)}</span>
                       </div>
                     </div>
-                    {/* Status dropdown */}
+                    {/* Status dropdown + delete */}
                     <div className="flex items-center gap-2">
                       <span className="rounded-full px-3 py-1 text-xs font-semibold"
                         style={{ background: STATUS_STYLES[selected.status]?.bg, color: STATUS_STYLES[selected.status]?.color }}>
@@ -377,6 +456,23 @@ export default function SupportPage() {
                         <option value="needs_human">Needs Human</option>
                         <option value="resolved">Resolved</option>
                       </select>
+                      {selected.status === "resolved" && (
+                        deleteConfirm === selected.id ? (
+                          <div className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-red-50 px-2 py-1">
+                            <span className="text-xs text-red-600 font-medium">Delete?</span>
+                            <button onClick={() => handleDeleteOne(selected.id)} className="text-xs font-semibold text-white bg-red-500 hover:bg-red-600 rounded px-2 py-0.5">Yes</button>
+                            <button onClick={() => setDeleteConfirm(null)} className="text-xs text-gray-500 hover:text-gray-700">No</button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setDeleteConfirm(selected.id)}
+                            className="flex items-center gap-1.5 rounded-lg border border-red-200 bg-white px-2.5 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 transition-colors"
+                            title="Delete this conversation"
+                          >
+                            <Trash2 size={12} /> Delete
+                          </button>
+                        )
+                      )}
                     </div>
                   </div>
                 </div>
@@ -498,7 +594,7 @@ export default function SupportPage() {
                         <tr key={conv.id} style={{ borderBottom: idx < conversations.filter((c) => c.visitor_email).length - 1 ? "1px solid #F9FAFB" : "none" }}
                           onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#FAFAFA"; }}
                           onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}>
-                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{conv.visitor_name || "—"}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-gray-900">{conv.visitor_name || "-"}</td>
                           <td className="px-4 py-3 text-sm text-gray-700">{conv.visitor_email}</td>
                           <td className="px-4 py-3">
                             <span className="rounded-full px-2 py-0.5 text-xs font-medium"

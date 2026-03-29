@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
         body: JSON.stringify({
           from: "Vomni <onboarding@resend.dev>",
           to: "shmeenaresearch@gmail.com",
-          subject: `New demo request — ${businessName}`,
+          subject: `New demo request - ${businessName}`,
           html: `
             <div style="font-family: Inter, sans-serif; max-width: 600px; margin: 0 auto;">
               <div style="background: #0A0F1E; padding: 32px; border-radius: 12px 12px 0 0;">

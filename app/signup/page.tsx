@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { saveBusiness, generateId, generateForwardingEmail, saveAdminSignup } from "@/lib/storage";
 import type { Business } from "@/types";
 import type { Plan } from "@/types";
@@ -41,25 +42,197 @@ function StyledInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
+function getPasswordStrength(pw: string): { label: string; color: string; width: string } | null {
+  if (!pw) return null;
+  const hasUpper = /[A-Z]/.test(pw);
+  const hasLower = /[a-z]/.test(pw);
+  const hasNum   = /[0-9]/.test(pw);
+  const hasSpec  = /[^A-Za-z0-9]/.test(pw);
+  const variety  = [hasUpper, hasLower, hasNum, hasSpec].filter(Boolean).length;
+
+  if (pw.length < 8)                       return { label: "Too short", color: "#EF4444", width: "20%" };
+  if (pw.length >= 8 && variety <= 2)      return { label: "Weak",      color: "#F97316", width: "40%" };
+  if (pw.length >= 10 && variety === 3)    return { label: "Medium",    color: "#F59E0B", width: "65%" };
+  if (pw.length >= 12 && variety === 4)    return { label: "Strong",    color: G,         width: "100%" };
+  if (pw.length >= 8 && variety >= 3)      return { label: "Medium",    color: "#F59E0B", width: "65%" };
+  return { label: "Weak", color: "#F97316", width: "40%" };
+}
+
+// ── Payment gate ─────────────────────────────────────────────────────────────
+// Shown when the user visits /signup without a completed Lemon Squeezy payment.
+
+function PaymentGate() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#F7F8FA",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: "48px 16px",
+        fontFamily: "Inter, sans-serif",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: 480,
+          background: "#fff",
+          borderRadius: 24,
+          padding: 48,
+          boxShadow: "0 8px 40px rgba(0,0,0,0.10)",
+          textAlign: "center",
+        }}
+      >
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: "#0A0F1E", margin: "0 0 12px" }}>
+          Vomni
+        </h1>
+        <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+        <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: "#0A0F1E", margin: "0 0 12px" }}>
+          Choose your plan first
+        </h2>
+        <p style={{ fontSize: 15, color: "#6B7280", margin: "0 0 32px", lineHeight: 1.6 }}>
+          Select a plan on our pricing page to unlock account setup. It only takes 2 minutes.
+        </p>
+        <Link
+          href="/pricing"
+          style={{
+            display: "inline-block",
+            background: "#00C896",
+            color: "#fff",
+            borderRadius: 9999,
+            padding: "16px 40px",
+            fontFamily: "Inter, sans-serif",
+            fontSize: 15,
+            fontWeight: 600,
+            textDecoration: "none",
+          }}
+        >
+          View Plans →
+        </Link>
+        <p style={{ marginTop: 24, fontSize: 13, color: "#9CA3AF" }}>
+          Already have an account?{" "}
+          <Link href="/login" style={{ color: "#00C896", fontWeight: 600, textDecoration: "none" }}>
+            Sign in
+          </Link>
+        </p>
+      </div>
+    </div>
+  );
+}
+
 export default function SignupPage() {
   const router = useRouter();
-  const [businessName, setBusinessName] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [password, setPassword] = useState("");
-  const [plan, setPlan] = useState<Plan>("monthly");
-  const [submitting, setSubmitting] = useState(false);
+
+  // ── Read payment proof + plan from URL (set by Lemon Squeezy redirect) ─────
+  const [paymentVerified, setPaymentVerified] = useState<boolean | null>(null); // null = checking
+  const [businessName,     setBusinessName]     = useState("");
+  const [ownerName,        setOwnerName]        = useState("");
+  const [email,            setEmail]            = useState("");
+  const [phone,            setPhone]            = useState("");
+  const [password,         setPassword]         = useState("");
+  const [confirmPassword,  setConfirmPassword]  = useState("");
+  const [plan,             setPlan]             = useState<Plan>("growth");
+  const [submitting,       setSubmitting]       = useState(false);
+  const [error,            setError]            = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paid   = params.get("payment") === "success";
+    setPaymentVerified(paid);
+    // Pre-select the plan the user chose on the pricing page
+    const urlPlan = params.get("plan") as Plan | null;
+    if (urlPlan && ["starter", "growth", "pro"].includes(urlPlan)) {
+      setPlan(urlPlan);
+    }
+  }, []);
+
+  // ── Gate: block access until payment is confirmed ────────────────────────
+  if (paymentVerified === null) {
+    // Still reading URL params — show a brief spinner to avoid flash
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#F7F8FA" }}>
+        <div style={{ width: 32, height: 32, borderRadius: "50%", border: "3px solid #E5E7EB", borderTopColor: "#00C896", animation: "spin 0.7s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!paymentVerified) {
+    return <PaymentGate />;
+  }
+
+  const strength = getPasswordStrength(password);
+  const passwordMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
     setSubmitting(true);
 
+    const { db: supabase } = await import("@/lib/db");
+    const trimmedEmail    = email.trim().toLowerCase();
+    const trimmedBizName  = businessName.trim();
+    const trimmedOwner    = ownerName.trim();
+
+    // 1. Create Supabase Auth user - embed metadata so the DB trigger can
+    //    create a businesses row even if step 2 fails for any reason.
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: trimmedEmail,
+      password,
+      options: {
+        data: {
+          business_name: trimmedBizName,
+          owner_name:    trimmedOwner,
+          plan,
+        },
+      },
+    });
+    if (authError) {
+      setError(authError.message);
+      setSubmitting(false);
+      return;
+    }
+
+    const userId = authData.user?.id;
+
+    // 2. Insert into businesses table - use the Auth UUID as the row id so
+    //    the dashboard can always look up the record with a single equality check.
+    const { error: bizError } = await supabase.from("businesses").insert({
+      id:               userId,
+      name:             trimmedBizName,
+      owner_name:       trimmedOwner,
+      owner_email:      trimmedEmail,
+      plan,
+      status:           "active",
+      onboarding_step:  1,
+      notification_email: trimmedEmail,
+      created_at:       new Date().toISOString(),
+    });
+
+    if (bizError && bizError.code !== "23505") {
+      // 23505 = unique-violation (row already created by trigger) - safe to ignore.
+      // Any other error: warn but don't block the user from reaching the dashboard.
+      console.warn("[signup] businesses insert:", bizError.message);
+    }
+
+    // 3. Legacy localStorage + admin tracking (keep for backward compat)
     const business: Business = {
-      id: generateId(),
-      name: businessName,
-      ownerName,
-      email,
+      id: authData.user?.id ?? generateId(),
+      name: businessName.trim(),
+      ownerName: ownerName.trim(),
+      email: trimmedEmail,
       phone,
       address: "",
       googleReviewLink: "",
@@ -72,34 +245,22 @@ export default function SignupPage() {
       quietHoursStart: 22,
       quietHoursEnd: 8,
       notifyOnNegative: true,
-      notifyEmail: email,
+      notifyEmail: trimmedEmail,
       onboardingComplete: false,
       onboardingSteps: [false, false, false, false, false],
       createdAt: new Date().toISOString(),
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
-
     saveBusiness(business);
-
-    saveAdminSignup({
-      businessName,
-      ownerName,
-      email,
-      phone,
-      plan,
-      signupTimestamp: new Date().toISOString(),
-      onboardingComplete: false,
-    });
+    saveAdminSignup({ businessName, ownerName, email: trimmedEmail, phone, plan, signupTimestamp: new Date().toISOString(), onboardingComplete: false });
 
     try {
       fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessName, ownerName, email, phone, plan }),
+        body: JSON.stringify({ businessName, ownerName, email: trimmedEmail, phone, plan }),
       }).catch(() => {});
-    } catch {
-      // ignore
-    }
+    } catch { /* ignore */ }
 
     router.push("/onboarding");
   }
@@ -148,7 +309,7 @@ export default function SignupPage() {
               fontWeight: 700,
               color: N,
               textAlign: "center",
-              marginBottom: 32,
+              marginBottom: 12,
               marginTop: 0,
               lineHeight: 1.25,
             }}
@@ -156,19 +317,34 @@ export default function SignupPage() {
             Start Getting More Google Reviews
           </h2>
 
+          {/* Payment confirmed badge */}
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "rgba(0,200,150,0.1)", color: "#00A87D", borderRadius: 9999, padding: "6px 14px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600 }}>
+              ✓ Payment confirmed — set up your account below
+            </span>
+          </div>
+
+          {error && (
+            <div
+              style={{
+                marginBottom: 20,
+                padding: "12px 16px",
+                background: "#FEE2E2",
+                border: "1px solid #FECACA",
+                borderRadius: 10,
+                fontFamily: "Inter, sans-serif",
+                fontSize: 14,
+                color: "#DC2626",
+              }}
+            >
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Business name */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: N,
-                  marginBottom: 8,
-                }}
-              >
+              <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
                 Business name
               </label>
               <StyledInput
@@ -182,16 +358,7 @@ export default function SignupPage() {
 
             {/* Owner name */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: N,
-                  marginBottom: 8,
-                }}
-              >
+              <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
                 Owner name
               </label>
               <StyledInput
@@ -205,16 +372,7 @@ export default function SignupPage() {
 
             {/* Email */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: N,
-                  marginBottom: 8,
-                }}
-              >
+              <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
                 Email
               </label>
               <StyledInput
@@ -228,16 +386,7 @@ export default function SignupPage() {
 
             {/* Phone */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: N,
-                  marginBottom: 8,
-                }}
-              >
+              <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
                 Phone
               </label>
               <StyledInput
@@ -251,16 +400,7 @@ export default function SignupPage() {
 
             {/* Password */}
             <div>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: N,
-                  marginBottom: 8,
-                }}
-              >
+              <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
                 Password
               </label>
               <StyledInput
@@ -268,147 +408,115 @@ export default function SignupPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Create a password"
+                placeholder="Create a password (min 8 chars)"
                 minLength={8}
               />
+              {/* Strength bar */}
+              {strength && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ height: 4, background: "#F3F4F6", borderRadius: 9999, overflow: "hidden" }}>
+                    <div
+                      style={{
+                        height: "100%",
+                        width: strength.width,
+                        background: strength.color,
+                        borderRadius: 9999,
+                        transition: "width 0.3s, background 0.3s",
+                      }}
+                    />
+                  </div>
+                  <p style={{ margin: "4px 0 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: strength.color, fontWeight: 500 }}>
+                    {strength.label}
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Confirm Password */}
+            <div>
+              <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
+                Confirm password
+              </label>
+              <StyledInput
+                type="password"
+                required
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Re-enter your password"
+              />
+              {passwordMismatch && (
+                <p style={{ margin: "4px 0 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#EF4444" }}>
+                  Passwords do not match
+                </p>
+              )}
             </div>
 
             {/* Plan selector */}
             <div style={{ paddingTop: 4 }}>
-              <label
-                style={{
-                  display: "block",
-                  fontFamily: "Inter, sans-serif",
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: N,
-                  marginBottom: 12,
-                }}
-              >
+              <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 12 }}>
                 Choose your plan
               </label>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-                {/* Monthly */}
-                <button
-                  type="button"
-                  onClick={() => setPlan("monthly")}
-                  style={{
-                    borderRadius: 12,
-                    border: plan === "monthly" ? `2px solid ${G}` : `1px solid ${BD}`,
-                    background: plan === "monthly" ? "rgba(0,200,150,0.05)" : "#fff",
-                    padding: 16,
-                    textAlign: "left",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                  }}
-                >
-                  <div
-                    style={{
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: N,
-                    }}
-                  >
-                    Monthly
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'Bricolage Grotesque', sans-serif",
-                      fontSize: 22,
-                      fontWeight: 700,
-                      color: N,
-                      marginTop: 4,
-                    }}
-                  >
-                    £70
-                    <span
-                      style={{
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 13,
-                        fontWeight: 400,
-                        color: "#6B7280",
-                      }}
-                    >
-                      /mo
-                    </span>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+
+                {/* Starter */}
+                <button type="button" onClick={() => setPlan("starter")} style={{ borderRadius: 12, border: plan === "starter" ? `2px solid ${G}` : `1px solid ${BD}`, background: plan === "starter" ? "rgba(0,200,150,0.05)" : "#fff", padding: "14px 16px", textAlign: "left", cursor: "pointer", transition: "all 0.15s" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Starter</div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Up to 100 review requests/month</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>£35</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280" }}>/mo</span>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9CA3AF" }}>or £299/yr</div>
+                    </div>
                   </div>
                 </button>
 
-                {/* Annual */}
-                <button
-                  type="button"
-                  onClick={() => setPlan("annual")}
-                  style={{
-                    borderRadius: 12,
-                    border: plan === "annual" ? `2px solid ${G}` : `1px solid ${BD}`,
-                    background: plan === "annual" ? "rgba(0,200,150,0.05)" : "#fff",
-                    padding: 16,
-                    textAlign: "left",
-                    cursor: "pointer",
-                    transition: "all 0.15s",
-                    position: "relative",
-                  }}
-                >
-                  <span
-                    style={{
-                      position: "absolute",
-                      top: -11,
-                      right: 10,
-                      background: G,
-                      color: "#fff",
-                      borderRadius: 99,
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 12,
-                      fontWeight: 700,
-                      padding: "2px 10px",
-                    }}
-                  >
-                    Save £240
+                {/* Growth */}
+                <button type="button" onClick={() => setPlan("growth")} style={{ borderRadius: 12, border: plan === "growth" ? `2px solid ${G}` : `1px solid ${BD}`, background: plan === "growth" ? "rgba(0,200,150,0.05)" : "#fff", padding: "14px 16px", textAlign: "left", cursor: "pointer", transition: "all 0.15s", position: "relative" }}>
+                  <span style={{ position: "absolute", top: -10, right: 10, background: G, color: "#fff", borderRadius: 99, fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 700, padding: "2px 10px" }}>
+                    MOST POPULAR
                   </span>
-                  <div
-                    style={{
-                      fontFamily: "Inter, sans-serif",
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: N,
-                    }}
-                  >
-                    Annual
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "'Bricolage Grotesque', sans-serif",
-                      fontSize: 22,
-                      fontWeight: 700,
-                      color: N,
-                      marginTop: 4,
-                    }}
-                  >
-                    £600
-                    <span
-                      style={{
-                        fontFamily: "Inter, sans-serif",
-                        fontSize: 13,
-                        fontWeight: 400,
-                        color: "#6B7280",
-                      }}
-                    >
-                      /yr
-                    </span>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Growth</div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Up to 300 review requests/month, AI insights</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>£79</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280" }}>/mo</span>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9CA3AF" }}>or £699/yr</div>
+                    </div>
                   </div>
                 </button>
+
+                {/* Pro */}
+                <button type="button" onClick={() => setPlan("pro")} style={{ borderRadius: 12, border: plan === "pro" ? `2px solid #F5A623` : `1px solid ${BD}`, background: plan === "pro" ? "rgba(245,166,35,0.05)" : "#fff", padding: "14px 16px", textAlign: "left", cursor: "pointer", transition: "all 0.15s" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Pro ★</div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Up to 3 locations, dedicated SMS number</div>
+                    </div>
+                    <div style={{ textAlign: "right", flexShrink: 0 }}>
+                      <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>£149</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280" }}>/mo</span>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9CA3AF" }}>or £1,499/yr</div>
+                    </div>
+                  </div>
+                </button>
+
               </div>
             </div>
 
             {/* Submit */}
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || passwordMismatch}
               style={{
                 width: "100%",
                 marginTop: 8,
-                background: submitting ? "#9CA3AF" : G,
+                background: submitting || passwordMismatch ? "#9CA3AF" : G,
                 color: "#fff",
                 border: "none",
                 borderRadius: 9999,
@@ -416,18 +524,25 @@ export default function SignupPage() {
                 fontFamily: "Inter, sans-serif",
                 fontSize: 16,
                 fontWeight: 600,
-                cursor: submitting ? "not-allowed" : "pointer",
+                cursor: submitting || passwordMismatch ? "not-allowed" : "pointer",
                 transition: "background 0.15s",
               }}
               onMouseEnter={(e) => {
-                if (!submitting) (e.currentTarget as HTMLElement).style.background = "#00A87D";
+                if (!submitting && !passwordMismatch) (e.currentTarget as HTMLElement).style.background = "#00A87D";
               }}
               onMouseLeave={(e) => {
-                if (!submitting) (e.currentTarget as HTMLElement).style.background = G;
+                if (!submitting && !passwordMismatch) (e.currentTarget as HTMLElement).style.background = G;
               }}
             >
-              {submitting ? "Creating..." : "Create Your Account"}
+              {submitting ? "Creating…" : "Create Your Account"}
             </button>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", textAlign: "center", marginTop: 12 }}>
+              By creating an account you agree to our{" "}
+              <a href="/terms" style={{ color: G, textDecoration: "none" }}>Terms of Service</a>,{" "}
+              <a href="/privacy" style={{ color: G, textDecoration: "none" }}>Privacy Policy</a>{" "}
+              and{" "}
+              <a href="/acceptable-use" style={{ color: G, textDecoration: "none" }}>Acceptable Use Policy</a>.
+            </p>
           </form>
 
           {/* Sign in link */}
@@ -443,12 +558,8 @@ export default function SignupPage() {
           >
             Already have an account?{" "}
             <a
-              href="/dashboard"
-              style={{
-                color: G,
-                fontWeight: 600,
-                textDecoration: "none",
-              }}
+              href="/login"
+              style={{ color: G, fontWeight: 600, textDecoration: "none" }}
               onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.color = "#00A87D"; }}
               onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.color = G; }}
             >

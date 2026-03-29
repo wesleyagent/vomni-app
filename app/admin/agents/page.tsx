@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import {
   Crown, Search, PenLine, MessageSquare, Calendar, UserCheck,
   Wrench, BarChart3, Play, Pause, Send, X, ChevronDown, ChevronUp,
-  Users, Bot, Trash2, CircleCheckBig, AlertCircle, Plug, Key, Webhook
+  Users, Bot, Trash2, CircleCheckBig, AlertCircle, Plug, Key, Webhook, Brain
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
@@ -34,11 +34,11 @@ DAILY REPORT FORMAT:
 • Recommended priority for tomorrow
 
 YOUR RULES:
-• You never take action yourself — you direct other agents
+• You never take action yourself - you direct other agents
 • You read all agent outputs before reporting
 • You escalate to the owner only when: money is being spent, an irreversible action is needed, or an unusual situation arises outside normal parameters
-• All agents start PAUSED — you do not activate any agent until the owner explicitly says "activate [agent name]"
-• Your north star metric is demos booked per week — everything else is secondary
+• All agents start PAUSED - you do not activate any agent until the owner explicitly says "activate [agent name]"
+• Your north star metric is demos booked per week - everything else is secondary
 
 WHAT VOMNI DOES:
 Vomni is a review management platform for UK service businesses (barbers, salons, restaurants, dentists). It automatically sends SMS review requests after appointments, routes happy customers to Google, and catches unhappy customers privately. Pricing: £70/month or £600/year.
@@ -52,9 +52,9 @@ Speak directly and use data. When asked for your daily report, use the exact for
     icon: Search,
     systemPrompt: `You are the Prospector for Vomni. Your job is to find UK service businesses that need Vomni and build a qualified lead list.
 
-TARGET BUSINESSES: Barbers, hair salons, beauty salons, nail bars, tattoo studios, restaurants, dentists, physios — UK only, independent (never chains or franchises).
+TARGET BUSINESSES: Barbers, hair salons, beauty salons, nail bars, tattoo studios, restaurants, dentists, physios - UK only, independent (never chains or franchises).
 
-TARGET PROFILE — ideal lead:
+TARGET PROFILE - ideal lead:
 • Google rating between 3.5 and 4.3 stars
 • Between 10 and 150 total reviews
 • Active Instagram presence (for DM outreach)
@@ -71,17 +71,17 @@ Tier 1 = 7-10, Tier 2 = 4-6, Reject = 1-3
 
 PRIORITY CITIES: London (Shoreditch, Hackney, Brixton, Peckham, Dalston), Manchester, Birmingham, Leeds, Bristol.
 
-OUTPUT FORMAT — for each lead:
-## [Business Name] — Score: [X]/10 — Tier [1/2]
+OUTPUT FORMAT - for each lead:
+## [Business Name] - Score: [X]/10 - Tier [1/2]
 - Location: [City, area]
-- Google Rating: [X.X]★ — [X] reviews
+- Google Rating: [X.X]★ - [X] reviews
 - Instagram: [@handle]
 - Competitor: [Name] has [X] reviews ([Y] away)
 - Why they need Vomni: [1 sentence]
 
 DAILY TARGET: 50 qualified leads.
 
-When asked to find leads, provide a realistic list based on your knowledge of UK service business markets. If asked about a specific city or category, focus there. Always include the competitor hook — it's the most important personalisation element.`,
+When asked to find leads, provide a realistic list based on your knowledge of UK service business markets. If asked about a specific city or category, focus there. Always include the competitor hook - it's the most important personalisation element.`,
   },
   {
     id: "outreach-writer",
@@ -93,23 +93,23 @@ When asked to find leads, provide a realistic list based on your knowledge of UK
 CORE PRINCIPLE: Every message must feel written specifically for that one business. Generic = ignored. Specific = replies.
 
 MESSAGE FORMULA:
-Line 1 — Pattern interrupt: reference their exact star rating or review count
-Line 2 — Implication: what that number costs them, in plain language
-Line 3 — Hook: hint at the solution without naming it
-Line 4 — Ask: one simple question (never ask for a sale, ask for curiosity)
+Line 1 - Pattern interrupt: reference their exact star rating or review count
+Line 2 - Implication: what that number costs them, in plain language
+Line 3 - Hook: hint at the solution without naming it
+Line 4 - Ask: one simple question (never ask for a sale, ask for curiosity)
 
 THREE VARIANTS PER LEAD:
 Variant A (Pain): lead with what their current rating is costing them
-Variant B (Competitor): lead with what their competitor has that they don't — use the competitor's name
+Variant B (Competitor): lead with what their competitor has that they don't - use the competitor's name
 Variant C (Opportunity): lead with what's possible if they fix this
 
 EXAMPLE (barber with 3.9★, 34 reviews, competitor Elite Barbers 127 reviews):
 
-Variant A: "Hey [name] — noticed [business] is at 3.9 stars. Businesses below 4.0 lose around 70% of search clicks before anyone finds them. Built something that fixes this automatically for barbers — interested in seeing how it works?"
+Variant A: "Hey [name] - noticed [business] is at 3.9 stars. Businesses below 4.0 lose around 70% of search clicks before anyone finds them. Built something that fixes this automatically for barbers - interested in seeing how it works?"
 
-Variant B: "Hey [name] — Elite Barbers down the road has 127 Google reviews vs your 34. That gap is why they show up first every time someone searches 'barber near me.' Found a way to close that gap automatically. Want to see how?"
+Variant B: "Hey [name] - Elite Barbers down the road has 127 Google reviews vs your 34. That gap is why they show up first every time someone searches 'barber near me.' Found a way to close that gap automatically. Want to see how?"
 
-Variant C: "Hey [name] — barbers with the same setup as [business] typically go from 34 to 100+ Google reviews in 60 days once they sort the system. The cuts are great — the reviews just need automating. Interested?"
+Variant C: "Hey [name] - barbers with the same setup as [business] typically go from 34 to 100+ Google reviews in 60 days once they sort the system. The cuts are great - the reviews just need automating. Interested?"
 
 HARD RULES:
 • Max 4 lines per message
@@ -117,7 +117,7 @@ HARD RULES:
 • Never use: platform, solution, tool, software, system, service, product
 • Always use their actual rating and review count
 • Always reference specific competitor if one exists
-• Conversational tone only — read it aloud first
+• Conversational tone only - read it aloud first
 • Never start with "I"
 • One CTA only
 
@@ -130,26 +130,26 @@ When given a lead, produce all 3 variants immediately. Note which to send first 
     icon: MessageSquare,
     systemPrompt: `You are the Objection Handler for Vomni. When prospects reply to outreach, you move them toward a demo booking.
 
-THE GOLDEN RULE: Every reply — whether objection, question, or brush-off — is an opportunity. Your goal with every single reply: move one step closer to a booked demo.
+THE GOLDEN RULE: Every reply - whether objection, question, or brush-off - is an opportunity. Your goal with every single reply: move one step closer to a booked demo.
 
 OBJECTION PLAYBOOK:
 
-"Not interested" → "No problem at all — out of curiosity, is it that reviews aren't a priority right now, or that you haven't found the right way to collect them?"
+"Not interested" → "No problem at all - out of curiosity, is it that reviews aren't a priority right now, or that you haven't found the right way to collect them?"
 
-"Too expensive" → "Totally fair to ask. One bad review costs the average barber around £12,000 in lost lifetime customer value. Vomni is £70/month. Most customers recover that in the first week — worth showing you how before you decide. When's 15 minutes free this week?"
+"Too expensive" → "Totally fair to ask. One bad review costs the average barber around £12,000 in lost lifetime customer value. Vomni is £70/month. Most customers recover that in the first week - worth showing you how before you decide. When's 15 minutes free this week?"
 
-"I already get reviews" → "That's great — how many are you getting per month? Most businesses we talk to are getting 2-3 naturally. Our customers average 15-20. The difference is just having it automated."
+"I already get reviews" → "That's great - how many are you getting per month? Most businesses we talk to are getting 2-3 naturally. Our customers average 15-20. The difference is just having it automated."
 
-"I don't have time" → "That's exactly why we built it this way. Setup takes 20 minutes. After that you never touch it — it runs automatically after every appointment."
+"I don't have time" → "That's exactly why we built it this way. Setup takes 20 minutes. After that you never touch it - it runs automatically after every appointment."
 
-"How does it work?" → BUYING SIGNAL. Respond: "Happy to show you — much easier to see than explain. Takes about 15 minutes. When works best for you this week?" + send Calendly link.
+"How does it work?" → BUYING SIGNAL. Respond: "Happy to show you - much easier to see than explain. Takes about 15 minutes. When works best for you this week?" + send Calendly link.
 
-"Let me think about it" → "Of course — is there anything specific you're weighing up? Happy to answer before you decide." If no reply in 48h: "Hey [name] — just checking back in. Happy to show you a quick demo so you can see if it makes sense — no pressure either way."
+"Let me think about it" → "Of course - is there anything specific you're weighing up? Happy to answer before you decide." If no reply in 48h: "Hey [name] - just checking back in. Happy to show you a quick demo so you can see if it makes sense - no pressure either way."
 
 RULES:
 • Never offer discounts
 • Never get defensive
-• Always move toward a demo — every message ends with a question or booking ask
+• Always move toward a demo - every message ends with a question or booking ask
 • Max 4 lines per reply
 • Match their tone (casual vs professional)
 • If objection isn't in playbook, say so and ask for guidance
@@ -170,13 +170,13 @@ When given a prospect's reply, provide your recommended response immediately.`,
     systemPrompt: `You are the Demo Booker for Vomni. Your job is to get interested prospects onto a call with Omri, and prepare Omri fully for every call.
 
 BOOKING FLOW:
-1. When prospect shows interest → send Calendly link immediately: "Great — it's much easier to show you than explain. Here's a link to grab a time: [Calendly link]. Takes about 15 minutes, no obligation."
-2. Confirmation: "Confirmed — looking forward to speaking [first name]. I'll send a reminder an hour before."
-3. Reminder 1 hour before: "Hey [first name] — your call is in an hour [time]. The link: [Zoom/Meet link]. See you then!"
-4. If no-show (wait 30 min): "Hey [first name] — looks like we missed each other. Want to grab another time? [Calendly link]"
+1. When prospect shows interest → send Calendly link immediately: "Great - it's much easier to show you than explain. Here's a link to grab a time: [Calendly link]. Takes about 15 minutes, no obligation."
+2. Confirmation: "Confirmed - looking forward to speaking [first name]. I'll send a reminder an hour before."
+3. Reminder 1 hour before: "Hey [first name] - your call is in an hour [time]. The link: [Zoom/Meet link]. See you then!"
+4. If no-show (wait 30 min): "Hey [first name] - looks like we missed each other. Want to grab another time? [Calendly link]"
 
 PRE-CALL BRIEF FORMAT (save to /vomni-knowledge/demo-briefs/):
-DEMO BRIEF — [Business] — [Date/Time]
+DEMO BRIEF - [Business] - [Date/Time]
 THE PROSPECT: [Name], [Business], [Location], [X]★ · [Y] reviews
 COMPETITOR: [Name] has [Z] reviews ([distance] away)
 WHY THEY'RE INTERESTED: [Message variant that worked + their exact reply]
@@ -186,7 +186,7 @@ DEMO FLOW: 1. Discovery (3 min) 2. Positioning (2 min) 3. Demo (5 min) 4. Close 
 GOAL: Get them to say yes to monthly plan (£70) or commit to follow-up within 48h.
 
 DEMO COACHING FOR OMRI:
-• First 3 minutes are about them — let them talk 40%+ of the call
+• First 3 minutes are about them - let them talk 40%+ of the call
 • Magic question: "Walk me through how you currently get Google reviews"
 • Connect the gap: reflect their situation back before pitching
 • Demo what matters to THEM (reviews pain → show SMS flow; bad review → show recovery inbox)
@@ -201,31 +201,31 @@ When asked to prepare a brief, produce the full template with all sections fille
     icon: UserCheck,
     systemPrompt: `You are the Customer Onboarder for Vomni. When someone signs up, you make sure they're set up, seeing results, and feeling confident within 7 days.
 
-CORE MISSION: Get every customer to their "aha moment" — the first time they see a real Google review come in through Vomni. Everything you do drives toward that moment.
+CORE MISSION: Get every customer to their "aha moment" - the first time they see a real Google review come in through Vomni. Everything you do drives toward that moment.
 
 ONBOARDING SEQUENCE:
 
-HOUR 1 — Welcome email:
-Subject: "Welcome to Vomni — here's your first step"
+HOUR 1 - Welcome email:
+Subject: "Welcome to Vomni - here's your first step"
 Welcome by name. Tell them the ONE thing to do: set up email forwarding. Give exact instructions. Give their forwarding address. Tell them it takes 5 minutes. Tell them what happens next.
 
-DAY 1 — Setup check:
+DAY 1 - Setup check:
 If no forwarding email yet: gentle nudge, simplify the instruction, offer to help if they name their booking system.
 If set up: confirm it's working, tell them what to expect next.
 
-DAY 3 — First results:
+DAY 3 - First results:
 If bookings flowing: show their first stats (requests sent, opened, redirected, feedback caught).
 If not set up yet: simplified instructions + ask which booking system they use.
 
-DAY 7 — Week 1 summary:
+DAY 7 - Week 1 summary:
 Specific numbers. Highlight best result. Set expectations for week 2+.
 
-DAY 30 — Month 1 review:
+DAY 30 - Month 1 review:
 Full summary. Highlight best result. Ask for testimonial if results are strong.
 
 RULES:
 • Always use first name
-• Always be specific — never say "you're doing great" without a number
+• Always be specific - never say "you're doing great" without a number
 • If silent for 3 days after signup → escalate to CEO
 • Never mention cancellation or pricing in onboarding messages
 • Max 150 words per message
@@ -242,7 +242,7 @@ When given a customer name and their current status, produce the correct message
     name: "Engineer",
     role: "Maintains and improves the Vomni codebase",
     icon: Wrench,
-    systemPrompt: `You are the Engineer for Vomni. You maintain and improve the Vomni codebase — a Next.js 16 application.
+    systemPrompt: `You are the Engineer for Vomni. You maintain and improve the Vomni codebase - a Next.js 16 application.
 
 TECH STACK:
 • Next.js 16.2.1 with App Router
@@ -267,7 +267,7 @@ YOUR RULES:
 • Never deploy to production without owner confirmation
 • Test every change locally first (npm run build)
 • Document every significant change in /vomni-knowledge/changelog.md
-• If you can't fix a bug, document it fully — never leave it undocumented
+• If you can't fix a bug, document it fully - never leave it undocumented
 
 DEPLOYMENT:
 export PATH="/Users/nickyleslie/node/bin:$PATH"
@@ -303,7 +303,7 @@ When given a bug or feature request, analyse it, show the relevant code, and pro
 CARDINAL RULE: Never say "improve messaging." Say exactly what to change, why, who owns it, and how to measure if it worked.
 
 WEEKLY REPORT FORMAT (every Monday):
-WEEKLY GROWTH REPORT — Week of [date]
+WEEKLY GROWTH REPORT - Week of [date]
 
 FUNNEL METRICS:
 | Stage | This Week | Last Week | Change |
@@ -401,9 +401,151 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
   );
 }
 
+// ── Agent Intelligence Panel ───────────────────────────────────────────────
+
+function AgentIntelligencePanel() {
+  const [facts, setFacts] = useState<any[]>([]);
+  const [procedures, setProcedures] = useState<any[]>([]);
+  const [episodes, setEpisodes] = useState<any[]>([]);
+  const [strategic, setStrategic] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const [f, p, e, s] = await Promise.all([
+        fetch('/api/admin/db/agent_memory_facts?order=confidence.desc&limit=30').then(r => r.json()),
+        fetch('/api/admin/db/agent_memory_procedures?order=last_updated_at.desc&limit=20').then(r => r.json()),
+        fetch('/api/admin/db/agent_memory_episodes?order=created_at.desc&limit=20').then(r => r.json()),
+        fetch('/api/admin/db/agent_memory_strategic?order=confidence.desc&limit=20').then(r => r.json()),
+      ]);
+      setFacts(f.data || []);
+      setProcedures(p.data || []);
+      setEpisodes(e.data || []);
+      setStrategic(s.data || []);
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  if (loading) return <div style={{ padding: 40, color: '#6B7280', fontFamily: 'Inter, sans-serif' }}>Loading agent intelligence...</div>;
+
+  const IN = '#0A0F1E';
+  const IG = '#00C896';
+
+  return (
+    <div style={{ padding: '32px 0', display: 'flex', flexDirection: 'column', gap: 40 }}>
+
+      {/* What the agents know */}
+      <section>
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: IN, margin: '0 0 16px' }}>
+          What the agents know
+          <span style={{ marginLeft: 10, fontSize: 13, fontWeight: 400, color: '#6B7280', fontFamily: 'Inter, sans-serif' }}>{facts.length} facts learned</span>
+        </h3>
+        <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', overflow: 'hidden' }}>
+          {facts.length === 0 ? (
+            <div style={{ padding: 24, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>No facts learned yet - agents will build this over time.</div>
+          ) : facts.map((f, i) => (
+            <div key={f.id || i} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 20px', borderBottom: i < facts.length - 1 ? '1px solid #F3F4F6' : 'none' }}>
+              <div style={{ width: 48, flexShrink: 0, textAlign: 'center' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: f.confidence >= 80 ? IG : f.confidence >= 60 ? '#F59E0B' : '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>{f.confidence}%</div>
+                <div style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>conf.</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: IN, lineHeight: 1.5 }}>{f.fact}</div>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 2 }}>
+                  {f.category} · {f.evidence_count || 1}x observed · {f.agent_name || 'shared'}
+                </div>
+              </div>
+              <div style={{ width: 60, flexShrink: 0 }}>
+                <div style={{ height: 4, background: '#F3F4F6', borderRadius: 2 }}>
+                  <div style={{ height: '100%', width: `${f.confidence}%`, background: f.confidence >= 80 ? IG : f.confidence >= 60 ? '#F59E0B' : '#D1D5DB', borderRadius: 2, transition: 'width 0.3s' }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Current best procedures */}
+      <section>
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: IN, margin: '0 0 16px' }}>
+          Current best procedures
+          <span style={{ marginLeft: 10, fontSize: 13, fontWeight: 400, color: '#6B7280', fontFamily: 'Inter, sans-serif' }}>{procedures.length} procedures</span>
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16 }}>
+          {procedures.length === 0 ? (
+            <div style={{ padding: 24, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB' }}>No procedures saved yet.</div>
+          ) : procedures.map((p, i) => (
+            <div key={p.id || i} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: IN }}>{p.procedure_name}</div>
+                <div style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', flexShrink: 0, marginLeft: 8 }}>{p.agent_name}</div>
+              </div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#374151', lineHeight: 1.6, background: '#F9FAFB', borderRadius: 8, padding: '10px 12px' }}>{p.current_best_version}</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 8 }}>
+                Updated {p.last_updated_at ? new Date(p.last_updated_at).toLocaleDateString('en-GB') : 'recently'}
+                {Array.isArray(p.previous_versions) && p.previous_versions.length > 0 && ` · ${p.previous_versions.length} previous version${p.previous_versions.length !== 1 ? 's' : ''}`}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Recent learnings */}
+      <section>
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: IN, margin: '0 0 16px' }}>
+          Recent learnings
+        </h3>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {episodes.length === 0 ? (
+            <div style={{ padding: 24, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB' }}>No episodes recorded yet.</div>
+          ) : episodes.map((ep, i) => (
+            <div key={ep.id || i} style={{ background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB', padding: '16px 20px', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+              <div style={{ width: 8, height: 8, borderRadius: '50%', background: ep.outcome === 'positive' ? IG : ep.outcome === 'negative' ? '#EF4444' : '#9CA3AF', flexShrink: 0, marginTop: 6 }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: IN, lineHeight: 1.5 }}>{ep.summary}</div>
+                {ep.lesson && <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#6B7280', marginTop: 4, fontStyle: 'italic' }}>Lesson: {ep.lesson}</div>}
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 4 }}>
+                  {ep.agent_name} · {ep.episode_type} · {ep.created_at ? new Date(ep.created_at).toLocaleDateString('en-GB') : ''}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Strategic insights */}
+      <section>
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: IN, margin: '0 0 16px' }}>
+          Strategic insights
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          {strategic.length === 0 ? (
+            <div style={{ padding: 24, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14, background: '#fff', borderRadius: 12, border: '1px solid #E5E7EB' }}>No strategic insights yet - these build up over weeks of operation.</div>
+          ) : strategic.map((s, i) => (
+            <div key={s.id || i} style={{ background: '#fff', borderRadius: 12, border: `1px solid ${s.confidence >= 70 ? 'rgba(0,200,150,0.3)' : '#E5E7EB'}`, padding: 20 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{s.category}</span>
+                <span style={{ fontSize: 12, fontWeight: 700, color: s.confidence >= 70 ? IG : '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>{s.confidence}%</span>
+              </div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: IN, lineHeight: 1.6 }}>{s.insight}</div>
+              <div style={{ marginTop: 12, height: 4, background: '#F3F4F6', borderRadius: 2 }}>
+                <div style={{ height: '100%', width: `${s.confidence}%`, background: s.confidence >= 70 ? IG : '#D1D5DB', borderRadius: 2 }} />
+              </div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF', marginTop: 6 }}>{s.data_points || 1} data point{(s.data_points || 1) !== 1 ? 's' : ''}</div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────
 
 export default function AgentsPage() {
+  const [activeTab, setActiveTab] = useState<string>("overview");
   const [states, setStates] = useState<AgentStates>(defaultStates());
   const [histories, setHistories] = useState<ChatHistories>({});
   const [openAgent, setOpenAgent] = useState<string | null>(null);
@@ -554,7 +696,7 @@ export default function AgentsPage() {
     } catch {
       const errorMsg: Message = {
         role: "assistant",
-        content: "Network error — please try again.",
+        content: "Network error - please try again.",
         timestamp: new Date().toISOString(),
       };
       persistHistory(openAgent, [...updated, errorMsg]);
@@ -623,6 +765,32 @@ export default function AgentsPage() {
             </button>
           </div>
         </div>
+
+        {/* ── Tab bar ──────────────────────────────────────────────────── */}
+        <div className="mb-6 flex items-center gap-1 border-b border-gray-200">
+          {[
+            { id: "overview", label: "Overview" },
+            { id: "intelligence", label: "Intelligence", icon: Brain },
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px"
+              style={activeTab === id
+                ? { borderColor: G, color: G }
+                : { borderColor: "transparent", color: "#6B7280" }
+              }
+            >
+              {Icon && <Icon size={14} />}
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {/* ── Intelligence tab content ──────────────────────────────────── */}
+        {activeTab === "intelligence" && <AgentIntelligencePanel />}
+
+        {activeTab === "overview" && <>
 
         {/* ── CEO Dashboard Panel ──────────────────────────────────────── */}
         <div className="mb-6 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
@@ -1046,6 +1214,8 @@ export default function AgentsPage() {
             </div>
           )}
         </div>
+
+        </>}
 
       </div>
 

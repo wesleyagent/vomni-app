@@ -1,405 +1,497 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import {
-  Building2,
-  Link2,
-  Clock,
-  Bell,
-  Mail,
-  Copy,
-  Check,
-} from "lucide-react";
-import { getBusiness, updateBusiness } from "@/lib/storage";
-import type { Business } from "@/types";
+import { useEffect, useState } from "react";
+import { Save, Building2, Bell, Lock, Smartphone, Gift, ExternalLink, CheckCircle, Copy, Phone, ImageIcon } from "lucide-react";
+import { useBusinessContext } from "../_context";
+import { db, getMyBusiness, updateBusiness, type DBBusiness } from "@/lib/db";
+import { hasFeature } from "@/lib/planFeatures";
+import UpgradePrompt from "@/components/UpgradePrompt";
 
-const G = "#00C896";
-const N = "#0A0F1E";
+const G  = "#00C896";
+const N  = "#0A0F1E";
+const BD = "#E5E7EB";
 
-function Toast({ message }: { message: string }) {
+const inputStyle: React.CSSProperties = {
+  width: "100%", border: `1px solid ${BD}`, borderRadius: 10,
+  padding: "13px 16px", fontFamily: "Inter, sans-serif", fontSize: 14,
+  color: N, outline: "none", boxSizing: "border-box", background: "#fff",
+  transition: "border-color 0.15s, box-shadow 0.15s",
+};
+
+const disabledInputStyle: React.CSSProperties = { ...inputStyle, background: "#F9FAFB", color: "#6B7280" };
+
+const BIZ_TYPES = ["Barbershop", "Hair Salon", "Beauty Salon", "Restaurant", "Dentist", "Tattoo Studio", "Nail Salon", "Spa", "Gym", "Other"];
+
+function SI({ disabled: dis, ...props }: React.InputHTMLAttributes<HTMLInputElement>) {
   return (
-    <div className="animate-fade-in mt-3 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-4 py-2 text-sm font-medium text-green-700">
-      <Check size={16} />
-      {message}
-    </div>
+    <input {...props} disabled={dis} style={dis ? disabledInputStyle : inputStyle}
+      onFocus={e => { if (!dis) { e.currentTarget.style.borderColor = G; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,200,150,0.15)"; } }}
+      onBlur={e  => { e.currentTarget.style.borderColor = BD; e.currentTarget.style.boxShadow = "none"; }}
+    />
   );
 }
 
-function SectionCard({
-  icon,
-  title,
-  description,
-  children,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description?: string;
-  children: React.ReactNode;
-}) {
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white p-6 shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
-      <div className="flex items-center gap-3 mb-5">
-        <div style={{ color: G }}>{icon}</div>
-        <div>
-          <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-          {description && <p className="text-xs text-gray-400">{description}</p>}
-        </div>
-      </div>
+    <div>
+      <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>{label}</label>
       {children}
+      {hint && <p style={{ marginTop: 6, fontSize: 12, color: "#9CA3AF", fontFamily: "Inter, sans-serif" }}>{hint}</p>}
     </div>
   );
 }
 
-function SaveButton({
-  onClick,
-  label = "Save",
-}: {
-  onClick: () => void;
-  label?: string;
-}) {
+function SectionCard({ icon: Icon, title, children }: { icon: React.ElementType; title: string; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      className="rounded-lg px-4 py-2 text-sm font-medium text-white transition-colors"
-      style={{ background: G }}
-      onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#00A87D'; }}
-      onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = G; }}
-    >
-      {label}
-    </button>
+    <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${BD}`, padding: 28, marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24 }}>
+        <Icon size={20} style={{ color: G }} />
+        <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 600, color: N, margin: 0 }}>{title}</h2>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>{children}</div>
+    </div>
   );
 }
 
-const inputClass = "w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none";
-const inputFocusStyle = { outline: 'none' };
-
-function StyledInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
+function Toast({ message, type }: { message: string; type: "success" | "error" }) {
   return (
-    <input
-      {...props}
-      className={`${inputClass} ${props.className ?? ""}`}
-      style={inputFocusStyle}
-      onFocus={(e) => {
-        e.currentTarget.style.borderColor = G;
-        e.currentTarget.style.boxShadow = `0 0 0 3px rgba(0,200,150,0.12)`;
-      }}
-      onBlur={(e) => {
-        e.currentTarget.style.borderColor = '#E5E7EB';
-        e.currentTarget.style.boxShadow = 'none';
-      }}
-    />
+    <>
+      <style>{`@keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`}</style>
+      <div style={{ position: "fixed", bottom: 28, right: 28, zIndex: 100, padding: "13px 22px", borderRadius: 12, background: type === "success" ? G : "#EF4444", color: "#fff", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 500, boxShadow: "0 8px 32px rgba(0,0,0,0.2)", animation: "toastIn 0.25s ease", display: "flex", alignItems: "center", gap: 8 }}>
+        {type === "success" ? "✓" : "✕"} {message}
+      </div>
+    </>
   );
 }
 
-function StyledSelect(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
-  return (
-    <select
-      {...props}
-      className={`w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-900 outline-none ${props.className ?? ""}`}
-      onFocus={(e) => {
-        e.currentTarget.style.borderColor = G;
-        e.currentTarget.style.boxShadow = `0 0 0 3px rgba(0,200,150,0.12)`;
-      }}
-      onBlur={(e) => {
-        e.currentTarget.style.borderColor = '#E5E7EB';
-        e.currentTarget.style.boxShadow = 'none';
-      }}
-    />
-  );
-}
-
-const HOURS = Array.from({ length: 24 }, (_, i) => i);
-
-function formatHour(h: number): string {
-  if (h === 0) return "12:00 AM";
-  if (h === 12) return "12:00 PM";
-  if (h < 12) return `${h}:00 AM`;
-  return `${h - 12}:00 PM`;
+function generateReferralCode(): string {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
 export default function SettingsPage() {
-  const router = useRouter();
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [mounted, setMounted] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const { businessId, email } = useBusinessContext();
 
-  const [name, setName] = useState("");
-  const [ownerName, setOwnerName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
-  const [googleReviewLink, setGoogleReviewLink] = useState("");
-  const [reviewRequestDelay, setReviewRequestDelay] = useState(24);
-  const [quietHoursStart, setQuietHoursStart] = useState(22);
-  const [quietHoursEnd, setQuietHoursEnd] = useState(8);
-  const [notifyOnNegative, setNotifyOnNegative] = useState(true);
-  const [notifyEmail, setNotifyEmail] = useState("");
+  const [biz,          setBiz]          = useState<DBBusiness | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [saving,       setSaving]       = useState(false);
+  const [toast,        setToast]        = useState<{ message: string; type: "success" | "error" } | null>(null);
+
+  const [name,         setName]         = useState("");
+  const [bizType,      setBizType]      = useState("");
+  const [ownerName,    setOwnerName]    = useState("");
+  const [googleLink,   setGoogleLink]   = useState("");
+  const [notifEmail,   setNotifEmail]   = useState("");
+  const [referralCode, setReferralCode] = useState("");
+  const [referralCount,setReferralCount]= useState(0);
+  const [copyLabel,    setCopyLabel]    = useState("Copy link");
+  const [googleValid,  setGoogleValid]  = useState<boolean | null>(null);
+
+  const [currentPw,    setCurrentPw]    = useState("");
+  const [newPw,        setNewPw]        = useState("");
+  const [confirmPw,    setConfirmPw]    = useState("");
+  const [pwSaving,     setPwSaving]     = useState(false);
+  const [pwError,      setPwError]      = useState("");
+
+  const [logoUrl,      setLogoUrl]      = useState<string | null>(null);
+  const [logoFile,     setLogoFile]     = useState<File | null>(null);
+  const [logoPreview,  setLogoPreview]  = useState<string | null>(null);
+  const [logoUploading,setLogoUploading]= useState(false);
 
   useEffect(() => {
-    const biz = getBusiness();
-    if (!biz) {
-      router.push("/signup");
-      return;
-    }
-    setBusiness(biz);
-    setName(biz.name);
-    setOwnerName(biz.ownerName);
-    setPhone(biz.phone);
-    setAddress(biz.address);
-    setGoogleReviewLink(biz.googleReviewLink);
-    setReviewRequestDelay(biz.reviewRequestDelay);
-    setQuietHoursStart(biz.quietHoursStart);
-    setQuietHoursEnd(biz.quietHoursEnd);
-    setNotifyOnNegative(biz.notifyOnNegative);
-    setNotifyEmail(biz.notifyEmail);
-    setMounted(true);
-  }, [router]);
+    if (!email) { setLoading(false); return; }
+    getMyBusiness(email).then(async data => {
+      if (data) {
+        setBiz(data);
+        setName(data.name ?? "");
+        setBizType(data.business_type ?? "");
+        setOwnerName(data.owner_name ?? "");
+        setGoogleLink(data.google_review_link ?? "");
+        setNotifEmail(data.notification_email ?? email);
+        setLogoUrl((data as DBBusiness & { logo_url?: string }).logo_url ?? null);
 
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
+        // Handle referral code (non-blocking)
+        try {
+          let code = (data as DBBusiness & { referral_code?: string }).referral_code ?? "";
+          if (!code) {
+            code = generateReferralCode();
+            await db.from("businesses").update({ referral_code: code } as Record<string, unknown>).eq("id", data.id);
+          }
+          setReferralCode(code);
+        } catch { /* column may not exist yet */ }
+
+        // Count referrals (non-blocking)
+        try {
+          const { count } = await db.from("referrals")
+            .select("id", { count: "exact", head: true })
+            .eq("referrer_business_id", data.id);
+          setReferralCount(count ?? 0);
+        } catch { /* table may not exist yet */ }
+      }
+      setLoading(false);
+    }).catch(() => setLoading(false));
+  }, [email]);
+
+  useEffect(() => {
+    if (!googleLink) { setGoogleValid(null); return; }
+    setGoogleValid(googleLink.includes("google.com") || googleLink.includes("g.page"));
+  }, [googleLink]);
+
+  function showToast(message: string, type: "success" | "error" = "success") {
+    setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
-  }, []);
+  }
 
-  const save = useCallback(
-    (updates: Partial<Business>) => {
-      updateBusiness(updates);
-      setBusiness((prev) => (prev ? { ...prev, ...updates } : prev));
-      showToast("Settings saved successfully");
-    },
-    [showToast]
-  );
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!businessId) return;
+    setSaving(true);
+    const ok = await updateBusiness(businessId, {
+      name,
+      business_type:      bizType,
+      owner_name:         ownerName,
+      google_review_link: googleLink,
+      notification_email: notifEmail,
+    });
+    showToast(ok ? "Settings saved successfully" : "Failed to save settings", ok ? "success" : "error");
+    setSaving(false);
+  }
 
-  const copyToClipboard = useCallback(async (text: string) => {
+  async function handleLogoUpload(file: File) {
+    if (!businessId) return;
+    if (file.size > 5 * 1024 * 1024) { showToast("File must be under 5MB", "error"); return; }
+    setLogoUploading(true);
     try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // fallback
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("business_id", businessId);
+      const res = await fetch("/api/upload-logo", { method: "POST", body: fd });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Upload failed");
+      setLogoUrl(json.publicUrl);
+      setLogoPreview(null);
+      setLogoFile(null);
+      showToast("Logo updated successfully");
+    } catch (err) {
+      console.error("Logo upload failed:", err);
+      showToast("Failed to upload logo", "error");
     }
-  }, []);
+    setLogoUploading(false);
+  }
 
-  if (!mounted) {
+  async function handleLogoRemove() {
+    if (!businessId) return;
+    await db.from("businesses").update({ logo_url: null } as Record<string,unknown>).eq("id", businessId);
+    setLogoUrl(null);
+    setLogoPreview(null);
+    setLogoFile(null);
+    showToast("Logo removed");
+  }
+
+  async function handlePasswordChange(e: React.FormEvent) {
+    e.preventDefault();
+    setPwError("");
+    if (newPw.length < 8) { setPwError("Password must be at least 8 characters."); return; }
+    if (newPw !== confirmPw) { setPwError("Passwords do not match."); return; }
+    setPwSaving(true);
+    const { error } = await db.auth.updateUser({ password: newPw });
+    if (error) { setPwError(error.message); }
+    else { setCurrentPw(""); setNewPw(""); setConfirmPw(""); showToast("Password updated successfully"); }
+    setPwSaving(false);
+  }
+
+  function copyReferralLink() {
+    const link = `https://vomni-app.vercel.app?ref=${referralCode}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopyLabel("Copied!");
+      setTimeout(() => setCopyLabel("Copy link"), 2000);
+    });
+    void currentPw; // suppress unused warning
+  }
+
+  if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: G, borderTopColor: 'transparent' }} />
+      <div style={{ display: "flex", height: "50vh", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  if (!business) return null;
+  const bizDisplayName = name || "Your Business";
 
   return (
-    <div className="min-h-full bg-gray-50 p-6 lg:p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N }}>
-          Settings
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Configure your business and review request preferences
-        </p>
+    <div style={{ padding: "32px 32px", maxWidth: 720, margin: "0 auto" }}>
+      {toast && <Toast message={toast.message} type={toast.type} />}
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: 0 }}>Settings</h1>
+        <p style={{ marginTop: 4, fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>Manage your business details and preferences</p>
       </div>
 
-      {/* Global toast */}
-      {toast && (
-        <div className="fixed top-4 right-4 z-50">
-          <Toast message={toast} />
-        </div>
-      )}
+      {/* Business Details */}
+      <form onSubmit={handleSave}>
+        <SectionCard icon={Building2} title="Business Details">
+          <Field label="Business Name">
+            <SI type="text" value={name} onChange={e => setName(e.target.value)} placeholder="King's Cuts London" required />
+          </Field>
 
-      <div className="space-y-6 max-w-3xl">
-        {/* Business Details */}
-        <SectionCard
-          icon={<Building2 size={20} />}
-          title="Business Details"
-          description="Your business contact information"
-        >
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Business Name</label>
-              <StyledInput type="text" value={name} onChange={(e) => setName(e.target.value)} />
+          <Field label="Business Type">
+            <select
+              value={bizType}
+              onChange={e => setBizType(e.target.value)}
+              style={{ ...inputStyle, cursor: "pointer", appearance: "none" }}
+              onFocus={e => { e.currentTarget.style.borderColor = G; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,200,150,0.15)"; }}
+              onBlur={e  => { e.currentTarget.style.borderColor = BD; e.currentTarget.style.boxShadow = "none"; }}
+            >
+              <option value="">Select type…</option>
+              {BIZ_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </Field>
+
+          <Field label="Owner Name">
+            <SI type="text" value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="Marcus Johnson" />
+          </Field>
+
+          <Field label="Account Email" hint="Your login email - contact support@vomni.app to change this">
+            <SI type="email" value={email} disabled />
+          </Field>
+
+          {biz?.plan && (
+            <Field label="Plan">
+              <div style={{ display: "inline-flex", padding: "8px 16px", borderRadius: 9999, background: "rgba(0,200,150,0.1)", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: G }}>
+                {biz.plan.charAt(0).toUpperCase() + biz.plan.slice(1)}
+              </div>
+            </Field>
+          )}
+
+          <Field
+            label="Google Review Link"
+            hint='Go to your Google Business profile → click "Get more reviews" → copy and paste the link here'
+          >
+            <div style={{ position: "relative" }}>
+              <SI type="url" value={googleLink} onChange={e => setGoogleLink(e.target.value)} placeholder="https://g.page/r/XXXX/review" />
+              {googleLink && googleValid !== null && (
+                <div style={{ position: "absolute", right: googleLink ? 36 : 12, top: "50%", transform: "translateY(-50%)" }}>
+                  {googleValid
+                    ? <CheckCircle size={16} style={{ color: G }} />
+                    : <span style={{ fontSize: 12, color: "#EF4444", fontFamily: "Inter, sans-serif" }}>Invalid</span>
+                  }
+                </div>
+              )}
+              {googleLink && (
+                <a href={googleLink} target="_blank" rel="noopener noreferrer" style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", color: G }}>
+                  <ExternalLink size={16} />
+                </a>
+              )}
             </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Owner Name</label>
-              <StyledInput type="text" value={ownerName} onChange={(e) => setOwnerName(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Phone</label>
-              <StyledInput type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Address</label>
-              <StyledInput type="text" value={address} onChange={(e) => setAddress(e.target.value)} />
-            </div>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <SaveButton onClick={() => save({ name, ownerName, phone, address })} />
-          </div>
+          </Field>
         </SectionCard>
 
-        {/* Google Review Link */}
-        <SectionCard
-          icon={<Link2 size={20} />}
-          title="Google Review Link"
-          description="This is where happy customers will be directed"
-        >
-          <StyledInput
-            type="url"
-            value={googleReviewLink}
-            onChange={(e) => setGoogleReviewLink(e.target.value)}
-            placeholder="https://g.page/r/your-business/review"
-          />
-          <p className="mt-1.5 text-xs text-gray-400">
-            Paste your Google Business review link here. Customers who rate you 4-5 stars will be redirected to leave a public review.
+        {/* Logo */}
+        <SectionCard icon={ImageIcon} title="Business Logo">
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: 0 }}>
+            Your logo appears on the customer-facing rating page. It makes the experience feel personal.
           </p>
-          <div className="mt-4 flex justify-end">
-            <SaveButton onClick={() => save({ googleReviewLink })} />
-          </div>
-        </SectionCard>
 
-        {/* Review Request Timing */}
-        <SectionCard
-          icon={<Clock size={20} />}
-          title="Review Request Timing"
-          description="When to send review requests after appointments"
-        >
-          <div className="space-y-5">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Delay after appointment (hours)
-              </label>
-              <StyledInput
-                type="number"
-                min={1}
-                max={72}
-                value={reviewRequestDelay}
-                onChange={(e) =>
-                  setReviewRequestDelay(
-                    Math.min(72, Math.max(1, parseInt(e.target.value) || 1))
-                  )
-                }
-                className="w-32"
+          {(logoPreview || logoUrl) && (
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <img
+                src={logoPreview ?? logoUrl!}
+                alt="Business logo"
+                style={{ height: 64, maxWidth: 160, objectFit: "contain", borderRadius: 8, border: `1px solid ${BD}`, padding: 4, background: "#fff" }}
               />
-              <p className="mt-1.5 text-xs text-gray-400">
-                Default: 24 hours. For barbers and salons, 2-4 hours works best.
-              </p>
+              {logoUrl && !logoPreview && (
+                <button
+                  onClick={handleLogoRemove}
+                  style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#EF4444", background: "none", border: `1px solid #FECACA`, borderRadius: 8, padding: "8px 14px", cursor: "pointer" }}
+                >
+                  Remove logo
+                </button>
+              )}
             </div>
+          )}
 
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Quiet hours start</label>
-                <StyledSelect
-                  value={quietHoursStart}
-                  onChange={(e) => setQuietHoursStart(parseInt(e.target.value))}
-                >
-                  {HOURS.map((h) => (
-                    <option key={h} value={h}>{formatHour(h)}</option>
-                  ))}
-                </StyledSelect>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-600 mb-1">Quiet hours end</label>
-                <StyledSelect
-                  value={quietHoursEnd}
-                  onChange={(e) => setQuietHoursEnd(parseInt(e.target.value))}
-                >
-                  {HOURS.map((h) => (
-                    <option key={h} value={h}>{formatHour(h)}</option>
-                  ))}
-                </StyledSelect>
-              </div>
+          <label htmlFor="settings-logo-upload" style={{ display: "inline-block", cursor: "pointer" }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 20px", borderRadius: 10, border: `1px solid ${BD}`, background: "#fff", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 500, color: N, cursor: logoUploading ? "not-allowed" : "pointer" }}>
+              {logoUploading ? "Uploading…" : logoUrl ? "Change logo" : "Upload logo"}
             </div>
-            <p className="text-xs text-gray-400">
-              No messages will be sent during quiet hours. They&apos;ll be queued and sent when quiet hours end.
-            </p>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <SaveButton
-              onClick={() => save({ reviewRequestDelay, quietHoursStart, quietHoursEnd })}
+            <input
+              id="settings-logo-upload"
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/svg+xml"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                setLogoFile(file);
+                const reader = new FileReader();
+                reader.onload = (ev) => setLogoPreview(ev.target?.result as string);
+                reader.readAsDataURL(file);
+                handleLogoUpload(file);
+              }}
             />
-          </div>
+          </label>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: "4px 0 0" }}>PNG, JPG or SVG · Max 2MB</p>
         </SectionCard>
 
         {/* Notifications */}
-        <SectionCard
-          icon={<Bell size={20} />}
-          title="Notifications"
-          description="Get alerted about negative feedback"
-        >
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Notify on negative feedback</p>
-                <p className="text-xs text-gray-400">Get an email when a customer leaves a low rating</p>
-              </div>
-              <button
-                role="switch"
-                aria-checked={notifyOnNegative}
-                onClick={() => setNotifyOnNegative(!notifyOnNegative)}
-                className="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out"
-                style={{ background: notifyOnNegative ? G : '#D1D5DB' }}
-              >
-                <span
-                  className="pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out"
-                  style={{ transform: notifyOnNegative ? 'translateX(20px)' : 'translateX(0)' }}
-                />
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Notification email</label>
-              <StyledInput
-                type="email"
-                value={notifyEmail}
-                onChange={(e) => setNotifyEmail(e.target.value)}
-                placeholder="you@example.com"
-              />
-            </div>
-          </div>
-          <div className="mt-4 flex justify-end">
-            <SaveButton onClick={() => save({ notifyOnNegative, notifyEmail })} />
-          </div>
+        <SectionCard icon={Bell} title="Notifications">
+          <Field label="Notification Email" hint="Vomni sends an alert to this address whenever a customer leaves negative feedback">
+            <SI type="email" value={notifEmail} onChange={e => setNotifEmail(e.target.value)} placeholder="you@example.com" />
+          </Field>
         </SectionCard>
 
-        {/* Email Forwarding */}
-        <SectionCard
-          icon={<Mail size={20} />}
-          title="Email Forwarding"
-          description="Auto-import customers from booking confirmations"
-        >
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 24 }}>
+          <button
+            type="submit"
+            disabled={saving}
+            style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 28px", borderRadius: 10, background: saving ? "#9CA3AF" : G, color: "#fff", border: "none", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, cursor: saving ? "not-allowed" : "pointer" }}
+            onMouseEnter={e => { if (!saving) (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
+            onMouseLeave={e => { if (!saving) (e.currentTarget as HTMLElement).style.background = G; }}
+          >
+            <Save size={16} />
+            {saving ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      </form>
+
+      {/* Custom Number - Pro only */}
+      <div style={{ marginBottom: 0 }}>
+        {hasFeature(biz?.plan, "custom_number") ? (
+          <SectionCard icon={Phone} title="Dedicated SMS Number">
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: 0 }}>
+              Your dedicated Twilio number for outbound SMS. Contact <a href="mailto:support@vomni.app" style={{ color: G }}>support@vomni.app</a> to configure your number.
+            </p>
+            {(biz as DBBusiness & { twilio_number?: string })?.twilio_number ? (
+              <div style={{ display: "inline-flex", padding: "8px 16px", borderRadius: 9999, background: "rgba(0,200,150,0.1)", fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: G, letterSpacing: "0.05em" }}>
+                {(biz as DBBusiness & { twilio_number?: string }).twilio_number}
+              </div>
+            ) : (
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>No number assigned yet.</p>
+            )}
+          </SectionCard>
+        ) : (
+          <div style={{ marginBottom: 24 }}>
+            <UpgradePrompt
+              feature="Dedicated SMS Number"
+              description="Get your own branded SMS number for sending review requests - available on the Pro plan."
+              requiredPlan="pro"
+            />
+          </div>
+        )}
+      </div>
+
+      {/* SMS Preview - Read Only */}
+      <SectionCard icon={Smartphone} title="Your Automated Review Request">
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: 0 }}>
+          Sent automatically by Vomni&apos;s system 24 hours after each appointment.
+        </p>
+        {/* Phone mockup */}
+        <div style={{ display: "flex", justifyContent: "center", paddingTop: 8 }}>
+          <div style={{ width: 260, background: "#F3F4F6", borderRadius: 24, padding: "24px 16px", border: "6px solid #1F2937", position: "relative" }}>
+            {/* Notch */}
+            <div style={{ position: "absolute", top: 8, left: "50%", transform: "translateX(-50%)", width: 60, height: 6, background: "#1F2937", borderRadius: 99 }} />
+            <div style={{ background: "#fff", borderRadius: 16, padding: "16px 14px", marginTop: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", background: N, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 12, color: "#fff" }}>V</span>
+                </div>
+                <div>
+                  <p style={{ fontFamily: "Inter, sans-serif", fontWeight: 600, fontSize: 12, color: N, margin: 0 }}>Vomni</p>
+                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 10, color: "#9CA3AF", margin: 0 }}>Text message</p>
+                </div>
+              </div>
+              <div style={{ background: "#F3F4F6", borderRadius: 12, borderTopLeftRadius: 2, padding: "10px 12px" }}>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: N, margin: 0, lineHeight: 1.6 }}>
+                  Hi <strong>{bizDisplayName}</strong>, thanks for visiting! How was your experience? Please rate us here: [link] - Reply STOP to opt out
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", textAlign: "center", margin: "12px 0 0" }}>
+          Want to customise this? Contact{" "}
+          <a href="mailto:support@vomni.app" style={{ color: G }}>support@vomni.app</a>
+        </p>
+      </SectionCard>
+
+      {/* Referral Section */}
+      <SectionCard icon={Gift} title="Refer a Business, Get a Month Free">
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", margin: 0, lineHeight: 1.6 }}>
+          Know another business that could benefit from Vomni? Share your referral link and get one month free for every business that signs up.
+        </p>
+
+        <div>
+          <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
+            Your Referral Code
+          </label>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800, color: G, letterSpacing: "0.1em", background: "rgba(0,200,150,0.08)", padding: "10px 20px", borderRadius: 10, border: `1px solid rgba(0,200,150,0.2)` }}>
+              {referralCode || "------"}
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280" }}>
+              {referralCount} referral{referralCount !== 1 ? "s" : ""} made
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
+            Referral Link
+          </label>
+          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+            <div style={{ flex: 1, padding: "11px 14px", borderRadius: 10, border: `1px solid ${BD}`, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", background: "#F9FAFB", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              https://vomni-app.vercel.app?ref={referralCode}
+            </div>
+            <button
+              onClick={copyReferralLink}
+              style={{ display: "flex", alignItems: "center", gap: 6, padding: "11px 18px", borderRadius: 10, border: `1px solid ${BD}`, background: "#fff", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: N, cursor: "pointer", whiteSpace: "nowrap" }}
+            >
+              <Copy size={14} />
+              {copyLabel}
+            </button>
+          </div>
+        </div>
+      </SectionCard>
+
+      {/* Password Change */}
+      <form onSubmit={handlePasswordChange} style={{ marginTop: 0 }}>
+        <SectionCard icon={Lock} title="Change Password">
+          {pwError && (
+            <div style={{ padding: "10px 14px", borderRadius: 8, background: "#FEE2E2", border: "1px solid #FECACA", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#DC2626" }}>
+              {pwError}
+            </div>
+          )}
+          <Field label="New Password">
+            <SI type="password" value={newPw} onChange={e => setNewPw(e.target.value)} placeholder="Minimum 8 characters" minLength={8} />
+          </Field>
+          <Field label="Confirm New Password">
+            <SI type="password" value={confirmPw} onChange={e => setConfirmPw(e.target.value)} placeholder="Re-enter new password" />
+          </Field>
           <div>
-            <label className="block text-xs font-medium text-gray-600 mb-1">
-              Your forwarding email address
-            </label>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 font-mono select-all">
-                {business.forwardingEmail}
-              </div>
-              <button
-                onClick={() => copyToClipboard(business.forwardingEmail)}
-                className="shrink-0 rounded-lg border border-gray-200 p-2 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
-                title="Copy to clipboard"
-              >
-                {copied ? (
-                  <Check size={18} style={{ color: G }} />
-                ) : (
-                  <Copy size={18} />
-                )}
-              </button>
-            </div>
-          </div>
-          <div className="mt-4 rounded-lg bg-blue-50 border border-blue-100 p-4">
-            <p className="text-xs font-medium text-blue-800 mb-2">Setup instructions</p>
-            <ol className="text-xs text-blue-700 space-y-1.5 list-decimal list-inside">
-              <li>Open your booking platform email settings</li>
-              <li>Add the address above as a forwarding email or BCC recipient</li>
-              <li>Vomni will automatically parse booking details and create customer records</li>
-              <li>Review requests will be scheduled based on your timing settings</li>
-            </ol>
+            <button
+              type="submit"
+              disabled={pwSaving || !newPw || !confirmPw}
+              style={{ padding: "11px 24px", borderRadius: 10, background: pwSaving || !newPw ? "#9CA3AF" : N, color: "#fff", border: "none", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, cursor: pwSaving || !newPw || !confirmPw ? "not-allowed" : "pointer" }}
+            >
+              {pwSaving ? "Updating…" : "Update Password"}
+            </button>
           </div>
         </SectionCard>
+      </form>
+
+      {/* Sign Out */}
+      <div style={{ marginTop: 8, padding: 24, borderRadius: 16, border: "1px solid #FEE2E2", background: "#FFF5F5" }}>
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 600, color: "#DC2626", margin: "0 0 8px" }}>Sign Out</h3>
+        <p style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif", margin: "0 0 16px" }}>You will be redirected to the homepage.</p>
+        <button
+          onClick={async () => { await db.auth.signOut(); window.location.href = "/"; }}
+          style={{ padding: "10px 20px", borderRadius: 8, border: "1px solid #FCA5A5", background: "#fff", color: "#DC2626", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}
+        >
+          Sign Out
+        </button>
       </div>
     </div>
   );

@@ -1,410 +1,485 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { TrendingUp, AlertTriangle, Lightbulb, BarChart3 } from "lucide-react";
+import { useBusinessContext } from "../_context";
+import { getAllBookings, computeMonthly, type DBBooking, type MonthlyPoint } from "@/lib/db";
+import { db } from "@/lib/db";
+import { hasFeature } from "@/lib/planFeatures";
+import UpgradePrompt from "@/components/UpgradePrompt";
 import {
-  Sparkles,
-  TrendingUp,
-  AlertTriangle,
-  Lightbulb,
-  BarChart3,
-} from "lucide-react";
-import { getBusiness, getCustomers } from "@/lib/storage";
-import type { Business, Customer } from "@/types";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, ReferenceLine,
 } from "recharts";
 
-const G = "#00C896";
-const N = "#0A0F1E";
+const G  = "#00C896";
+const G2 = "#00A87D";
+const N  = "#0A0F1E";
+const AM = "#F59E0B";
+const RD = "#EF4444";
 
-interface MonthlyData {
-  month: string;
-  sent: number;
-  completed: number;
-  redirected: number;
-  negativeCaught: number;
-  completionRate: number;
-}
+// ── Insight types ─────────────────────────────────────────────────────────────
 
 interface InsightItem {
   type: "positive" | "warning" | "opportunity";
   title: string;
   body: string;
-  action: string;
+  action?: string;
 }
 
-const RATING_COLORS: Record<number, string> = {
-  1: "#ef4444",
-  2: "#f97316",
-  3: "#f59e0b",
-  4: "#38bdf8",
-  5: "#22c55e",
-};
-
-function computeMonthlyData(customers: Customer[]): MonthlyData[] {
-  const now = new Date();
-  const months: MonthlyData[] = [];
-
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59);
-    const label = d.toLocaleDateString("en-US", { month: "short", year: "2-digit" });
-
-    const inMonth = customers.filter((c) => {
-      const created = new Date(c.createdAt);
-      return created >= d && created <= monthEnd;
-    });
-
-    const sent = inMonth.filter((c) =>
-      ["sent", "opened", "clicked", "submitted", "redirected", "private_feedback"].includes(
-        c.reviewRequestStatus
-      )
-    ).length;
-
-    const completed = inMonth.filter((c) =>
-      ["submitted", "redirected", "private_feedback"].includes(c.reviewRequestStatus)
-    ).length;
-
-    const redirected = inMonth.filter((c) => c.redirectedToGoogle).length;
-
-    const negativeCaught = inMonth.filter(
-      (c) => c.reviewRequestStatus === "private_feedback"
-    ).length;
-
-    const completionRate = sent > 0 ? Math.round((completed / sent) * 100) : 0;
-
-    months.push({ month: label, sent, completed, redirected, negativeCaught, completionRate });
-  }
-
-  return months;
-}
-
-function computeRatingDistribution(customers: Customer[]) {
-  const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-  customers.forEach((c) => {
-    if (c.rating && c.rating >= 1 && c.rating <= 5) {
-      counts[Math.round(c.rating)]++;
-    }
-  });
-  return [1, 2, 3, 4, 5].map((star) => ({
-    name: `${star} Star`,
-    value: counts[star],
-    star,
-  }));
-}
-
-function generateInsights(
-  customers: Customer[],
-  monthlyData: MonthlyData[]
-): InsightItem[] {
+function generateInsights(bookings: DBBooking[], _monthly: MonthlyPoint[]): InsightItem[] {
   const insights: InsightItem[] = [];
-  const totalSent = customers.filter((c) =>
-    ["sent", "opened", "clicked", "submitted", "redirected", "private_feedback"].includes(
-      c.reviewRequestStatus
-    )
+  const total     = bookings.length;
+  const completed = bookings.filter(b => b.review_status && b.review_status !== "pending").length;
+  const rate      = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const redirected = bookings.filter(b =>
+    b.review_status === "redirected_to_google" || b.review_status === "redirected"
   ).length;
-  const totalCompleted = customers.filter((c) =>
-    ["submitted", "redirected", "private_feedback"].includes(c.reviewRequestStatus)
-  ).length;
-  const completionRate = totalSent > 0 ? Math.round((totalCompleted / totalSent) * 100) : 0;
-
-  const negativeCaught = customers.filter(
-    (c) => c.reviewRequestStatus === "private_feedback"
+  const rated     = bookings.filter(b => b.rating != null);
+  const avg       = rated.length > 0 ? rated.reduce((s, b) => s + (b.rating ?? 0), 0) / rated.length : 0;
+  const negCaught = bookings.filter(b =>
+    b.review_status === "private_feedback" || b.review_status === "reviewed_negative"
   ).length;
 
-  const rated = customers.filter((c) => c.rating !== undefined && c.rating > 0);
-  const avgRating =
-    rated.length > 0
-      ? rated.reduce((sum, c) => sum + (c.rating ?? 0), 0) / rated.length
-      : 0;
-
-  const redirected = customers.filter((c) => c.redirectedToGoogle).length;
-
-  if (completionRate >= 40) {
-    insights.push({
-      type: "positive",
-      title: "Above-Average Completion Rate",
-      body: `Your ${completionRate}% completion rate beats the 40% benchmark. This puts you in the top tier of businesses using review management tools.`,
-      action: "Keep your current messaging strategy — it's working.",
-    });
-  } else if (totalSent > 0) {
-    insights.push({
-      type: "warning",
-      title: "Completion Rate Below Benchmark",
-      body: `Your ${completionRate}% completion rate is below the 40% benchmark. Businesses above 40% generate 2x more reviews per month.`,
-      action: "Try sending requests within 2-4 hours of the appointment for higher response rates.",
-    });
+  if (rate >= 40) {
+    insights.push({ type: "positive", title: "Completion Rate Above Average", body: `Your ${rate}% rate is ${rate - 40}pp above the 40% benchmark. Vomni is working well.` });
+  } else if (total > 0) {
+    insights.push({ type: "warning", title: "Completion Rate Below Benchmark", body: `Your ${rate}% rate is below the 40% industry average. Check SMS delivery is active.` });
   }
 
-  if (negativeCaught > 0) {
-    const lowSavings = negativeCaught * 3750;
-    const highSavings = negativeCaught * 15000;
-    insights.push({
-      type: "positive",
-      title: `${negativeCaught} Negative Review${negativeCaught > 1 ? "s" : ""} Intercepted`,
-      body: `You've caught ${negativeCaught} negative review${negativeCaught > 1 ? "s" : ""} before they hit Google. Each negative review prevented saves an estimated $3,750-$15,000 in lost customer lifetime value.`,
-      action: `Estimated savings: $${lowSavings.toLocaleString()}-$${highSavings.toLocaleString()}. Respond promptly to turn these into recovery opportunities.`,
-    });
+  if (negCaught > 0) {
+    insights.push({ type: "warning", title: `${negCaught} Negative Review${negCaught !== 1 ? "s" : ""} Caught`, body: `${negCaught} complaint${negCaught !== 1 ? "s were" : " was"} resolved privately. Your public Google rating is protected.` });
   }
 
-  if (avgRating > 0) {
-    if (avgRating >= 4.5) {
-      insights.push({
-        type: "positive",
-        title: "Excellent Average Rating",
-        body: `Your ${avgRating.toFixed(1)} average rating is well above the 4.2 threshold needed for top local search ranking. ${rated.length} customers have left ratings.`,
-        action: "Maintain this by continuing to deliver great service and following up quickly.",
-      });
-    } else if (avgRating >= 4.0) {
-      insights.push({
-        type: "opportunity",
-        title: "Rating Improvement Opportunity",
-        body: `Your ${avgRating.toFixed(1)} average rating is solid but pushing to 4.5+ would significantly boost your Google Maps visibility.`,
-        action: "Focus on service quality for your most common complaints to move the needle.",
-      });
-    } else {
-      insights.push({
-        type: "warning",
-        title: "Rating Needs Attention",
-        body: `Your ${avgRating.toFixed(1)} average rating is below the 4.0 mark. Businesses below 4.0 see up to 70% fewer clicks from search results.`,
-        action: "Review your negative feedback for patterns and address the root causes.",
-      });
-    }
+  if (avg >= 4.5) {
+    insights.push({ type: "positive", title: "Excellent Average Rating", body: `Your ${avg.toFixed(1)} average is above the 4.5 top-tier threshold. Keep service quality consistent.` });
+  } else if (avg >= 4.0) {
+    insights.push({ type: "opportunity", title: "Rating Close to Top Tier", body: `Your ${avg.toFixed(1)} average is solid. Reaching 4.5+ would boost Google Maps visibility further.` });
+  } else if (avg > 0) {
+    insights.push({ type: "warning", title: "Rating Below 4.0", body: `Your ${avg.toFixed(1)} average needs attention. Businesses under 4.0 lose up to 70% of search clicks.` });
   }
 
-  const recentMonths = monthlyData.slice(-3);
-  const recentRedirected = recentMonths.reduce((sum, m) => sum + m.redirected, 0);
-  if (redirected > 0) {
-    insights.push({
-      type: recentRedirected > 0 ? "positive" : "warning",
-      title: "Review Velocity Assessment",
-      body: `You've generated ${redirected} Google review${redirected !== 1 ? "s" : ""} total. Businesses that maintain 4+ new reviews per month rank higher in local search results.`,
-      action: "Consistency matters more than volume. Aim for steady weekly reviews rather than bursts.",
-    });
+  if (redirected >= 10) {
+    insights.push({ type: "positive", title: "Google Reviews Growing", body: `${redirected} customers redirected to Google so far. Consistent momentum is compounding your ranking.` });
   }
 
-  return insights;
+  return insights.slice(0, 3);
 }
 
-const INSIGHT_ICONS = {
-  positive: TrendingUp,
-  warning: AlertTriangle,
-  opportunity: Lightbulb,
+const INSIGHT_COLORS: Record<string, { title: string; border: string; bg: string }> = {
+  positive:    { title: G,        border: G,   bg: "rgba(0,200,150,0.05)" },
+  warning:     { title: AM,       border: AM,  bg: "rgba(245,158,11,0.05)" },
+  opportunity: { title: "#0D9488", border: "#0D9488", bg: "rgba(13,148,136,0.05)" },
 };
 
-const INSIGHT_STYLES: Record<string, React.CSSProperties> = {
-  positive: { borderColor: '#A7F3D0', background: 'rgba(236,253,245,0.8)', borderLeft: `4px solid ${G}` },
-  warning: { borderColor: '#FDE68A', background: 'rgba(255,251,235,0.8)', borderLeft: '4px solid #F59E0B' },
-  opportunity: { borderColor: '#FDE68A', background: 'rgba(255,251,235,0.8)', borderLeft: '4px solid #F59E0B' },
+// ── Donut Chart (Recharts - interactive) ─────────────────────────────────────
+
+interface DonutSegment { label: string; value: number; color: string }
+
+const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: { name: string; value: number; payload: DonutSegment }[] }) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0];
+  return (
+    <div style={{ background: "#0A0F1E", color: "#fff", borderRadius: 8, padding: "8px 14px", fontFamily: "Inter, sans-serif", fontSize: 13, boxShadow: "0 4px 16px rgba(0,0,0,0.2)" }}>
+      <span style={{ fontWeight: 600 }}>{d.name}</span>
+      <span style={{ marginLeft: 8, opacity: 0.7 }}>{d.value} review{d.value !== 1 ? "s" : ""}</span>
+    </div>
+  );
 };
 
-const INSIGHT_ICON_STYLES: Record<string, string> = {
-  positive: G,
-  warning: "#F59E0B",
-  opportunity: "#F59E0B",
-};
+function DonutChart({ data }: { data: DonutSegment[] }) {
+  const active = data.filter(d => d.value > 0);
+  const total  = active.reduce((s, d) => s + d.value, 0);
 
-const ChartCard = ({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) => (
-  <div className="bg-white p-6 shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
-    <h3 className="text-sm font-semibold text-gray-900">{title}</h3>
-    <p className="mt-0.5 text-xs text-gray-400">{subtitle}</p>
-    <div className="mt-4 h-64">{children}</div>
-  </div>
-);
-
-export default function AnalyticsPage() {
-  const [business, setBusiness] = useState<Business | null>(null);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setBusiness(getBusiness());
-    setCustomers(getCustomers());
-    setMounted(true);
-  }, []);
-
-  if (!mounted) {
+  if (total === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-t-transparent" style={{ borderColor: G, borderTopColor: 'transparent' }} />
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#9CA3AF", fontFamily: "Inter, sans-serif", fontSize: 14 }}>
+        No ratings yet
       </div>
     );
   }
 
-  const monthlyData = computeMonthlyData(customers);
-  const ratingDistribution = computeRatingDistribution(customers);
-  const hasRatings = ratingDistribution.some((d) => d.value > 0);
-  const hasData = customers.length > 0;
-  const insights = hasData ? generateInsights(customers, monthlyData) : [];
+  return (
+    <div style={{ display: "flex", alignItems: "center", height: "100%", gap: 8 }}>
+      <div style={{ flex: "0 0 70%", height: "100%" }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={active}
+              cx="50%"
+              cy="50%"
+              innerRadius="52%"
+              outerRadius="82%"
+              paddingAngle={2}
+              dataKey="value"
+              nameKey="label"
+              startAngle={90}
+              endAngle={-270}
+              stroke="none"
+            >
+              {active.map((entry, i) => (
+                <Cell key={i} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip content={<CustomTooltip />} />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {active.map((seg, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div style={{ width: 12, height: 12, borderRadius: 3, background: seg.color, flexShrink: 0 }} />
+            <span style={{ fontSize: 13, color: "#374151", fontFamily: "Inter, sans-serif", whiteSpace: "nowrap" }}>
+              {seg.label}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "#0A0F1E", fontFamily: "Inter, sans-serif" }}>
+              {Math.round((seg.value / total) * 100)}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
-  if (!hasData) {
+// ── Chart Card ────────────────────────────────────────────────────────────────
+
+const ChartCard = ({ title, children, tall }: { title: string; children: React.ReactNode; tall?: boolean }) => (
+  <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", height: tall ? 420 : 320 }}>
+    <h3 style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, margin: "0 0 16px" }}>{title}</h3>
+    <div style={{ height: "calc(100% - 40px)" }}>{children}</div>
+  </div>
+);
+
+// ── Main Page ─────────────────────────────────────────────────────────────────
+
+export default function AnalyticsPage() {
+  const { businessId, businessName } = useBusinessContext();
+  const [bookings,    setBookings]    = useState<DBBooking[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [allFeedback, setAllFeedback] = useState<{ rating: number | null }[]>([]);
+  const [aiInsights,  setAiInsights]  = useState<InsightItem[]>([]);
+  const [bizPlan,     setBizPlan]     = useState<string | null>(null);
+  const [ratingData, setRatingData] = useState<{
+    initialRating: number | null;
+    currentRating: number | null;
+    initialReviewCount: number | null;
+    snapshots: { snapshot_date: string; rating: number; notes: string | null }[];
+  }>({ initialRating: null, currentRating: null, initialReviewCount: null, snapshots: [] });
+
+  useEffect(() => {
+    if (!businessId) { setLoading(false); return; }
+    Promise.all([
+      getAllBookings(businessId),
+      db.from("feedback").select("rating").eq("business_id", businessId),
+      db.from("businesses").select("business_type, ai_insights_cache, ai_insights_cached_at, plan, initial_google_rating, current_google_rating, initial_review_count").eq("id", businessId).single(),
+      db.from("rating_snapshots").select("snapshot_date, rating, notes").eq("business_id", businessId).order("snapshot_date", { ascending: true }),
+    ]).then(async ([bk, fb, bizRes, snapshotRes]) => {
+      setBookings(bk);
+      const fbData = (fb.data ?? []) as { rating: number | null }[];
+      setAllFeedback(fbData);
+      const biz = bizRes.data;
+      if (biz) {
+        setBizPlan((biz as typeof biz & { plan?: string }).plan ?? null);
+        const b = biz as typeof biz & { initial_google_rating?: number | null; current_google_rating?: number | null; initial_review_count?: number | null };
+        setRatingData(prev => ({
+          ...prev,
+          initialRating:      b.initial_google_rating ?? null,
+          currentRating:      b.current_google_rating ?? null,
+          initialReviewCount: b.initial_review_count ?? null,
+        }));
+      }
+      const snaps = (snapshotRes?.data ?? []) as { snapshot_date: string; rating: number; notes: string | null }[];
+      setRatingData(prev => ({ ...prev, snapshots: snaps }));
+      if (biz) {
+        const now     = Date.now();
+        const cachedAt = biz.ai_insights_cached_at ? new Date(biz.ai_insights_cached_at).getTime() : 0;
+        if (biz.ai_insights_cache && now - cachedAt < 24 * 60 * 60 * 1000) {
+          setAiInsights((biz.ai_insights_cache as InsightItem[]).slice(0, 3));
+        } else if (bk.length > 0) {
+          try {
+            const res = await fetch("/api/ai/insights", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                businessName,
+                businessType: biz.business_type ?? "service business",
+                completionRate: bk.filter(b => b.review_status && b.review_status !== "pending").length > 0
+                  ? Math.round((bk.filter(b => b.review_status && b.review_status !== "pending").length / bk.length) * 100) : 0,
+                avgRating: fbData.filter(f => f.rating).length > 0
+                  ? Math.round((fbData.reduce((s, f) => s + (f.rating ?? 0), 0) / fbData.filter(f => f.rating).length) * 10) / 10 : 0,
+                totalReviews: fbData.filter(f => f.rating && f.rating >= 4).length,
+                analytics: [],
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const ins  = (data.insights ?? []).slice(0, 3) as InsightItem[];
+              setAiInsights(ins);
+              await db.from("businesses").update({ ai_insights_cache: ins, ai_insights_cached_at: new Date().toISOString() }).eq("id", businessId);
+            }
+          } catch { /* silent */ }
+        }
+      }
+      setLoading(false);
+    });
+  }, [businessId, businessName]);
+
+  if (loading) {
     return (
-      <div className="p-6 lg:p-8">
-        <div className="mb-8">
-          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N }}>
-            Analytics
-          </h1>
-          <p className="mt-1 text-sm text-gray-500">Charts, trends, and AI-powered insights</p>
+      <div style={{ display: "flex", height: "50vh", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
+
+  if (!loading && bizPlan !== null && !hasFeature(bizPlan, "analytics")) {
+    return (
+      <div style={{ padding: "60px 32px", maxWidth: 480, margin: "0 auto" }}>
+        <UpgradePrompt
+          feature="Analytics"
+          description="See your rating trends, review volume, completion rates and AI insights over time."
+          requiredPlan="growth"
+        />
+      </div>
+    );
+  }
+
+  const monthly = computeMonthly(bookings);
+
+  // Rating distribution donut
+  const ratingDonut: DonutSegment[] = [
+    { label: "5 stars", value: allFeedback.filter(f => f.rating === 5).length, color: G },
+    { label: "4 stars", value: allFeedback.filter(f => f.rating === 4).length, color: G2 },
+    { label: "3 stars", value: allFeedback.filter(f => f.rating === 3).length, color: AM },
+    { label: "2 stars", value: allFeedback.filter(f => f.rating === 2).length, color: "#F97316" },
+    { label: "1 star",  value: allFeedback.filter(f => f.rating === 1).length, color: RD },
+  ];
+
+  if (bookings.length === 0) {
+    return (
+      <div style={{ padding: "32px", maxWidth: 1200, margin: "0 auto" }}>
+        <div style={{ marginBottom: 32 }}>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: 0 }}>Analytics</h1>
+          <p style={{ marginTop: 4, fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>Charts, trends, and insights</p>
         </div>
-        <div className="flex flex-col items-center justify-center p-12 text-center bg-white shadow-sm" style={{ borderRadius: 16, border: '1px solid #E5E7EB' }}>
-          <BarChart3 size={48} className="text-gray-300" />
-          <h2 className="mt-4 text-lg font-semibold text-gray-900">No data yet</h2>
-          <p className="mt-2 max-w-md text-sm text-gray-500">
-            Start collecting reviews to see your analytics. Once you have a few weeks of data,
-            we&apos;ll show you trends, insights, and recommendations.
+        <div style={{ textAlign: "center", padding: "72px 40px", background: "#fff", borderRadius: 20, border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+          <div style={{ width: 72, height: 72, borderRadius: "50%", background: "rgba(0,200,150,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+            <BarChart3 size={32} style={{ color: G }} />
+          </div>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N, margin: "0 0 10px" }}>
+            Analytics will appear once data flows in
+          </h2>
+          <p style={{ maxWidth: 440, margin: "0 auto", fontSize: 15, color: "#6B7280", fontFamily: "Inter, sans-serif", lineHeight: 1.65 }}>
+            You&apos;ll see review trends, rating breakdowns, and AI insights as soon as your first customer goes through the review process.
           </p>
         </div>
       </div>
     );
   }
 
+  const displayInsights = (aiInsights.length > 0 ? aiInsights : generateInsights(bookings, monthly)).slice(0, 3);
+
   return (
-    <div className="p-6 lg:p-8">
+    <div style={{ padding: "32px", maxWidth: 1200, margin: "0 auto" }}>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
       {/* Header */}
-      <div className="mb-8">
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N }}>
-          Analytics
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Charts, trends, and AI-powered insights
-          {business ? ` for ${business.name}` : ""}
-        </p>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: 0 }}>Analytics</h1>
+        <p style={{ marginTop: 4, fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>Charts, trends, and insights</p>
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Rating Distribution */}
-        <ChartCard title="Rating Distribution" subtitle="Breakdown by star rating">
-          {hasRatings ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={ratingDistribution.filter((d) => d.value > 0)}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={90}
-                  paddingAngle={3}
-                  dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
-                >
-                  {ratingDistribution
-                    .filter((d) => d.value > 0)
-                    .map((entry) => (
-                      <Cell key={`cell-${entry.star}`} fill={RATING_COLORS[entry.star]} />
-                    ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex h-full items-center justify-center text-sm text-gray-400">
-              No ratings collected yet
-            </div>
-          )}
+      {/* 2×2 Chart Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>
+
+        {/* Rating Distribution - Donut */}
+        <ChartCard title="Rating Distribution" tall>
+          <DonutChart data={ratingDonut} />
         </ChartCard>
 
-        {/* Review Requests Over Time */}
-        <ChartCard title="Review Requests Over Time" subtitle="Sent count by month">
+        {/* Requests Sent - Bar */}
+        <ChartCard title="Requests Sent" tall>
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
-              <Tooltip />
-              <Bar dataKey="sent" fill={G} radius={[4, 4, 0, 0]} name="Sent" />
+            <BarChart data={monthly} barSize={28}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} allowDecimals={false} />
+              <Tooltip cursor={{ fill: "rgba(0,200,150,0.06)" }} />
+              <Bar dataKey="sent" fill={G} radius={[4,4,0,0]} name="Requests" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Completion Rate Trend */}
-        <ChartCard title="Completion Rate Trend" subtitle="Percentage over time">
+        {/* Completion Rate % - Area */}
+        <ChartCard title="Completion Rate %">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis
-                tick={{ fontSize: 12 }}
-                domain={[0, 100]}
-                tickFormatter={(v) => `${v}%`}
-              />
-              <Tooltip formatter={(value: number) => [`${value}%`, "Completion Rate"]} />
-              <Line
-                type="monotone"
-                dataKey="completionRate"
-                stroke={G}
-                strokeWidth={2}
-                dot={{ r: 4, fill: G }}
-                name="Completion Rate"
-              />
-            </LineChart>
+            <AreaChart data={monthly}>
+              <defs>
+                <linearGradient id="fillGreen" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={G} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={G} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} domain={[0,100]} tickFormatter={v => `${v}`} />
+              <Tooltip formatter={(v: number) => [`${v}%`, "Completion Rate"]} />
+              <Area type="monotone" dataKey="completionRate" stroke={G} strokeWidth={2} fill="url(#fillGreen)" dot={{ r: 3, fill: G }} name="Completion Rate" />
+            </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
 
-        {/* Google Reviews Generated */}
-        <ChartCard title="Google Reviews Generated" subtitle="Redirected to Google by month">
+        {/* Google Reviews - Area */}
+        <ChartCard title="Google Reviews">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={monthlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-              <YAxis tick={{ fontSize: 12 }} allowDecimals={false} />
+            <AreaChart data={monthly}>
+              <defs>
+                <linearGradient id="fillGreen2" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%"  stopColor={G} stopOpacity={0.15} />
+                  <stop offset="95%" stopColor={G} stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" vertical={false} />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} allowDecimals={false} />
               <Tooltip />
-              <Line
-                type="monotone"
-                dataKey="redirected"
-                stroke={G}
-                strokeWidth={2}
-                dot={{ r: 4, fill: G }}
-                name="Google Reviews"
-              />
-            </LineChart>
+              <Area type="monotone" dataKey="redirected" stroke={G} strokeWidth={2} fill="url(#fillGreen2)" dot={{ r: 3, fill: G }} name="Google Reviews" />
+            </AreaChart>
           </ResponsiveContainer>
         </ChartCard>
+
       </div>
 
-      {/* AI Insights Panel */}
-      {insights.length > 0 && (
-        <div className="mt-10">
-          <div className="mb-4 flex items-center gap-2">
-            <Sparkles size={20} style={{ color: G }} />
-            <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 600, color: N }}>
-              AI Insights
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            {insights.map((insight, i) => {
-              const Icon = INSIGHT_ICONS[insight.type];
-              return (
-                <div
-                  key={i}
-                  className="rounded-xl border p-5"
-                  style={INSIGHT_STYLES[insight.type]}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 shrink-0" style={{ color: INSIGHT_ICON_STYLES[insight.type] }}>
-                      <Icon size={20} />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-sm font-semibold text-gray-900">{insight.title}</h3>
-                      <p className="mt-1 text-sm text-gray-600">{insight.body}</p>
-                      <p className="mt-2 text-sm font-bold text-gray-800">{insight.action}</p>
-                    </div>
-                  </div>
+      {/* Rating Protection Section */}
+      {ratingData.initialRating != null && (() => {
+        const negCaught  = allFeedback.filter(f => f.rating != null && f.rating <= 3).length;
+        const posRedirects = allFeedback.filter(f => f.rating != null && f.rating >= 4).length;
+        const cur        = ratingData.currentRating ?? ratingData.initialRating!;
+        const totalPublic = (ratingData.initialReviewCount ?? 0) + posRedirects;
+        const unprotected = totalPublic > 0
+          ? Math.max(1.0, Math.min(5.0, ((cur * totalPublic) - (negCaught * 1.5)) / (totalPublic + negCaught)))
+          : cur;
+        const delta = cur - (ratingData.initialRating ?? cur);
+
+        // Build snapshot chart data: start with initial, then snapshots, then current
+        const chartData = [
+          { date: ratingData.snapshots[0]?.snapshot_date ?? "Start", rating: ratingData.initialRating },
+          ...ratingData.snapshots.map(s => ({ date: s.snapshot_date, rating: s.rating })),
+          ...(ratingData.currentRating != null ? [{ date: "Now", rating: ratingData.currentRating }] : []),
+        ];
+
+        return (
+          <div style={{ marginBottom: 32 }}>
+            {/* Section header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(0,200,150,0.1)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🛡️</div>
+              <div>
+                <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, margin: 0 }}>Rating Protection</h2>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "2px 0 0" }}>How Vomni has protected and grown your Google rating</p>
+              </div>
+            </div>
+
+            {/* Summary stats row */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 24 }}>
+              {[
+                { label: "Starting Rating", value: `${ratingData.initialRating?.toFixed(1)} ★`, color: N },
+                { label: "Protected Rating", value: `${cur.toFixed(1)} ★`, color: G },
+                { label: "Rating Change", value: `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}`, color: delta >= 0 ? G : "#EF4444" },
+                { label: "Neg. Intercepted", value: String(negCaught), color: N },
+                { label: "Google Redirects", value: String(posRedirects), color: N },
+              ].map((stat, i) => (
+                <div key={i} style={{ background: "#fff", borderRadius: 12, border: "1px solid #E5E7EB", padding: "16px 18px", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 6px" }}>{stat.label}</p>
+                  <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 800, color: stat.color, margin: 0 }}>{stat.value}</p>
                 </div>
-              );
-            })}
+              ))}
+            </div>
+
+            {/* Rating trend chart (if snapshots exist) */}
+            {chartData.length > 1 && (
+              <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: 24, marginBottom: 20, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)", height: 260 }}>
+                <h3 style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, margin: "0 0 16px" }}>Rating Over Time</h3>
+                <div style={{ height: "calc(100% - 36px)" }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={chartData}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#F5F5F5" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} />
+                      <YAxis domain={[Math.max(1, (ratingData.initialRating ?? 1) - 1), 5]} tick={{ fontSize: 11, fill: "#9CA3AF" }} axisLine={false} tickLine={false} tickFormatter={v => `${v}★`} />
+                      <Tooltip formatter={(v: number) => [`${v.toFixed(1)} ★`, "Rating"]} />
+                      <Line type="monotone" dataKey="rating" stroke={G} strokeWidth={2.5} dot={{ r: 4, fill: G, strokeWidth: 0 }} activeDot={{ r: 6 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            )}
+
+            {/* Protection estimate */}
+            {negCaught > 0 && (
+              <div style={{ background: "rgba(239,68,68,0.04)", border: "1px solid rgba(239,68,68,0.15)", borderRadius: 14, padding: "18px 22px", marginBottom: 20 }}>
+                <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: "#0A0F1E", margin: "0 0 6px" }}>
+                  🛡️ Without Vomni, your rating could be as low as {unprotected.toFixed(1)} ★
+                </p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: 0 }}>
+                  By intercepting {negCaught} negative review{negCaught !== 1 ? "s" : ""} (averaging 1.5★ each) before they reached Google, Vomni has protected your public rating by an estimated <strong style={{ color: G }}>+{(cur - unprotected).toFixed(1)} stars</strong>.
+                </p>
+              </div>
+            )}
+
+            {/* Monthly breakdown table */}
+            <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", overflow: "hidden", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}>
+              <div style={{ padding: "16px 20px", borderBottom: "1px solid #F3F4F6" }}>
+                <h3 style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, margin: 0 }}>Monthly Breakdown</h3>
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "#FAFAFA" }}>
+                    {["Month", "Neg. Intercepted", "4–5★ Redirects", "Est. Rating Impact", "Rating at Month End"].map(h => (
+                      <th key={h} style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.05em", padding: "10px 16px", textAlign: "left", borderBottom: "1px solid #F3F4F6" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {computeMonthly(bookings).map((row, i) => {
+                    const negInMonth = 0;
+                    const posInMonth = row.redirected;
+                    const impact = posInMonth > 0 ? `+${posInMonth} redirects` : "—";
+                    return (
+                      <tr key={i} style={{ borderBottom: "1px solid #F9FAFB" }}>
+                        <td style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500, padding: "12px 16px" }}>{row.month}</td>
+                        <td style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: negInMonth > 0 ? G : "#9CA3AF", padding: "12px 16px" }}>{negInMonth > 0 ? negInMonth : "—"}</td>
+                        <td style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: posInMonth > 0 ? G : "#9CA3AF", fontWeight: posInMonth > 0 ? 600 : 400, padding: "12px 16px" }}>{posInMonth > 0 ? posInMonth : "—"}</td>
+                        <td style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", padding: "12px 16px" }}>{impact}</td>
+                        <td style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 600, padding: "12px 16px" }}>
+                          {ratingData.currentRating != null ? `${ratingData.currentRating.toFixed(1)} ★` : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
+        );
+      })()}
+
+      {/* Insight Cards - minimal, 2-3 columns */}
+      {displayInsights.length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+          {displayInsights.map((ins, i) => {
+            const c = INSIGHT_COLORS[ins.type] ?? INSIGHT_COLORS.opportunity;
+            return (
+              <div key={i} style={{ background: c.bg, border: `1px solid ${c.border}22`, borderRadius: 12, padding: "18px 20px" }}>
+                <h3 style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: c.title, margin: "0 0 8px" }}>
+                  {ins.title}
+                </h3>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", lineHeight: 1.6, margin: 0 }}>
+                  {ins.body}
+                </p>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

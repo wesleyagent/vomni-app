@@ -1,4 +1,4 @@
-export type Plan = "monthly" | "annual";
+export type Plan = "monthly" | "annual" | "starter" | "growth" | "pro";
 
 export type OnboardingStep = 1 | 2 | 3 | 4 | 5;
 
@@ -75,6 +75,7 @@ export interface FeedbackItem {
   feedback: string;
   status: FeedbackStatus;
   aiSuggestedReply?: string;
+  aiReplies?: { apologetic: string; professional: string; personal: string };
   internalNotes?: string;
   resolvedAt?: string;
   resolution?: string;

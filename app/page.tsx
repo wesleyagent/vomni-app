@@ -372,11 +372,99 @@ export default function LandingPage() {
     setBookingSubmitting(false);
   }
 
+  // Capture ?ref= referral code to sessionStorage
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const ref = params.get("ref");
+      if (ref) { sessionStorage.setItem("vomni_ref", ref); }
+    } catch { /* ignore */ }
+  }, []);
+
   // Nav scroll border
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", onScroll);
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Performance: detect slow connection and add reduce-motion class
+  useEffect(() => {
+    const conn = (navigator as any).connection;
+    if (conn && (conn.saveData || conn.effectiveType === "2g" || conn.effectiveType === "slow-2g")) {
+      document.documentElement.classList.add("reduce-motion");
+    }
+  }, []);
+
+  // Sticky bottom CTA - mobile only
+  useEffect(() => {
+    if (typeof window === "undefined" || window.innerWidth > 768) return;
+    const cta = document.querySelector(".sticky-mobile-cta") as HTMLElement | null;
+    if (!cta) return;
+    // Check dismiss state
+    try {
+      if (sessionStorage.getItem("stickyCTADismissed")) { cta.classList.add("dismissed"); return; }
+    } catch { /* ignore */ }
+    // Show after hero scrolls out
+    const hero = document.querySelector(".hero-section") as HTMLElement | null;
+    if (!hero) return;
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (!entry.isIntersecting) cta.classList.add("visible");
+        else cta.classList.remove("visible");
+      });
+    }, { threshold: 0.1 });
+    obs.observe(hero);
+    // Dismiss button
+    const dismissBtn = cta.querySelector(".sticky-mobile-cta-dismiss");
+    const handleDismiss = () => {
+      cta.classList.add("dismissed");
+      try { sessionStorage.setItem("stickyCTADismissed", "true"); } catch { /* ignore */ }
+    };
+    dismissBtn?.addEventListener("click", handleDismiss);
+    // CTA button - scroll to book demo
+    const ctaBtn = cta.querySelector(".sticky-mobile-cta-btn");
+    const handleCta = () => document.querySelector("#book-demo")?.scrollIntoView({ behavior: "smooth" });
+    ctaBtn?.addEventListener("click", handleCta);
+    return () => {
+      obs.disconnect();
+      dismissBtn?.removeEventListener("click", handleDismiss);
+      ctaBtn?.removeEventListener("click", handleCta);
+    };
+  }, []);
+
+  // Carousel dots - initialise after DOM is ready
+  useEffect(() => {
+    function initCarousels() {
+      const configs = [
+        { track: ".steps-grid",          dots: "#dots-steps",          count: 3 },
+        { track: ".testimonials-grid",   dots: "#dots-testimonials",   count: 3 },
+        { track: ".demo-cards-container", dots: "#dots-demo",          count: 2 },
+      ] as const;
+      configs.forEach(({ track, dots, count }) => {
+        const el = document.querySelector(track) as HTMLElement | null;
+        const dotsEl = document.querySelector(dots) as HTMLElement | null;
+        if (!el || !dotsEl) return;
+        dotsEl.innerHTML = "";
+        for (let i = 0; i < count; i++) {
+          const dot = document.createElement("div");
+          dot.className = `carousel-dot${i === 0 ? " active" : ""}`;
+          const idx = i;
+          dot.onclick = () => {
+            const child = el.children[idx] as HTMLElement | undefined;
+            if (child) el.scrollTo({ left: child.offsetLeft - 20, behavior: "smooth" });
+          };
+          dotsEl.appendChild(dot);
+        }
+        el.addEventListener("scroll", () => {
+          const w = (el.firstElementChild as HTMLElement)?.offsetWidth ?? 1;
+          const active = Math.round(el.scrollLeft / (w + 16));
+          dotsEl.querySelectorAll(".carousel-dot").forEach((d, i) => d.classList.toggle("active", i === active));
+        }, { passive: true });
+      });
+    }
+    const t = setTimeout(initCarousels, 600);
+    return () => clearTimeout(t);
   }, []);
 
   // GSAP init (fires once both GSAP + ScrollTrigger are loaded)
@@ -388,49 +476,28 @@ export default function LandingPage() {
     const ST   = window.ScrollTrigger;
     gsap.registerPlugin(ST);
 
-    // Hero
+    // ── Hero entrance ──────────────────────────────────────────────────────
     gsap.from(".hero-headline", { opacity: 0, y: 40, duration: 0.8, ease: "power3.out" });
     gsap.from(".hero-sub",      { opacity: 0, y: 30, duration: 0.8, delay: 0.2, ease: "power3.out" });
     gsap.from(".hero-buttons",  { opacity: 0, y: 20, duration: 0.6, delay: 0.4, ease: "power3.out" });
     gsap.from(".browser-frame", { opacity: 0, x: 60, duration: 1,   delay: 0.3, ease: "power3.out" });
     gsap.from(".notif-card",    { opacity: 0, y: 20, duration: 0.6, delay: 1.2, ease: "power3.out" });
 
-    // Pain stats
-    gsap.fromTo(".pain-stat",
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.6, stagger: 0.15, ease: "power3.out",
-        scrollTrigger: { trigger: ".pain-section", start: "top 85%", once: true } }
-    );
+    // ── Stat counters (scroll-triggered) ───────────────────────────────────
+    document.querySelectorAll<HTMLElement>(".pain-stat-number[data-value]").forEach((el) => {
+      const target = parseFloat(el.dataset.value ?? "0");
+      const suffix = el.dataset.suffix ?? "";
+      const isInt  = Number.isInteger(target);
+      const obj    = { val: 0 };
+      gsap.to(obj, {
+        val: target, duration: 2, ease: "power2.out",
+        scrollTrigger: { trigger: el, start: "top 85%", once: true },
+        onUpdate() {
+          el.textContent = (isInt ? Math.round(obj.val) : obj.val.toFixed(1)) + suffix;
+        },
+      });
+    });
 
-    // Steps — fromTo so opacity never stays at 0
-    gsap.fromTo(".step-card",
-      { opacity: 0, y: 50 },
-      { opacity: 1, y: 0, duration: 0.7, stagger: 0.2, ease: "power3.out",
-        scrollTrigger: { trigger: ".steps-section", start: "top 85%", once: true } }
-    );
-
-    // iPhone
-    gsap.fromTo(".iphone-anim",
-      { opacity: 0, y: 60, scale: 0.95 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.8,
-        scrollTrigger: { trigger: ".iphone-anim", start: "top 90%", once: true } }
-    );
-
-    // SMS mockup
-    gsap.fromTo(".sms-mockup",
-      { opacity: 0, y: 40, scale: 0.97 },
-      { opacity: 1, y: 0, scale: 1, duration: 0.8,
-        scrollTrigger: { trigger: ".sms-mockup", start: "top 90%", once: true } }
-    );
-
-    // Testimonials
-    gsap.fromTo(".testimonial-card",
-      { opacity: 0, y: 40 },
-      { opacity: 1, y: 0, duration: 0.6, stagger: 0.15,
-        scrollTrigger: { trigger: ".testimonials-section", start: "top 85%", once: true } }
-    );
-
-    // Refresh after a tick to catch elements already in viewport
     setTimeout(() => ST.refresh(), 200);
   }, [gsapReady]);
 
@@ -514,64 +581,63 @@ export default function LandingPage() {
               Get Started
             </a>
             <button
-              className="nav-hamburger"
-              onClick={() => setMenuOpen(true)}
+              className={`nav-hamburger burger-btn${menuOpen ? " open" : ""}`}
+              onClick={() => setMenuOpen(!menuOpen)}
               style={{ background: "none", border: "none", cursor: "pointer", padding: 4, display: "flex", flexDirection: "column", gap: 5, alignItems: "center", justifyContent: "center" }}
-              aria-label="Open menu"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
             >
-              <span style={{ display: "block", width: 24, height: 2, background: N, borderRadius: 2 }} />
-              <span style={{ display: "block", width: 24, height: 2, background: N, borderRadius: 2 }} />
-              <span style={{ display: "block", width: 24, height: 2, background: N, borderRadius: 2 }} />
+              <span className="bar" />
+              <span className="bar" />
+              <span className="bar" />
             </button>
           </div>
         </div>
       </nav>
 
       {/* ── MOBILE MENU OVERLAY ─────────────────────────────────────────────── */}
-      {menuOpen && (
-        <div style={{ position: "fixed", inset: 0, background: "#fff", zIndex: 200, display: "flex", flexDirection: "column", padding: "0 24px", animation: "slideDown 0.25s ease" }}>
-          {/* Header */}
-          <div style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${BD}` }}>
-            <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: N }}>Vomni</span>
-            <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }} aria-label="Close menu">
-              <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={N} strokeWidth={2} strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-          {/* Nav links */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 8 }}>
-            {[
-              { label: "How it Works", action: () => { setMenuOpen(false); document.querySelector("#how-it-works")?.scrollIntoView({ behavior: "smooth" }); } },
-              { label: "See Demo",     action: () => { setMenuOpen(false); document.querySelector("#demo")?.scrollIntoView({ behavior: "smooth" }); } },
-              { label: "Pricing",      action: () => { setMenuOpen(false); document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" }); } },
-              { label: "Book a Demo",  action: () => { setMenuOpen(false); scrollToBookDemo(); }, green: true },
-              { label: "Login",        action: () => { setMenuOpen(false); window.location.href = "/signup"; } },
-            ].map((item) => (
-              <button
-                key={item.label}
-                onClick={item.action}
-                style={{
-                  background: "none", border: "none", borderBottom: `1px solid ${BD}`,
-                  padding: "20px 0", textAlign: "left", cursor: "pointer",
-                  fontFamily: "Inter, sans-serif", fontSize: 20, fontWeight: 600,
-                  color: item.green ? G : N,
-                }}
-              >
-                {item.label}
-              </button>
-            ))}
-          </div>
-          <div style={{ paddingBottom: 40 }}>
-            <a href="/signup" style={{ display: "block", background: G, color: "#fff", borderRadius: 9999, padding: "18px 0", fontFamily: "Inter, sans-serif", fontSize: 17, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
-              Get Started
-            </a>
-          </div>
+      <div className={`mobile-menu${menuOpen ? " open" : ""}`}>
+        {/* Header */}
+        <div style={{ height: 72, display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${BD}`, flexShrink: 0 }}>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: N }}>Vomni</span>
+          <button onClick={() => setMenuOpen(false)} style={{ background: "none", border: "none", cursor: "pointer", padding: 8 }} aria-label="Close menu">
+            <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={N} strokeWidth={2} strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
         </div>
-      )}
+        {/* Nav links */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 8 }}>
+          {[
+            { label: "How it Works", action: () => { setMenuOpen(false); document.querySelector("#how-it-works")?.scrollIntoView({ behavior: "smooth" }); } },
+            { label: "See Demo",     action: () => { setMenuOpen(false); document.querySelector("#demo")?.scrollIntoView({ behavior: "smooth" }); } },
+            { label: "Pricing",      action: () => { setMenuOpen(false); document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" }); } },
+            { label: "Book a Demo",  action: () => { setMenuOpen(false); scrollToBookDemo(); }, green: true },
+            { label: "Login",        action: () => { setMenuOpen(false); window.location.href = "/signup"; } },
+          ].map((item) => (
+            <button
+              key={item.label}
+              className="mobile-menu-link"
+              onClick={item.action}
+              style={{
+                background: "none", border: "none", borderBottom: `1px solid ${BD}`,
+                padding: "20px 0", textAlign: "left", cursor: "pointer",
+                fontFamily: "Inter, sans-serif", fontSize: 20, fontWeight: 600,
+                color: item.green ? G : N,
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="mobile-menu-link" style={{ paddingBottom: 40, flexShrink: 0 }}>
+          <a href="/signup" style={{ display: "block", background: G, color: "#fff", borderRadius: 9999, padding: "18px 0", fontFamily: "Inter, sans-serif", fontSize: 17, fontWeight: 700, textDecoration: "none", textAlign: "center" }}>
+            Get Started
+          </a>
+        </div>
+      </div>
 
       {/* ── HERO ────────────────────────────────────────────────────────────── */}
-      <section style={{ minHeight: "100vh", position: "relative", display: "flex", alignItems: "center", paddingTop: 120, paddingBottom: 80 }}>
+      <section className="hero-section" style={{ minHeight: "100vh", position: "relative", display: "flex", alignItems: "center", paddingTop: 120, paddingBottom: 80 }}>
         <div className="hero-bg" />
         <div className="container hero-grid" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "grid", gridTemplateColumns: "55% 45%", gap: 64, alignItems: "center", width: "100%", position: "relative", zIndex: 1 }}>
 
@@ -585,7 +651,7 @@ export default function LandingPage() {
             </p>
             <div className="hero-buttons" style={{ marginTop: 40, display: "flex", gap: 16, alignItems: "center" }}>
               <a href="/signup" className="cta-primary" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>
-                Start Getting Reviews - from £50/month
+                Start Getting Reviews - from £35/month
               </a>
               <button
                 onClick={scrollToBookDemo}
@@ -596,9 +662,9 @@ export default function LandingPage() {
                 Book a Demo →
               </button>
             </div>
-            <div style={{ marginTop: 32, display: "flex", alignItems: "center", gap: 8 }}>
+            <div className="hero-trust" style={{ marginTop: 32, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <Stars count={5} size={20} />
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS }}>Trusted by thousands of businesses whose reputation is everything</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS }}>Trusted by businesses whose reputation is everything</span>
             </div>
             <div className="trust-pills" style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
               {["✓ 98% SMS open rate", "✓ 5 min setup", "✓ 14-day money back"].map((t) => (
@@ -607,8 +673,8 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Right — browser frame + notification card */}
-          <div style={{ position: "relative" }}>
+          {/* Right - browser frame + notification card */}
+          <div className="hero-visual" style={{ position: "relative" }}>
             <div className="browser-frame">
               <BrowserChrome url="app.vomni.app/dashboard" />
               <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
@@ -661,56 +727,53 @@ export default function LandingPage() {
       {/* ── PAIN SECTION ────────────────────────────────────────────────────── */}
       <section className="pain-section section-pad" style={{ background: N, padding: "120px 0" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
-          <h2 className="pain-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: "#fff", textAlign: "center", maxWidth: 800, margin: "0 auto", lineHeight: 1.1 }}>
-            Your Google rating is working against you.
-          </h2>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, textAlign: "center", marginTop: 16 }}>
-            The data might surprise you.
-          </p>
-          <div className="pain-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", marginTop: 80 }}>
-            {[
-              { num: "96%",  label: "of customers read Google reviews before walking through your door" },
-              { num: "1",    label: "bad review sends 30 potential customers straight to your competitor" },
-              { num: null,   label: "or less loses you 70% of search clicks before anyone finds your business", mixed: true },
-              { num: "£12k", label: "lost in lifetime customer value from just one complaint that goes public online" },
-            ].map((s, i, arr) => (
-              <div key={i} className="pain-stat" style={{ padding: "60px 40px", position: "relative", borderRight: i < arr.length - 1 ? "1px solid rgba(255,255,255,0.1)" : "none", textAlign: "center" }}>
-                <div style={{ minHeight: 96, display: "flex", alignItems: "flex-start", justifyContent: "center" }}>
-                  {s.mixed ? (
-                    <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 900, color: G, lineHeight: 1, textShadow: "0 0 80px rgba(0,200,150,0.4), 0 0 160px rgba(0,200,150,0.2)", margin: 0 }}>
-                      <span style={{ fontSize: 96 }}>3.9</span><span style={{ fontSize: 60 }}>★</span>
-                    </p>
+          <div className="pain-two-col" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
+            {/* Left - headline + subtext */}
+            <div>
+              <h2 className="pain-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 72, fontWeight: 800, color: "#fff", lineHeight: 1.05 }}>
+                Reputation damage happens in minutes. Recovery takes months.
+              </h2>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, lineHeight: 1.6, marginTop: 24 }}>
+                A single bad review costs the average UK service business 22% of potential new customers - before they ever walk through the door.
+              </p>
+              <button
+                onClick={scrollToBookDemo}
+                style={{ marginTop: 40, background: G, color: "#fff", borderRadius: 9999, padding: "16px 40px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, border: "none", cursor: "pointer", transition: "background 0.2s" }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = GD; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
+              >
+                See How Vomni Fixes This →
+              </button>
+            </div>
+            {/* Right - stacked stat cards */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+              {([
+                { num: "87%",      dv: 87, ds: "%", dp: "", isCounter: true,  color: G,         label: "of consumers read reviews before visiting a local business" },
+                { num: "1 in 3",   isCounter: false,         color: "#FF4D4D", label: "customers won\u2019t return after one bad experience - even if they say nothing" },
+                { num: "4.2\u2605", isCounter: false,        color: "#F5A623", label: "is the minimum rating that keeps you competitive. Below it, you\u2019re invisible." },
+              ] as { num: string; dv?: number; ds?: string; dp?: string; isCounter: boolean; color: string; label: string }[]).map((s, i) => (
+                <div key={i} className="pain-stat" style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, padding: "28px 32px", display: "flex", alignItems: "center", gap: 24 }}>
+                  {s.isCounter ? (
+                    <p
+                      className="pain-stat-number"
+                      data-value={String(s.dv)}
+                      data-suffix={s.ds}
+                      data-prefix={s.dp}
+                      style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 52, fontWeight: 900, color: s.color, lineHeight: 1, textShadow: `0 0 40px ${s.color}55`, margin: 0, minWidth: 110, flexShrink: 0 }}
+                    >{s.num}</p>
                   ) : (
-                    <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 96, fontWeight: 900, color: G, lineHeight: 1, textShadow: "0 0 80px rgba(0,200,150,0.4), 0 0 160px rgba(0,200,150,0.2)", margin: 0 }}>{s.num}</p>
+                    <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 52, fontWeight: 900, color: s.color, lineHeight: 1, margin: 0, minWidth: 110, flexShrink: 0 }}>{s.num}</p>
                   )}
+                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "rgba(255,255,255,0.65)", lineHeight: 1.5 }}>{s.label}</p>
                 </div>
-                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 17, color: "rgba(255,255,255,0.6)", marginTop: 16, lineHeight: 1.5, maxWidth: 200, margin: "16px auto 0" }}>{s.label}</p>
-              </div>
-            ))}
-          </div>
-          <div className="pain-statement-bar" style={{ marginTop: 80, background: "rgba(0,200,150,0.08)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 16, padding: "40px 60px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 40 }}>
-            <p className="pain-statement-text" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 32, fontWeight: 700, color: "#fff", lineHeight: 1.3, flex: 1 }}>
-              Every review you don&apos;t collect is a customer your competitor wins instead.
-            </p>
-            <a href="/signup" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}>
-              Fix it with Vomni →
-            </a>
-          </div>
-          <div style={{ marginTop: 40, textAlign: "center" }}>
-            <button
-              onClick={scrollToBookDemo}
-              style={{ background: G, color: "#fff", borderRadius: 9999, padding: "16px 40px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, border: "none", cursor: "pointer", transition: "background 0.2s" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = GD; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
-            >
-              See How Vomni Fixes This →
-            </button>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ── PRODUCT SHOWCASE ────────────────────────────────────────────────── */}
-      <section id="demo" className="section-pad" style={{ background: OW, padding: "120px 0" }}>
+      <section className="section-pad" style={{ background: OW, padding: "120px 0" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
           <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: N, textAlign: "center" }}>
             Everything you need.
@@ -719,7 +782,7 @@ export default function LandingPage() {
             See the product. All of it.
           </p>
 
-          {/* Tabs — sticky while browser frame is in view */}
+          {/* Tabs - sticky while browser frame is in view */}
           <div className="product-tabs tabs-row" style={{ display: "flex", justifyContent: "center", gap: 12, marginTop: 48, flexWrap: "wrap", position: "sticky", top: 80, zIndex: 50, background: OW, padding: "16px 0" }}>
             {tabs.map((t) => (
               <button
@@ -817,6 +880,8 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+          {/* Carousel dots - visible on mobile only */}
+          <div className="carousel-dots" id="dots-steps" />
           {/* SMS conversation mockup */}
           <div className="sms-mockup" style={{ background: "#fff", borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.10)", maxWidth: 600, margin: "80px auto 0", padding: 32 }}>
             <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -895,6 +960,8 @@ export default function LandingPage() {
               </div>
             ))}
           </div>
+          {/* Carousel dots - visible on mobile only */}
+          <div className="carousel-dots" id="dots-testimonials" />
         </div>
       </section>
 
@@ -914,7 +981,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── TRY IT LIVE ─────────────────────────────────────────────────────── */}
-      <section style={{ background: OW, padding: "100px 0" }}>
+      <section id="demo" style={{ background: OW, padding: "100px 0" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: G, textTransform: "uppercase", textAlign: "center" }}>
             TRY IT LIVE
@@ -926,7 +993,7 @@ export default function LandingPage() {
             No sign up needed. Click in and see exactly what your customers would see.
           </p>
           <div className="demo-cards-container" style={{ display: "flex", justifyContent: "center", gap: 28, marginTop: 56, flexWrap: "wrap" }}>
-            {/* Card 1 — Kings Cuts London */}
+            {/* Card 1 - Kings Cuts London */}
             <div
               className="demo-card"
               style={{ background: "#fff", borderRadius: 20, padding: 36, boxShadow: "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)", maxWidth: 400, flex: 1, transition: "all 0.25s ease", cursor: "pointer" }}
@@ -944,12 +1011,12 @@ export default function LandingPage() {
               <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, marginTop: 16 }}>Kings Cuts London</h3>
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS, marginTop: 8, lineHeight: 1.5 }}>A thriving barbershop in Shoreditch. Growing fast with strong reviews.</p>
               <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
-                {["4.3★ rating", "66% completion", "28 reviews/mo"].map((s) => (
+                {["4.3★ rating", "66% completion", "More 5-star reviews"].map((s) => (
                   <span key={s} style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM }}>{s}</span>
                 ))}
               </div>
               <a
-                href="/demo/kings-cuts-london"
+                href="/demo/kings-cuts"
                 style={{ display: "block", marginTop: 24, background: N, color: "#fff", borderRadius: 9999, padding: "14px 0", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none", transition: "background 0.2s" }}
                 onMouseEnter={e => { e.currentTarget.style.background = "#1a2035"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = N; }}
@@ -957,7 +1024,7 @@ export default function LandingPage() {
                 Explore This Dashboard →
               </a>
             </div>
-            {/* Card 2 — Bella Vista Restaurant */}
+            {/* Card 2 - Bella Vista Restaurant */}
             <div
               className="demo-card"
               style={{ background: "#fff", borderRadius: 20, padding: 36, boxShadow: "0 4px 8px rgba(0,0,0,0.04), 0 16px 40px rgba(0,0,0,0.08)", maxWidth: 400, flex: 1, transition: "all 0.25s ease", cursor: "pointer" }}
@@ -977,7 +1044,7 @@ export default function LandingPage() {
                 <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#F59E0B", fontWeight: 500 }}>Needs improvement</span>
               </div>
               <a
-                href="/demo/bella-vista-restaurant"
+                href="/demo/bella-vista"
                 style={{ display: "block", marginTop: 24, background: N, color: "#fff", borderRadius: 9999, padding: "14px 0", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, textAlign: "center", textDecoration: "none", transition: "background 0.2s" }}
                 onMouseEnter={e => { e.currentTarget.style.background = "#1a2035"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = N; }}
@@ -986,6 +1053,8 @@ export default function LandingPage() {
               </a>
             </div>
           </div>
+          {/* Carousel dots - visible on mobile only */}
+          <div className="carousel-dots" id="dots-demo" />
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textAlign: "center", marginTop: 32 }}>
             These are live demo accounts with real product functionality.
           </p>
@@ -996,16 +1065,16 @@ export default function LandingPage() {
       <section id="book-demo" style={{ background: N, padding: "120px 0" }}>
         <div className="book-demo-layout container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 80, alignItems: "center" }}>
 
-          {/* Left — copy */}
+          {/* Left - copy */}
           <div>
             <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: G, textTransform: "uppercase" }}>BOOK A DEMO</p>
             <h2 className="book-demo-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 52, fontWeight: 800, color: "#fff", lineHeight: 1.1, marginTop: 16 }}>
               See exactly how Vomni works for your business.
             </h2>
             <p style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginTop: 16 }}>
-              Omri will walk you through the product, show you what your dashboard would look like, and answer every question you have. No pressure. 30 minutes.
+              Meet one of our platform experts who will walk you through the product, show you what your dashboard would look like, and answer every question you have. No pressure. 30 minutes.
             </p>
-            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 16 }}>
+            <div className="demo-bullets" style={{ marginTop: 40, display: "flex", flexDirection: "column", gap: 16 }}>
               {[
                 "Live walkthrough tailored to your business type",
                 "See real results from businesses like yours",
@@ -1021,7 +1090,7 @@ export default function LandingPage() {
             </div>
           </div>
 
-          {/* Right — booking form card */}
+          {/* Right - booking form card */}
           <div className="book-demo-card" style={{ background: "#fff", borderRadius: 20, padding: 40, boxShadow: "0 24px 60px rgba(0,0,0,0.3)" }}>
             {bookingSuccess ? (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
@@ -1034,7 +1103,7 @@ export default function LandingPage() {
                   {"You're booked in 🎉"}
                 </h3>
                 <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: TS, marginTop: 12, lineHeight: 1.6 }}>
-                  Omri will be in touch within a few hours to confirm your time. Check your email for confirmation.
+                  One of our platform experts will be in touch within a few hours to confirm your time. Check your email for confirmation.
                 </p>
                 <span style={{ display: "inline-block", marginTop: 20, background: "rgba(0,200,150,0.1)", color: G, borderRadius: 9999, padding: "8px 20px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600 }}>
                   {"We'll see you soon"}
@@ -1120,64 +1189,91 @@ export default function LandingPage() {
       </section>
 
       {/* ── PRICING ─────────────────────────────────────────────────────────── */}
+      {/* ── PRICING ── */}
       <section id="pricing" className="section-pad" style={{ background: N, padding: "120px 0" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
           <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: "#fff", textAlign: "center" }}>
-            One price. Everything included.
+            Simple, honest pricing.
           </h2>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, textAlign: "center", marginTop: 16 }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: "rgba(255,255,255,0.5)", textAlign: "center", marginTop: 16 }}>
             No setup fees. No long contracts. Cancel whenever.
           </p>
-          <div className="pricing-flex" style={{ display: "flex", justifyContent: "center", alignItems: "stretch", gap: 28, marginTop: 80, maxWidth: 860, marginLeft: "auto", marginRight: "auto" }}>
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "stretch", gap: 24, marginTop: 80, flexWrap: "wrap" }}>
 
-            {/* Monthly */}
-            <div className="pricing-card" style={{ background: "#fff", borderRadius: 24, padding: 48, flex: 1, display: "flex", flexDirection: "column" }}>
-              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: TS }}>MONTHLY</p>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 12 }}>
-                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 72, fontWeight: 900, color: N, lineHeight: 1 }}>£70</span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: TS }}>/month</span>
+            {/* STARTER */}
+            <div className="pricing-card" style={{ background: "#fff", borderRadius: 24, padding: 40, flex: "1 1 280px", maxWidth: 340, display: "flex", flexDirection: "column" }}>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: "#9CA3AF", margin: "0 0 12px" }}>STARTER</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 60, fontWeight: 900, color: "#0A0F1E", lineHeight: 1 }}>£35</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#6B7280" }}>/month</span>
               </div>
-              <hr style={{ border: "none", borderTop: `1px solid ${BD}`, margin: "28px 0" }} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-                {["Cancel anytime", "Unlimited review requests", "Full dashboard and analytics", "24/7 customer support"].map((f) => (
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: G, fontWeight: 600, margin: "6px 0 0" }}>or £299/year - save £121</p>
+              <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+                {["Review request automation", "Basic dashboard", "Email support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <CheckIcon />
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: TS }}>{f}</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="#E5E7EB"/><path d="M5 8l2 2 4-4" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280" }}>{f}</span>
                   </div>
                 ))}
               </div>
-              <a href="/signup" style={{ display: "block", marginTop: 36, background: G, color: "#fff", borderRadius: 9999, padding: "18px 0", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", marginTop: 16 }}>Perfect for: new or small businesses</p>
+              <a href="/signup" style={{ display: "block", marginTop: 24, background: "#F3F4F6", color: "#0A0F1E", borderRadius: 9999, padding: "16px 0", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
                 Get Started
               </a>
             </div>
 
-            {/* Annual */}
-            <div className="pricing-card" style={{ background: "#fff", borderRadius: 24, padding: 48, flex: 1, border: `2.5px solid ${G}`, position: "relative", display: "flex", flexDirection: "column" }}>
-              <div style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", background: G, color: "#fff", borderRadius: 9999, padding: "6px 20px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, whiteSpace: "nowrap" }}>
-                SAVE £240
+            {/* GROWTH - MOST POPULAR */}
+            <div className="pricing-card" style={{ background: "#fff", borderRadius: 24, padding: 40, flex: "1 1 280px", maxWidth: 340, border: "2.5px solid #00C896", position: "relative", display: "flex", flexDirection: "column" }}>
+              <div style={{ position: "absolute", top: -16, left: "50%", transform: "translateX(-50%)", background: G, color: "#fff", borderRadius: 9999, padding: "6px 20px", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 700, whiteSpace: "nowrap" }}>
+                MOST POPULAR
               </div>
-              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: TS }}>ANNUAL</p>
-              <div style={{ display: "flex", alignItems: "baseline", gap: 4, marginTop: 12 }}>
-                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 72, fontWeight: 900, color: N, lineHeight: 1 }}>£600</span>
-                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 18, color: TS }}>/year</span>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: G, margin: "0 0 12px" }}>GROWTH</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 60, fontWeight: 900, color: "#0A0F1E", lineHeight: 1 }}>£79</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#6B7280" }}>/month</span>
               </div>
-              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: G, fontWeight: 600, marginTop: 6 }}>That&apos;s £50/month - save £240</p>
-              <hr style={{ border: "none", borderTop: `1px solid ${BD}`, margin: "28px 0" }} />
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-                {["2 months free", "Everything in monthly", "Priority support"].map((f) => (
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: G, fontWeight: 600, margin: "6px 0 0" }}>or £699/year - save £249</p>
+              <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+                {["Everything in Starter", "Full dashboard", "AI insights and suggested replies", "Analytics", "Weekly email reports"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <CheckIcon />
-                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: TS }}>{f}</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(0,200,150,0.15)"/><path d="M5 8l2 2 4-4" stroke="#00C896" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151" }}>{f}</span>
                   </div>
                 ))}
               </div>
-              <a href="/signup" style={{ display: "block", marginTop: 36, background: G, color: "#fff", borderRadius: 9999, padding: "18px 0", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
-                Get Started - Best Value
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", marginTop: 16 }}>Perfect for: established businesses serious about reputation</p>
+              <a href="/signup" style={{ display: "block", marginTop: 24, background: G, color: "#fff", borderRadius: 9999, padding: "16px 0", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+                Get Started - Most Popular
               </a>
             </div>
-          </div>
 
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: TM, textAlign: "center", marginTop: 40 }}>
+            {/* PRO */}
+            <div className="pricing-card" style={{ background: "#0A0F1E", borderRadius: 24, padding: 40, flex: "1 1 280px", maxWidth: 340, display: "flex", flexDirection: "column" }}>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: "#F5A623", margin: "0 0 12px" }}>PRO</p>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 4 }}>
+                <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 60, fontWeight: 900, color: "#fff", lineHeight: 1 }}>£149</span>
+                <span style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "rgba(255,255,255,0.5)" }}>/month</span>
+              </div>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#F5A623", fontWeight: 600, margin: "6px 0 0" }}>or £1,499/year - save £289</p>
+              <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "24px 0" }} />
+              <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+                {["Everything in Growth", "Dedicated SMS number + priority support"].map(f => (
+                  <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(245,166,35,0.2)"/><path d="M5 8l2 2 4-4" stroke="#F5A623" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{f}</span>
+                  </div>
+                ))}
+              </div>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 16 }}>Perfect for: high-volume businesses</p>
+              <a href="/signup" style={{ display: "block", marginTop: 24, background: "#F5A623", color: "#0A0F1E", borderRadius: 9999, padding: "16px 0", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
+                Get Started - Pro
+              </a>
+            </div>
+
+          </div>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "rgba(255,255,255,0.4)", textAlign: "center", marginTop: 40 }}>
             Not seeing more reviews in your first 14 days? Full refund. No forms. No questions.
           </p>
         </div>
@@ -1199,7 +1295,7 @@ export default function LandingPage() {
             onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.03)"; e.currentTarget.style.boxShadow = "0 0 60px rgba(0,200,150,0.4)"; }}
             onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 0 40px rgba(0,200,150,0.3)"; }}
           >
-            Start Today - from £50/month →
+            Start Today - from £35/month →
           </a>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, marginTop: 16 }}>14-day money back guarantee</p>
 
@@ -1208,16 +1304,39 @@ export default function LandingPage() {
 
       {/* ── FOOTER ──────────────────────────────────────────────────────────── */}
       <footer style={{ background: N, borderTop: "1px solid rgba(255,255,255,0.08)", padding: "48px 0" }}>
-        <div className="footer-inner container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 24 }}>
-          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 800, color: "#fff" }}>Vomni</span>
-          <div className="footer-links" style={{ display: "flex", gap: 32 }}>
-            {["Pricing", "Contact", "Privacy", "Terms"].map((l) => (
-              <a key={l} href="#" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>{l}</a>
-            ))}
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
+          <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 800, color: "#fff", display: "block", marginBottom: 24 }}>Vomni</span>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px 20px", marginBottom: 8 }}>
+            <a href="/#pricing" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Pricing</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/#book-demo" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Contact</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/privacy" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Privacy Policy</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/terms" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Terms of Service</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/dpa" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>DPA</a>
           </div>
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM }}>© 2026 Vomni.</span>
+          <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px 20px", marginBottom: 20 }}>
+            <a href="/acceptable-use" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Acceptable Use</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/cookies" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Cookies</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/refunds" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Refunds</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/complaints" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Complaints</a>
+          </div>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM, margin: 0 }}>Vomni - hello@vomni.app</p>
         </div>
       </footer>
+
+      {/* ── STICKY BOTTOM CTA - mobile only, shown by CSS + JS ──────────────── */}
+      <div className="sticky-mobile-cta" aria-hidden="true">
+        <div className="sticky-mobile-cta-inner">
+          <button className="sticky-mobile-cta-btn" type="button">Book a Free Demo →</button>
+          <button className="sticky-mobile-cta-dismiss" type="button" aria-label="Dismiss">×</button>
+        </div>
+      </div>
     </>
   );
 }

@@ -118,7 +118,7 @@ export default function DemoRequestsPage() {
         {!supabaseConfigured && (
           <div className="mb-4 flex items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
             <AlertCircle size={16} className="flex-shrink-0 text-amber-600" />
-            <p className="text-sm text-amber-700">Supabase not configured — demo requests will not be stored.</p>
+            <p className="text-sm text-amber-700">Supabase not configured - demo requests will not be stored.</p>
           </div>
         )}
 

@@ -49,14 +49,27 @@ export interface Lead {
   country: string;
   google_rating: number;
   review_count: number;
-  competitor_name: string;
-  competitor_rating: number;
+  overall_rating: number;
+  total_reviews: number;
+  phone: string;
   instagram_handle: string;
   email: string;
   outreach_channel: OutreachChannel;
   score: number;
   status: LeadStatus;
   notes: string;
+  // Last bad review (most recent ≤ 3 stars)
+  last_bad_review_text: string;
+  last_bad_review_name: string;
+  last_bad_review_date: string;
+  last_bad_review_rating: number;
+  // Worst review (lowest rated)
+  worst_review_name: string;
+  worst_review_rating: number;
+  worst_review_text: string;
+  worst_review_date: string;
+  competitor_name?: string;
+  competitor_rating?: number;
   created_at: string;
   updated_at: string;
 }
@@ -64,8 +77,11 @@ export interface Lead {
 export interface CopyQueueItem {
   id: string;
   lead_id: string;
+  subject_a: string;
   variant_a: string;
+  subject_b: string;
   variant_b: string;
+  subject_c: string;
   variant_c: string;
   approved_variant: "a" | "b" | "c" | null;
   status: CopyStatus;

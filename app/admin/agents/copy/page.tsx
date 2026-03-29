@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Check, Pencil, X, Send, AlertCircle, Copy } from "lucide-react";
-import { supabase, supabaseConfigured, type CopyQueueItem, type Lead } from "@/lib/supabase";
+import { Check, Pencil, X, Send, Copy } from "lucide-react";
+import { type CopyQueueItem, type Lead } from "@/lib/supabase";
 
 const G = "#00C896";
 
@@ -40,12 +40,9 @@ export default function CopyQueuePage() {
 
   async function fetchItems() {
     setLoading(true);
-    if (!supabaseConfigured) { setLoading(false); return; }
-    const { data } = await supabase
-      .from("copy_queue")
-      .select("*, lead:leads(*)")
-      .order("created_at", { ascending: false });
-    if (data) {
+    const res = await fetch('/api/admin/db/copy_queue?select=*,lead:leads(*)&order=created_at.desc');
+    const data = await res.json();
+    if (Array.isArray(data)) {
       setItems(data as CopyQueueItem[]);
       if (data.length > 0 && !selected) setSelected(data[0] as CopyQueueItem);
     }
@@ -55,9 +52,9 @@ export default function CopyQueuePage() {
   async function approveVariant(variant: "a" | "b" | "c") {
     if (!selected) return;
     const update = { approved_variant: variant, status: "approved" as const };
-    if (supabaseConfigured) {
-      await supabase.from("copy_queue").update(update).eq("id", selected.id);
-    }
+    await fetch(`/api/admin/db/copy_queue?id=${selected.id}`, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(update),
+    });
     const updated = { ...selected, ...update };
     setItems((prev) => prev.map((i) => i.id === selected.id ? updated : i));
     setSelected(updated);
@@ -66,12 +63,14 @@ export default function CopyQueuePage() {
   async function markSent() {
     if (!selected) return;
     const update = { status: "sent" as const, sent_at: new Date().toISOString() };
-    if (supabaseConfigured) {
-      await supabase.from("copy_queue").update(update).eq("id", selected.id);
-      // Also update lead status to contacted
-      if (selected.lead_id) {
-        await supabase.from("leads").update({ status: "contacted", updated_at: new Date().toISOString() }).eq("id", selected.lead_id);
-      }
+    await fetch(`/api/admin/db/copy_queue?id=${selected.id}`, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(update),
+    });
+    if (selected.lead_id) {
+      await fetch(`/api/admin/db/leads?id=${selected.lead_id}`, {
+        method: 'PATCH', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ status: "contacted", updated_at: new Date().toISOString() }),
+      });
     }
     const updated = { ...selected, ...update };
     setItems((prev) => prev.map((i) => i.id === selected.id ? updated : i));
@@ -81,9 +80,9 @@ export default function CopyQueuePage() {
   async function rejectAll() {
     if (!selected) return;
     const update = { status: "pending" as const, approved_variant: null };
-    if (supabaseConfigured) {
-      await supabase.from("copy_queue").update(update).eq("id", selected.id);
-    }
+    await fetch(`/api/admin/db/copy_queue?id=${selected.id}`, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(update),
+    });
     const updated = { ...selected, ...update };
     setItems((prev) => prev.map((i) => i.id === selected.id ? updated : i));
     setSelected(updated);
@@ -92,9 +91,9 @@ export default function CopyQueuePage() {
   function saveEdit() {
     if (!selected || !editingVariant) return;
     const key = `variant_${editingVariant}` as "variant_a" | "variant_b" | "variant_c";
-    if (supabaseConfigured) {
-      supabase.from("copy_queue").update({ [key]: editText }).eq("id", selected.id);
-    }
+    fetch(`/api/admin/db/copy_queue?id=${selected.id}`, {
+      method: 'PATCH', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ [key]: editText }),
+    });
     const updated = { ...selected, [key]: editText };
     setItems((prev) => prev.map((i) => i.id === selected.id ? updated : i));
     setSelected(updated);
@@ -114,7 +113,7 @@ export default function CopyQueuePage() {
   const approved = items.filter((i) => i.status === "approved" || i.status === "sent" || i.status === "replied").length;
   const sent = items.filter((i) => i.status === "sent" || i.status === "replied").length;
   const replied = items.filter((i) => i.status === "replied").length;
-  const replyRate = sent > 0 ? `${Math.round((replied / sent) * 100)}%` : "—";
+  const replyRate = sent > 0 ? `${Math.round((replied / sent) * 100)}%` : "-";
 
   const selectedLead = selected?.lead as Lead | undefined;
 
@@ -125,7 +124,7 @@ export default function CopyQueuePage() {
         <div className="flex items-start justify-between">
           <div>
             <h1 className="text-2xl font-bold text-gray-900" style={{ fontFamily: "'Bricolage Grotesque', sans-serif" }}>Copy Queue</h1>
-            <p className="mt-1 text-sm text-gray-500">Messages written by the Outreach Writer — approve before sending</p>
+            <p className="mt-1 text-sm text-gray-500">Messages written by the Outreach Writer - approve before sending</p>
           </div>
           <div className="flex gap-3">
             <StatPill label="Written" value={total} />
@@ -152,17 +151,11 @@ export default function CopyQueuePage() {
         </div>
       </div>
 
-      {!supabaseConfigured && (
-        <div className="flex-shrink-0 flex items-center gap-3 border-b border-amber-200 bg-amber-50 px-6 py-3">
-          <AlertCircle size={15} className="text-amber-600 flex-shrink-0" />
-          <p className="text-sm text-amber-700">Supabase not configured — data will not persist.</p>
-        </div>
-      )}
 
       {/* 3-column layout */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* Left — queue list */}
+        {/* Left - queue list */}
         <div className="w-64 flex-shrink-0 overflow-y-auto border-r border-gray-100 bg-white">
           {loading ? (
             <div className="flex items-center justify-center py-12">
@@ -198,7 +191,7 @@ export default function CopyQueuePage() {
           )}
         </div>
 
-        {/* Centre — variants */}
+        {/* Centre - variants */}
         <div className="flex-1 overflow-y-auto p-6">
           {!selected ? (
             <div className="flex h-full items-center justify-center">
@@ -207,11 +200,14 @@ export default function CopyQueuePage() {
           ) : (
             <div className="space-y-4">
               {(["a", "b", "c"] as const).map((v) => {
-                const key = `variant_${v}` as "variant_a" | "variant_b" | "variant_c";
-                const text = selected[key];
+                const bodyKey = `variant_${v}` as "variant_a" | "variant_b" | "variant_c";
+                const subjectKey = `subject_${v}` as "subject_a" | "subject_b" | "subject_c";
+                const bodyText = selected[bodyKey];
+                const subjectText = selected[subjectKey];
                 const isApproved = selected.approved_variant === v;
                 const isEditing = editingVariant === v;
-                const variantLabels = { a: "Variant A — Pain angle", b: "Variant B — Competitor angle", c: "Variant C — Opportunity angle" };
+                const variantLabels = { a: "Variant A - Pain angle", b: "Variant B - Revenue angle", c: "Variant C - Empathy angle" };
+                const fullText = subjectText ? `Subject: ${subjectText}\n\n${bodyText}` : bodyText;
                 return (
                   <div key={v} className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm"
                     style={isApproved ? { borderColor: G, borderWidth: 2 } : {}}>
@@ -225,17 +221,31 @@ export default function CopyQueuePage() {
                         )}
                       </div>
                       <div className="flex gap-2">
-                        <button onClick={() => copyToClipboard(text, v)} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
-                          <Copy size={11} /> {copied === v ? "Copied!" : "Copy"}
+                        <button onClick={() => copyToClipboard(fullText, v)} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                          <Copy size={11} /> {copied === v ? "Copied!" : "Copy all"}
                         </button>
-                        <button onClick={() => { setEditingVariant(v); setEditText(text); }} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
+                        <button onClick={() => { setEditingVariant(v); setEditText(bodyText); }} className="flex items-center gap-1 rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-600 hover:bg-gray-50">
                           <Pencil size={11} /> Edit
                         </button>
                       </div>
                     </div>
+
+                    {/* Subject line */}
+                    {subjectText ? (
+                      <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                        <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide mr-2">Subject:</span>
+                        <span className="text-sm font-medium text-gray-800">{subjectText}</span>
+                      </div>
+                    ) : (
+                      <div className="mb-3 rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2">
+                        <span className="text-xs text-gray-400 italic">No subject line written</span>
+                      </div>
+                    )}
+
+                    {/* Body */}
                     {isEditing ? (
                       <div>
-                        <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={4}
+                        <textarea value={editText} onChange={(e) => setEditText(e.target.value)} rows={6}
                           className="w-full rounded-lg border border-gray-200 p-3 text-sm outline-none resize-none"
                           style={{ borderColor: G }}
                         />
@@ -245,7 +255,7 @@ export default function CopyQueuePage() {
                         </div>
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{text || <span className="text-gray-400 italic">No message written yet</span>}</p>
+                      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{bodyText || <span className="text-gray-400 italic">No message body written yet</span>}</p>
                     )}
                   </div>
                 );
@@ -254,7 +264,7 @@ export default function CopyQueuePage() {
           )}
         </div>
 
-        {/* Right — actions */}
+        {/* Right - actions */}
         <div className="w-56 flex-shrink-0 overflow-y-auto border-l border-gray-100 bg-white p-4">
           {!selected ? (
             <p className="text-xs text-gray-400 text-center mt-8">Select a lead to see actions</p>

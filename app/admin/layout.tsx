@@ -4,8 +4,9 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
-  Lock, LayoutDashboard, Bot, ArrowLeft,
+  Lock, LayoutDashboard, ArrowLeft,
   Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones, CalendarCheck,
+  TrendingUp, Settings2,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
@@ -207,9 +208,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Demo Requests */}
           <NavLink href="/admin/demo-requests" label="Demo Requests" icon={CalendarCheck} />
 
+          {/* Growth Intelligence */}
+          <NavLink href="/admin/growth" label="Growth Intelligence" icon={TrendingUp} />
+
+          {/* Setup */}
+          <NavLink href="/admin/setup" label="Setup & SQL" icon={Settings2} />
+
           {/* Agent Workspace section */}
           <div style={{ marginTop: 12 }}>
-            {/* Section header — clickable to expand/collapse */}
+            {/* Section header - clickable to expand/collapse */}
             <button
               onClick={() => setWorkspaceOpen(!workspaceOpen)}
               style={{
@@ -228,7 +235,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {workspaceOpen && (
               <div style={{ marginTop: 2, display: "flex", flexDirection: "column", gap: 1 }}>
-                <NavLink href="/admin/agents" label="Agent Team" icon={Bot} indent />
                 <NavLink href="/admin/agents/leads" label="Lead Pipeline" icon={Target} indent />
                 <NavLink href="/admin/agents/copy" label="Copy Queue" icon={PenLine} indent />
                 <NavLink href="/admin/agents/conversations" label="Conversations" icon={MessageSquare} indent />
