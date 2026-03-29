@@ -86,7 +86,7 @@ export default function LoginPage() {
 
     const { error } = await supabase.auth.resetPasswordForEmail(
       resetEmail.trim().toLowerCase(),
-      { redirectTo: "https://vomni-app.vercel.app/reset-password" }
+      { redirectTo: "https://vomni.io/reset-password" }
     );
 
     if (error) {

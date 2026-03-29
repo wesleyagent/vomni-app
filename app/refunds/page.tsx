@@ -5,7 +5,7 @@ const G = "#00C896";
 
 const FOOTER_LINKS = [
   { label: "Pricing", href: "/#pricing" },
-  { label: "Contact", href: "/#book-demo" },
+  { label: "Contact", href: "/contact" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "DPA", href: "/dpa" },
@@ -35,7 +35,7 @@ function LegalFooter() {
           </span>
         ))}
       </div>
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.app</p>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.io</p>
     </footer>
   );
 }
@@ -60,7 +60,7 @@ export default function RefundsPage() {
           Every new customer gets a full 14 day money back guarantee. No forms. No questions. No awkward conversations.
         </p>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          If you sign up and decide within 14 days that Vomni isn&apos;t right for you, just email hello@vomni.app and we will refund you in full. The 14 days starts from the date your account is first activated.
+          If you sign up and decide within 14 days that Vomni isn&apos;t right for you, just email hello@vomni.io and we will refund you in full. The 14 days starts from the date your account is first activated.
         </p>
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>After 14 days - monthly plan</h2>
@@ -75,12 +75,12 @@ export default function RefundsPage() {
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Exceptions</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          If Vomni experiences a significant outage or technical failure that prevents you from using the platform for more than 48 consecutive hours, we will discuss appropriate compensation on a case by case basis. Email <a href="mailto:hello@vomni.app" style={{ color: G, textDecoration: "none" }}>hello@vomni.app</a>.
+          If Vomni experiences a significant outage or technical failure that prevents you from using the platform for more than 48 consecutive hours, we will discuss appropriate compensation on a case by case basis. Email <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a>.
         </p>
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>How to request a refund</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          Email <a href="mailto:hello@vomni.app" style={{ color: G, textDecoration: "none" }}>hello@vomni.app</a> with your business name and the email address you signed up with. We aim to process all refund requests within 3 working days. Refunds go back to the original payment method.
+          Email <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a> with your business name and the email address you signed up with. We aim to process all refund requests within 3 working days. Refunds go back to the original payment method.
         </p>
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>A note on our guarantee</h2>

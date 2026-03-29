@@ -5,7 +5,7 @@ const G = "#00C896";
 
 const FOOTER_LINKS = [
   { label: "Pricing", href: "/#pricing" },
-  { label: "Contact", href: "/#book-demo" },
+  { label: "Contact", href: "/contact" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "DPA", href: "/dpa" },
@@ -35,7 +35,7 @@ function LegalFooter() {
           </span>
         ))}
       </div>
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.app</p>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.io</p>
     </footer>
   );
 }
@@ -87,7 +87,7 @@ export default function DpaPage() {
         <ul style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, paddingLeft: 24 }}>
           <li>Ensure you have a lawful basis for sharing customer contact data with Vomni</li>
           <li>Inform customers they may receive a feedback text after their appointment. Suggested wording: &quot;After your visit you may receive a short text message asking for feedback on your experience. Reply STOP at any time to opt out.&quot;</li>
-          <li>Notify Vomni immediately at hello@vomni.app if any customer asks to have their data deleted</li>
+          <li>Notify Vomni immediately at hello@vomni.io if any customer asks to have their data deleted</li>
           <li>Update your privacy policy to mention Vomni as a data processor</li>
           <li>Only share data for genuine customers who have had a real appointment</li>
         </ul>
@@ -104,7 +104,7 @@ export default function DpaPage() {
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Contact</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          <a href="mailto:hello@vomni.app" style={{ color: G, textDecoration: "none" }}>hello@vomni.app</a>
+          <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a>
         </p>
       </div>
       <LegalFooter />

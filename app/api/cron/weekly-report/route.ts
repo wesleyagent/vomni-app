@@ -128,12 +128,12 @@ export async function GET() {
       <p style="font-size: 14px; color: #374151; line-height: 1.6; margin: 0;">${aiInsight}</p>
     </div>` : ""}
 
-    <a href="https://vomni-app.vercel.app/dashboard" style="display: inline-block; padding: 14px 28px; border-radius: 10px; background: #00C896; color: #fff; text-decoration: none; font-size: 14px; font-weight: 600;">
+    <a href="https://vomni.io/dashboard" style="display: inline-block; padding: 14px 28px; border-radius: 10px; background: #00C896; color: #fff; text-decoration: none; font-size: 14px; font-weight: 600;">
       View full dashboard →
     </a>
 
     <p style="font-size: 12px; color: #9CA3AF; margin-top: 32px;">
-      You're receiving this because you're a Vomni customer. <a href="mailto:support@vomni.app" style="color: #9CA3AF;">Unsubscribe</a>
+      You're receiving this because you're a Vomni customer. <a href="mailto:support@vomni.io" style="color: #9CA3AF;">Unsubscribe</a>
     </p>
   </div>
 </body>

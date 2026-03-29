@@ -5,7 +5,7 @@ const G = "#00C896";
 
 const FOOTER_LINKS = [
   { label: "Pricing", href: "/#pricing" },
-  { label: "Contact", href: "/#book-demo" },
+  { label: "Contact", href: "/contact" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "DPA", href: "/dpa" },
@@ -35,7 +35,7 @@ function LegalFooter() {
           </span>
         ))}
       </div>
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.app</p>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.io</p>
     </footer>
   );
 }
@@ -85,7 +85,7 @@ export default function CookiesPage() {
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Contact</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          <a href="mailto:hello@vomni.app" style={{ color: G, textDecoration: "none" }}>hello@vomni.app</a>
+          <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a>
         </p>
       </div>
       <LegalFooter />

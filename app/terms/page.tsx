@@ -5,7 +5,7 @@ const G = "#00C896";
 
 const FOOTER_LINKS = [
   { label: "Pricing", href: "/#pricing" },
-  { label: "Contact", href: "/#book-demo" },
+  { label: "Contact", href: "/contact" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "DPA", href: "/dpa" },
@@ -35,7 +35,7 @@ function LegalFooter() {
           </span>
         ))}
       </div>
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.app</p>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.io</p>
     </footer>
   );
 }
@@ -76,7 +76,7 @@ export default function TermsPage() {
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>3. Data processing</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          Vomni acts as a data processor on behalf of the business who is the data controller. The business warrants that they have a lawful basis to share customer contact data with Vomni and that their customers have been informed that they may receive feedback requests by text message. The business agrees to notify Vomni immediately at hello@vomni.app if any customer requests deletion of their personal data.
+          Vomni acts as a data processor on behalf of the business who is the data controller. The business warrants that they have a lawful basis to share customer contact data with Vomni and that their customers have been informed that they may receive feedback requests by text message. The business agrees to notify Vomni immediately at hello@vomni.io if any customer requests deletion of their personal data.
         </p>
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>4. Limitation of liability</h2>
@@ -111,7 +111,7 @@ export default function TermsPage() {
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>10. Contact</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          <a href="mailto:hello@vomni.app" style={{ color: G, textDecoration: "none" }}>hello@vomni.app</a>
+          <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a>
         </p>
       </div>
       <LegalFooter />

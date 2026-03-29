@@ -56,7 +56,7 @@ export async function createLSCheckoutUrl(opts: {
 }): Promise<string> {
   setupLS();
   const storeId = await getStoreId();
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni-app.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
   const redirect = opts.redirectUrl ?? `${appUrl}/dashboard`;
 
   const { data, error } = await createCheckout(storeId, String(opts.variantId), {

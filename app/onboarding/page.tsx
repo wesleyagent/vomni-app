@@ -402,7 +402,7 @@ function OtherInstructions() {
       <div style={{ marginTop: 24, padding: "16px 20px", borderRadius: 12, border: `1px solid ${BD}`, background: "#fff" }}>
         <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
           <strong>Still not sure?</strong><br/>
-          Email us at <a href="mailto:support@vomni.app" style={{ color: G, fontWeight: 600 }}>support@vomni.app</a> and we&apos;ll send you personalised setup instructions within 1 hour.
+          Email us at <a href="mailto:support@vomni.io" style={{ color: G, fontWeight: 600 }}>support@vomni.io</a> and we&apos;ll send you personalised setup instructions within 1 hour.
         </p>
       </div>
     </div>
@@ -493,7 +493,7 @@ function Step2Business({
             </p>
           </div>
           <p style={{ margin: "8px 0 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF" }}>
-            Not sure how to find it? Email us at <a href="mailto:support@vomni.app" style={{ color: G }}>support@vomni.app</a> and we&apos;ll send it to you.
+            Not sure how to find it? Email us at <a href="mailto:support@vomni.io" style={{ color: G }}>support@vomni.io</a> and we&apos;ll send it to you.
           </p>
           {googleError && <p style={{ margin: "8px 0 0", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#EF4444" }}>{googleError}</p>}
         </div>
@@ -581,7 +581,7 @@ function Step3GDPR({ onNext, saving }: { onNext: () => void; saving: boolean }) 
     },
     {
       label: "I'll let Vomni know if a customer asks to be removed",
-      desc: "If a customer ever asks you to delete their details, just forward their request to hello@vomni.app and we'll handle it within 24 hours.",
+      desc: "If a customer ever asks you to delete their details, just forward their request to hello@vomni.io and we'll handle it within 24 hours.",
       tooltip: "Occasionally a customer might ask a business to delete their personal information. If that happens just email us and we take care of everything. You never need to worry about the technical side.",
       hasCopyBox: false,
     },
@@ -858,7 +858,7 @@ function Step5Booking({
         {timedOut && !bookingReceived && (
           <div style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid #FED7AA", background: "#FFF7ED", marginBottom: 16 }}>
             <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: "#92400E", lineHeight: 1.6 }}>
-              No email received yet - make sure you forwarded a booking confirmation email to <strong>{FWD}</strong>. Need help? Email <a href="mailto:support@vomni.app" style={{ color: "#B45309" }}>support@vomni.app</a>
+              No email received yet - make sure you forwarded a booking confirmation email to <strong>{FWD}</strong>. Need help? Email <a href="mailto:support@vomni.io" style={{ color: "#B45309" }}>support@vomni.io</a>
             </p>
           </div>
         )}

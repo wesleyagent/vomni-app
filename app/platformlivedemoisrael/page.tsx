@@ -654,7 +654,7 @@ export default function PlatformLiveDemoIsrael() {
       )}
 
       {/* Book demo CTA */}
-      <a href="https://vomni-app.vercel.app/#book-demo" style={{ position: "fixed", bottom: 24, right: 24, zIndex: 300, background: "#00C896", color: "#fff", textDecoration: "none", fontFamily: "'Heebo', Inter, sans-serif", fontSize: 14, fontWeight: 600, padding: "12px 24px", borderRadius: 9999, boxShadow: "0 4px 20px rgba(0,200,150,0.4)" }}>
+      <a href="https://vomni.io/#book-demo" style={{ position: "fixed", bottom: 24, right: 24, zIndex: 300, background: "#00C896", color: "#fff", textDecoration: "none", fontFamily: "'Heebo', Inter, sans-serif", fontSize: 14, fontWeight: 600, padding: "12px 24px", borderRadius: 9999, boxShadow: "0 4px 20px rgba(0,200,150,0.4)" }}>
         ← הזמן הדגמה
       </a>
     </>

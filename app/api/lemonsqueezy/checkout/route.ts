@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const vid      = Number(variantId);
   const planInfo = VARIANT_PLAN_MAP[vid];
-  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni-app.vercel.app";
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
   // Resolve businessId for existing users upgrading
   let resolvedBusinessId = businessId ?? "";

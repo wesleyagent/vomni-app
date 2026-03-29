@@ -54,13 +54,13 @@ export default async function CheckoutPage({ params, searchParams }: {
             Payment coming soon
           </div>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#A16207", margin: 0, lineHeight: 1.6 }}>
-            Contact hello@vomni.app to upgrade today and we will set you up manually.
+            Contact hello@vomni.io to upgrade today and we will set you up manually.
           </p>
         </div>
 
         {/* CTA */}
         <a
-          href={`mailto:hello@vomni.app?subject=${emailSubject}&body=${emailBody}`}
+          href={`mailto:hello@vomni.io?subject=${emailSubject}&body=${emailBody}`}
           style={{ display: "block", padding: "14px 24px", borderRadius: 12, background: G, color: "#fff", fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700, textDecoration: "none", marginBottom: 16 }}
         >
           Email us to upgrade →

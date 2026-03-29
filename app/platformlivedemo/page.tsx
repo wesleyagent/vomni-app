@@ -2232,7 +2232,7 @@ export default function PlatformLiveDemo() {
 
       {/* Book a Demo button */}
       <a
-        href="https://vomni-app.vercel.app/#book-demo"
+        href="https://vomni.io/#book-demo"
         style={{
           position: "fixed",
           bottom: 24,

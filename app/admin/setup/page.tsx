@@ -303,10 +303,10 @@ export default function AdminSetupPage() {
           </p>
           <div style={codeRowStyle}>
             <code style={{ fontFamily: "'SF Mono', 'Fira Code', monospace", fontSize: "13px", color: "#00C896", flex: 1, overflowX: "auto", whiteSpace: "nowrap" }}>
-              https://vomni-app.vercel.app/r/[booking_id]
+              https://vomni.io/r/[booking_id]
             </code>
             <div style={{ flexShrink: 0 }}>
-              <CopyButton text="https://vomni-app.vercel.app/r/[booking_id]" />
+              <CopyButton text="https://vomni.io/r/[booking_id]" />
             </div>
           </div>
           <p style={noteStyle}>

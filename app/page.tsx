@@ -557,6 +557,7 @@ export default function LandingPage() {
                 {item.label}
               </a>
             ))}
+            <a href="/contact" style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}>Contact</a>
             <button
               onClick={scrollToBookDemo}
               style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, color: G, textDecoration: "none", background: "none", border: "none", cursor: "pointer", padding: 0 }}
@@ -611,6 +612,7 @@ export default function LandingPage() {
             { label: "How it Works", action: () => { setMenuOpen(false); document.querySelector("#how-it-works")?.scrollIntoView({ behavior: "smooth" }); } },
             { label: "See Demo",     action: () => { setMenuOpen(false); document.querySelector("#demo")?.scrollIntoView({ behavior: "smooth" }); } },
             { label: "Pricing",      action: () => { setMenuOpen(false); document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" }); } },
+            { label: "Contact",      action: () => { setMenuOpen(false); window.location.href = "/contact"; } },
             { label: "Book a Demo",  action: () => { setMenuOpen(false); scrollToBookDemo(); }, green: true },
             { label: "Login",        action: () => { setMenuOpen(false); window.location.href = "/signup"; } },
           ].map((item) => (
@@ -1309,7 +1311,7 @@ export default function LandingPage() {
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px 20px", marginBottom: 8 }}>
             <a href="/#pricing" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Pricing</a>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
-            <a href="/#book-demo" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Contact</a>
+            <a href="/contact" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Contact</a>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/privacy" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Privacy Policy</a>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
@@ -1326,7 +1328,7 @@ export default function LandingPage() {
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/complaints" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Complaints</a>
           </div>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM, margin: 0 }}>Vomni - hello@vomni.app</p>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM, margin: 0 }}>Vomni - hello@vomni.io</p>
         </div>
       </footer>
 

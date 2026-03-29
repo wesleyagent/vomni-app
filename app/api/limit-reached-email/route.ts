@@ -105,7 +105,7 @@ function buildEmail(opts: {
       <p style="font-size:12px;color:#D1D5DB;margin:0;">
         <a href="${escapeHtml(appUrl)}" style="color:#9CA3AF;text-decoration:none;">vomni.app</a>
         &nbsp;·&nbsp;
-        <a href="mailto:hello@vomni.app" style="color:#9CA3AF;text-decoration:none;">hello@vomni.app</a>
+        <a href="mailto:hello@vomni.io" style="color:#9CA3AF;text-decoration:none;">hello@vomni.io</a>
         &nbsp;·&nbsp;
         <a href="${escapeHtml(appUrl)}/dashboard/settings" style="color:#9CA3AF;text-decoration:none;">Unsubscribe</a>
       </p>
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
     ? ["300 review requests every month — 3x more than Starter", "AI insights and suggested replies", "Full analytics dashboard", "Weekly performance email", "Cancel anytime"]
     : ["Your own dedicated SMS number", "Priority support", "Full analytics and weekly reports", "Cancel anytime"];
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni-app.vercel.app";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
   const html = buildEmail({
     ownerName: biz.owner_name ?? "there",

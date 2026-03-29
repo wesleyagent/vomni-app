@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
     </p>
     <p style="font-size: 15px; color: #374151; margin: 0;">
       Nicky<br/>
-      <span style="color: #6B7280; font-size: 13px;">Vomni · support@vomni.app</span>
+      <span style="color: #6B7280; font-size: 13px;">Vomni · support@vomni.io</span>
     </p>
   </div>
 </body>

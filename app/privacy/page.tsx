@@ -5,7 +5,7 @@ const G = "#00C896";
 
 const FOOTER_LINKS = [
   { label: "Pricing", href: "/#pricing" },
-  { label: "Contact", href: "/#book-demo" },
+  { label: "Contact", href: "/contact" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Terms of Service", href: "/terms" },
   { label: "DPA", href: "/dpa" },
@@ -35,7 +35,7 @@ function LegalFooter() {
           </span>
         ))}
       </div>
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.app</p>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>Vomni - hello@vomni.io</p>
     </footer>
   );
 }
@@ -88,12 +88,12 @@ export default function PrivacyPage() {
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Your customers&apos; rights</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          Any customer can opt out of receiving messages by replying STOP to any text message from Vomni. For requests to access or delete personal data, customers can contact hello@vomni.app and we will respond within 30 days.
+          Any customer can opt out of receiving messages by replying STOP to any text message from Vomni. For requests to access or delete personal data, customers can contact hello@vomni.io and we will respond within 30 days.
         </p>
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Your rights as a business</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          You can access, correct, or delete your account data at any time from your account settings or by emailing <a href="mailto:hello@vomni.app" style={{ color: G, textDecoration: "none" }}>hello@vomni.app</a>.
+          You can access, correct, or delete your account data at any time from your account settings or by emailing <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a>.
         </p>
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Our role</h2>
@@ -108,7 +108,7 @@ export default function PrivacyPage() {
 
         <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Questions</h2>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          Email <a href="mailto:hello@vomni.app" style={{ color: G, textDecoration: "none" }}>hello@vomni.app</a>
+          Email <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a>
         </p>
       </div>
       <LegalFooter />

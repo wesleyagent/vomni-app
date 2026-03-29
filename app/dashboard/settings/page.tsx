@@ -201,7 +201,7 @@ export default function SettingsPage() {
   }
 
   function copyReferralLink() {
-    const link = `https://vomni-app.vercel.app?ref=${referralCode}`;
+    const link = `https://vomni.io?ref=${referralCode}`;
     navigator.clipboard.writeText(link).then(() => {
       setCopyLabel("Copied!");
       setTimeout(() => setCopyLabel("Copy link"), 2000);
@@ -254,7 +254,7 @@ export default function SettingsPage() {
             <SI type="text" value={ownerName} onChange={e => setOwnerName(e.target.value)} placeholder="Marcus Johnson" />
           </Field>
 
-          <Field label="Account Email" hint="Your login email - contact support@vomni.app to change this">
+          <Field label="Account Email" hint="Your login email - contact support@vomni.io to change this">
             <SI type="email" value={email} disabled />
           </Field>
 
@@ -362,7 +362,7 @@ export default function SettingsPage() {
         {hasFeature(biz?.plan, "custom_number") ? (
           <SectionCard icon={Phone} title="Dedicated SMS Number">
             <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: 0 }}>
-              Your dedicated Twilio number for outbound SMS. Contact <a href="mailto:support@vomni.app" style={{ color: G }}>support@vomni.app</a> to configure your number.
+              Your dedicated Twilio number for outbound SMS. Contact <a href="mailto:support@vomni.io" style={{ color: G }}>support@vomni.io</a> to configure your number.
             </p>
             {(biz as DBBusiness & { twilio_number?: string })?.twilio_number ? (
               <div style={{ display: "inline-flex", padding: "8px 16px", borderRadius: 9999, background: "rgba(0,200,150,0.1)", fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: G, letterSpacing: "0.05em" }}>
@@ -413,7 +413,7 @@ export default function SettingsPage() {
         </div>
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", textAlign: "center", margin: "12px 0 0" }}>
           Want to customise this? Contact{" "}
-          <a href="mailto:support@vomni.app" style={{ color: G }}>support@vomni.app</a>
+          <a href="mailto:support@vomni.io" style={{ color: G }}>support@vomni.io</a>
         </p>
       </SectionCard>
 
@@ -443,7 +443,7 @@ export default function SettingsPage() {
           </label>
           <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
             <div style={{ flex: 1, padding: "11px 14px", borderRadius: 10, border: `1px solid ${BD}`, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", background: "#F9FAFB", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              https://vomni-app.vercel.app?ref={referralCode}
+              https://vomni.io?ref={referralCode}
             </div>
             <button
               onClick={copyReferralLink}
