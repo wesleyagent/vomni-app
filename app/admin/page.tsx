@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { Users, RefreshCw, ChevronDown, ChevronRight, Activity, DollarSign, Zap } from "lucide-react";
 import { db } from "@/lib/db";
 import { getBenchmark } from "@/lib/benchmarks";
@@ -226,7 +227,15 @@ function DashboardTab({ businesses, statsMap }: { businesses: BizRow[]; statsMap
                       <td style={{ padding: "12px 16px", fontWeight: 500, color: N }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                          {biz.name ?? "-"}
+                          <Link
+                            href={`/admin/businesses/${biz.id}`}
+                            onClick={e => e.stopPropagation()}
+                            style={{ color: N, textDecoration: "none", fontWeight: 600, borderBottom: "1px dashed #D1D5DB" }}
+                            onMouseEnter={e => (e.currentTarget.style.color = G)}
+                            onMouseLeave={e => (e.currentTarget.style.color = N)}
+                          >
+                            {biz.name ?? "-"}
+                          </Link>
                           {biz.onboarding_gdpr_accepted ? (
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                               <title>{`GDPR accepted on ${biz.onboarding_gdpr_accepted_at ? new Date(biz.onboarding_gdpr_accepted_at).toLocaleDateString("en-GB") : "unknown date"}`}</title>

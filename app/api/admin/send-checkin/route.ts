@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/require-admin";
 
 export async function POST(req: NextRequest) {
+  const deny = requireAdmin(req);
+  if (deny) return deny;
+
   try {
     const { businessId, ownerName, email } = await req.json();
 

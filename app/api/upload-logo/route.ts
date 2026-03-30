@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { createClient } from "@supabase/supabase-js";
 
 // Server-side logo upload using service role key.
 // Handles both storage upload and businesses.logo_url update in one call,
@@ -16,6 +17,24 @@ export async function POST(req: NextRequest) {
         { error: "Missing file or business_id" },
         { status: 400 }
       );
+    }
+
+    // Verify the caller is authenticated and owns this business
+    const token = req.headers.get("authorization")?.replace("Bearer ", "");
+    if (!token) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const userClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { global: { headers: { Authorization: `Bearer ${token}` } } }
+    );
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    if (user.id !== businessId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Validate file type

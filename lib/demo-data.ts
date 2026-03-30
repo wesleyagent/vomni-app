@@ -50,9 +50,9 @@ export const kingsCutsCustomers: Customer[] = [
   {
     id: "kc-2",
     businessId: "demo-kings-cuts",
-    name: "Omar Abdullah",
+    name: "James Smith",
     phone: "+44 7700 900002",
-    email: "omar.a@email.com",
+    email: "james.s@email.com",
     bookingDate: "2026-03-24",
     bookingTime: "11:30",
     service: "Caesar Cut",

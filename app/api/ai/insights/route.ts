@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { INSIGHTS_SYSTEM_PROMPT } from "@/lib/knowledge-base";
+import { requireAuth } from "@/lib/require-auth";
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { businessName, businessType, analytics, completionRate, avgRating, totalReviews } =
       await req.json();

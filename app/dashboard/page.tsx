@@ -204,7 +204,7 @@ export default function DashboardOverview() {
 
     // Get business type + starting_rating + plan
     const { data: biz } = await db.from("businesses")
-      .select("business_type, starting_rating, plan, weekly_google_redirects, weekly_redirect_cap, initial_google_rating, current_google_rating, initial_review_count")
+      .select("business_type, starting_rating, plan, weekly_google_redirects, weekly_redirect_cap")
       .eq("id", businessId)
       .single();
 

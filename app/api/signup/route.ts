@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
         },
         body: JSON.stringify({
           from: "Vomni <onboarding@resend.dev>",
-          to: "shmeenaresearch@gmail.com",
+          to: process.env.SIGNUP_NOTIFY_EMAIL ?? "shmeenaresearch@gmail.com",
           subject: `New Vomni Signup: ${businessName}`,
           html: `
             <h2>New Business Signup</h2>

@@ -11,8 +11,12 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/require-admin";
 
 export async function DELETE(req: NextRequest) {
+  const deny = requireAdmin(req);
+  if (deny) return deny;
+
   const { businessId } = await req.json();
 
   if (!businessId) {

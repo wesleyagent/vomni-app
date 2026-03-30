@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAdmin } from "@/lib/require-admin";
 
 const CONTROL_PARAMS = new Set(["select", "order", "limit"]);
 
@@ -17,6 +18,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ table: string }> }
 ) {
+  const deny = requireAdmin(req);
+  if (deny) return deny;
   const { table } = await params;
   const sp = req.nextUrl.searchParams;
 
@@ -48,6 +51,8 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ table: string }> }
 ) {
+  const deny = requireAdmin(req);
+  if (deny) return deny;
   const { table } = await params;
   const body = await req.json();
   const { data, error } = await supabaseAdmin
@@ -63,6 +68,8 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ table: string }> }
 ) {
+  const deny = requireAdmin(req);
+  if (deny) return deny;
   const { table } = await params;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });
@@ -81,6 +88,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ table: string }> }
 ) {
+  const deny = requireAdmin(req);
+  if (deny) return deny;
   const { table } = await params;
   const id = req.nextUrl.searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id required" }, { status: 400 });

@@ -6,11 +6,9 @@ import { usePathname } from "next/navigation";
 import {
   Lock, LayoutDashboard, ArrowLeft,
   Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones, CalendarCheck,
-  TrendingUp, Settings2,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
-const ADMIN_PASSWORD = "vomni2026";
 const SESSION_KEY = "vomni_admin_authed";
 
 const G = "#00C896";
@@ -21,6 +19,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authenticated, setAuthenticated] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [password, setPassword] = useState("");
+  const [totp, setTotp] = useState("");
+  const [loading, setLoginLoading] = useState(false);
   const [error, setError] = useState("");
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [supportCount, setSupportCount] = useState(0);
@@ -44,14 +44,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .then(({ count }) => setSupportCount(count ?? 0));
   }, [authenticated]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (password === ADMIN_PASSWORD) {
-      setAuthenticated(true);
-      try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* ignore */ }
-      setError("");
-    } else {
-      setError("Incorrect password");
+    setLoginLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password, totp }),
+      });
+      if (res.ok) {
+        setAuthenticated(true);
+        try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* ignore */ }
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error ?? "Login failed");
+      }
+    } catch {
+      setError("Network error — try again");
+    } finally {
+      setLoginLoading(false);
     }
   };
 
@@ -84,15 +97,27 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; }}
                 autoFocus
               />
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                value={totp}
+                onChange={(e) => { setTotp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }}
+                placeholder="6-digit authenticator code"
+                className="mt-3 w-full rounded-lg border border-gray-200 px-4 py-2.5 text-sm outline-none tracking-widest"
+                onFocus={(e) => { e.currentTarget.style.borderColor = G; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = "#E5E7EB"; }}
+              />
               {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
               <button
                 type="submit"
+                disabled={loading}
                 className="mt-4 w-full rounded-lg py-2.5 text-sm font-medium text-white"
-                style={{ background: G }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = G; }}
+                style={{ background: loading ? "#9CA3AF" : G, cursor: loading ? "not-allowed" : "pointer" }}
+                onMouseEnter={(e) => { if (!loading) (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
+                onMouseLeave={(e) => { if (!loading) (e.currentTarget as HTMLElement).style.background = G; }}
               >
-                Sign In
+                {loading ? "Verifying…" : "Sign In"}
               </button>
             </form>
           </div>
@@ -207,12 +232,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Demo Requests */}
           <NavLink href="/admin/demo-requests" label="Demo Requests" icon={CalendarCheck} />
-
-          {/* Growth Intelligence */}
-          <NavLink href="/admin/growth" label="Growth Intelligence" icon={TrendingUp} />
-
-          {/* Setup */}
-          <NavLink href="/admin/setup" label="Setup & SQL" icon={Settings2} />
 
           {/* Agent Workspace section */}
           <div style={{ marginTop: 12 }}>

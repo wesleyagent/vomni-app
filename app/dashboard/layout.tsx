@@ -44,7 +44,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifOpen,     setNotifOpen]     = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [trialInfo,     setTrialInfo]     = useState<{ isTrial: boolean; daysRemaining: number; trialExpired: boolean } | null>(null);
-  const [subscribing,   setSubscribing]   = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -60,7 +59,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           name:              (meta.business_name as string) ?? "My Business",
           owner_name:        (meta.owner_name   as string) ?? "",
           owner_email:       user.email,
-          plan:              (meta.plan         as string) ?? "monthly",
+          plan:              "trial",
           status:            "active",
           billing_anchor_day: new Date().getDate(),
           created_at:        new Date().toISOString(),
@@ -99,24 +98,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } catch { /* silently fail */ }
   }
 
-  async function handleSubscribe() {
-    if (!ctx?.email || subscribing) return;
-    setSubscribing(true);
-    try {
-      const res = await fetch("/api/lemonsqueezy/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ variantId: 1460277, email: ctx.email, businessId: ctx.businessId, isUpgrade: true }),
-      });
-      const data = await res.json();
-      if (data.url) {
-        // Append checkout[email] param for pre-fill
-        const checkoutUrl = new URL(data.url);
-        checkoutUrl.searchParams.set("checkout[email]", ctx.email);
-        window.location.href = checkoutUrl.toString();
-      }
-    } catch { /* silently fail */ }
-    setSubscribing(false);
+  function handleSubscribe() {
+    router.push("/dashboard/upgrade");
   }
 
   async function loadNotifications(businessId: string) {
@@ -340,7 +323,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             <button
               onClick={handleSubscribe}
-              disabled={subscribing}
               style={{
                 background: G,
                 color: "#fff",
@@ -350,14 +332,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 fontFamily: "Inter, sans-serif",
                 fontSize: 14,
                 fontWeight: 600,
-                cursor: subscribing ? "not-allowed" : "pointer",
+                cursor: "pointer",
                 whiteSpace: "nowrap",
                 transition: "background 0.15s",
               }}
-              onMouseEnter={e => { if (!subscribing) (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
-              onMouseLeave={e => { if (!subscribing) (e.currentTarget as HTMLElement).style.background = G; }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
             >
-              {subscribing ? "Loading…" : "Subscribe now →"}
+              Subscribe now →
             </button>
           </div>
         )}
@@ -383,7 +365,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </p>
             <button
               onClick={handleSubscribe}
-              disabled={subscribing}
               style={{
                 background: G,
                 color: "#fff",
@@ -393,13 +374,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 fontFamily: "Inter, sans-serif",
                 fontSize: 16,
                 fontWeight: 600,
-                cursor: subscribing ? "not-allowed" : "pointer",
+                cursor: "pointer",
                 transition: "background 0.15s",
               }}
-              onMouseEnter={e => { if (!subscribing) (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
-              onMouseLeave={e => { if (!subscribing) (e.currentTarget as HTMLElement).style.background = G; }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#00A87D"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
             >
-              {subscribing ? "Loading…" : "Subscribe to Pro — £149/mo →"}
+              Choose a plan →
             </button>
           </div>
         )}

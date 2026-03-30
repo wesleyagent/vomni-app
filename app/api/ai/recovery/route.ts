@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RECOVERY_SYSTEM_PROMPT } from "@/lib/knowledge-base";
+import { requireAuth } from "@/lib/require-auth";
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { customerName, rating, feedback, businessName, businessType } = await req.json();
     const apiKey = process.env.ANTHROPIC_API_KEY;

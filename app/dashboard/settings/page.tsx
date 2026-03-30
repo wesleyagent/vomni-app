@@ -165,7 +165,12 @@ export default function SettingsPage() {
       const fd = new FormData();
       fd.append("file", file);
       fd.append("business_id", businessId);
-      const res = await fetch("/api/upload-logo", { method: "POST", body: fd });
+      const { data: { session } } = await db.auth.getSession();
+      const res = await fetch("/api/upload-logo", {
+        method: "POST",
+        body: fd,
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {},
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Upload failed");
       setLogoUrl(json.publicUrl);

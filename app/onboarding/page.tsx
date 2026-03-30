@@ -487,13 +487,35 @@ function Step2Business({
             onChange={e => setGoogleLink(e.target.value)}
             placeholder="https://g.page/r/..."
           />
-          <div style={{ marginTop: 10, padding: "12px 14px", borderRadius: 10, background: "#F9FAFB", border: `1px solid ${BD}` }}>
-            <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-              <strong>How to find it:</strong> Go to your Google Business profile → click <strong>&ldquo;Get more reviews&rdquo;</strong> → copy the link and paste it here.
-            </p>
+          <div style={{ marginTop: 10, borderRadius: 12, border: `1px solid ${BD}`, overflow: "hidden" }}>
+            {/* Method 1 — recommended */}
+            <div style={{ padding: "14px 16px", background: "rgba(0,200,150,0.05)", borderBottom: `1px solid ${BD}` }}>
+              <p style={{ margin: "0 0 10px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: N }}>
+                ✅ Easiest way — Google Business Profile
+              </p>
+              <ol style={{ margin: 0, paddingLeft: 18, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#374151", lineHeight: 1.8 }}>
+                <li>Go to <a href="https://business.google.com" target="_blank" rel="noreferrer" style={{ color: G, fontWeight: 600 }}>business.google.com</a> and sign in</li>
+                <li>Select your business (if you manage more than one)</li>
+                <li>On the Home tab, find the <strong>&ldquo;Get more reviews&rdquo;</strong> card</li>
+                <li>Click <strong>&ldquo;Share review form&rdquo;</strong> or <strong>&ldquo;Ask for reviews&rdquo;</strong></li>
+                <li>Copy the short link that appears and paste it above</li>
+              </ol>
+            </div>
+            {/* Method 2 — via Google Search */}
+            <div style={{ padding: "14px 16px", background: "#F9FAFB" }}>
+              <p style={{ margin: "0 0 10px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, color: N }}>
+                🔍 Alternative — Google Search
+              </p>
+              <ol style={{ margin: 0, paddingLeft: 18, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#374151", lineHeight: 1.8 }}>
+                <li>Search for your exact business name on Google</li>
+                <li>Find your business panel on the right (or top on mobile)</li>
+                <li>Click the <strong>star rating</strong> or <strong>&ldquo;reviews&rdquo;</strong> link in the panel</li>
+                <li>Copy the URL from your browser&apos;s address bar and paste it above</li>
+              </ol>
+            </div>
           </div>
           <p style={{ margin: "8px 0 0", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF" }}>
-            Not sure how to find it? Email us at <a href="mailto:support@vomni.io" style={{ color: G }}>support@vomni.io</a> and we&apos;ll send it to you.
+            Still can&apos;t find it? Email us at <a href="mailto:support@vomni.io" style={{ color: G }}>support@vomni.io</a> and we&apos;ll find it for you.
           </p>
           {googleError && <p style={{ margin: "8px 0 0", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#EF4444" }}>{googleError}</p>}
         </div>
@@ -1074,19 +1096,33 @@ export default function OnboardingPage() {
 
   async function advance(nextStep: number, patch: Record<string, unknown> = {}) {
     setSaving(true);
-    const { error } = await db
-      .from("businesses")
-      .update({ ...patch, onboarding_step: nextStep })
-      .eq("id", bizId);
-    if (error) {
-      console.error("[onboarding] advance() failed — step:", nextStep, "patch:", patch, "error:", error.message);
-      // Don't advance the step if the save failed — tell the user
-      setSaving(false);
-      alert(`Sorry, something went wrong saving your details. Please try again.\n\nError: ${error.message}`);
-      return;
+    let currentPatch: Record<string, unknown> = { ...patch, onboarding_step: nextStep };
+    let lastError: string | null = null;
+
+    // Retry up to 5 times, stripping missing columns each time
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const { error } = await db
+        .from("businesses")
+        .update(currentPatch)
+        .eq("id", bizId);
+      if (!error) {
+        setStep(nextStep);
+        setSaving(false);
+        return;
+      }
+      const colMatch = error.message.match(/Could not find the '(\w+)' column/);
+      if (colMatch) {
+        console.warn(`[onboarding] Column '${colMatch[1]}' missing, retrying without it`);
+        delete currentPatch[colMatch[1]];
+        continue;
+      }
+      lastError = error.message;
+      break;
     }
-    setStep(nextStep);
+
+    console.error("[onboarding] advance() failed:", lastError);
     setSaving(false);
+    alert(`Sorry, something went wrong saving your details. Please try again.\n\nError: ${lastError}`);
   }
 
   async function completeStep2() {

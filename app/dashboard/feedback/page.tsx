@@ -92,9 +92,13 @@ function AiReplyBox({ item, businessName, businessType, onSave }: AiReplyBoxProp
     setGenerating(true);
     setError("");
     try {
+      const { data: { session } } = await db.auth.getSession();
       const res = await fetch("/api/ai/feedback-reply", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+        },
         body: JSON.stringify({
           feedbackText: item.feedback_text,
           rating:       item.rating,
@@ -247,10 +251,14 @@ export default function FeedbackPage() {
 
       // Trigger sentiment analysis for items without it
       const needsSentiment = (data as ExtFeedback[]).filter(i => i.feedback_text && !i.sentiment_topic);
+      db.auth.getSession().then(({ data: { session } }) => {
       needsSentiment.forEach(item => {
         fetch("/api/ai/sentiment", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({
             feedback_id:   item.id,
             feedback_text: item.feedback_text,
@@ -265,6 +273,7 @@ export default function FeedbackPage() {
           }
         }).catch(() => { /* silent */ });
       });
+      }); // end getSession
     });
   }, [businessId]);
 

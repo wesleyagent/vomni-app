@@ -172,7 +172,7 @@ export default function AnalyticsPage() {
     Promise.all([
       getAllBookings(businessId),
       db.from("feedback").select("rating").eq("business_id", businessId),
-      db.from("businesses").select("business_type, ai_insights_cache, ai_insights_cached_at, plan, initial_google_rating, current_google_rating, initial_review_count").eq("id", businessId).single(),
+      db.from("businesses").select("business_type, ai_insights_cache, ai_insights_cached_at, plan").eq("id", businessId).single(),
       db.from("rating_snapshots").select("snapshot_date, rating, notes").eq("business_id", businessId).order("snapshot_date", { ascending: true }),
     ]).then(async ([bk, fb, bizRes, snapshotRes]) => {
       setBookings(bk);
@@ -198,9 +198,13 @@ export default function AnalyticsPage() {
           setAiInsights((biz.ai_insights_cache as InsightItem[]).slice(0, 3));
         } else if (bk.length > 0) {
           try {
+            const { data: { session } } = await db.auth.getSession();
             const res = await fetch("/api/ai/insights", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
+              headers: {
+                "Content-Type": "application/json",
+                ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+              },
               body: JSON.stringify({
                 businessName,
                 businessType: biz.business_type ?? "service business",
