@@ -397,36 +397,6 @@ export default function CalendarPage() {
         </div>
       )}
 
-      {/* ── STAFF FILTER PILLS ── */}
-      {staffList.length > 1 && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-          <button
-            onClick={() => setSelectedStaffId(null)}
-            style={{
-              padding: "7px 16px", borderRadius: 9999,
-              background: selectedStaffId === null ? G : "#fff",
-              color: selectedStaffId === null ? "#fff" : SECONDARY,
-              boxShadow: selectedStaffId === null ? "0 2px 8px rgba(0,200,150,0.3)" : "0 1px 3px rgba(0,0,0,0.08)",
-              fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
-              border: selectedStaffId === null ? "none" : `1px solid ${BORDER}`,
-            }}
-          >All Staff</button>
-          {staffList.map((s, idx) => (
-            <button
-              key={s.id}
-              onClick={() => setSelectedStaffId(s.id === selectedStaffId ? null : s.id)}
-              style={{
-                padding: "7px 16px", borderRadius: 9999,
-                background: selectedStaffId === s.id ? STAFF_COLORS[idx % STAFF_COLORS.length] : "#fff",
-                color: selectedStaffId === s.id ? "#fff" : SECONDARY,
-                boxShadow: selectedStaffId === s.id ? `0 2px 8px ${STAFF_COLORS[idx % STAFF_COLORS.length]}44` : "0 1px 3px rgba(0,0,0,0.08)",
-                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
-                border: selectedStaffId === s.id ? "none" : `1px solid ${BORDER}`,
-              }}
-            >{s.name}</button>
-          ))}
-        </div>
-      )}
 
       {loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
@@ -631,6 +601,24 @@ export default function CalendarPage() {
                         {b.service_name}{b.staff_id && staffList.length > 1 ? ` · ${getStaffName(b.staff_id)}` : ""}
                       </div>
                     </div>
+                    <button
+                      onClick={e => {
+                        e.stopPropagation();
+                        const reviewUrl = `${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/review-invite/${ctx?.businessId}`;
+                        const name = b.customer_name ?? "there";
+                        const bName = ctx?.businessName ?? "us";
+                        setReviewModalBooking(b);
+                        setReviewMessage(`Hi ${name}! Thanks for visiting ${bName}. We'd love to hear your feedback — could you leave us a quick Google review? 🌟 ${reviewUrl}`);
+                        setShowQR(false);
+                        setShowReviewModal(true);
+                      }}
+                      style={{
+                        padding: "6px 12px", borderRadius: 9999,
+                        background: `${G}15`, color: G, border: `1px solid ${G}`,
+                        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                        cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
+                      }}
+                    >⭐ Review</button>
                     <span style={{ color: MUTED, fontSize: 18 }}>›</span>
                   </button>
                 );
