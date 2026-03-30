@@ -74,6 +74,14 @@ export default function CalendarPage() {
   const [recurringWeeks, setRecurringWeeks] = useState(4);
   const [recurringInterval, setRecurringInterval] = useState(1);
 
+  // Staff filter
+  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(null);
+
+  // Review invite modal
+  const [showReviewModal, setShowReviewModal] = useState(false);
+  const [reviewModalBooking, setReviewModalBooking] = useState<CalendarBooking | null>(null);
+  const [reviewLinkCopied, setReviewLinkCopied] = useState(false);
+
   // Swipe detection
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
@@ -250,6 +258,11 @@ export default function CalendarPage() {
   const currentDateStr = formatDateStr(currentDate);
   const isToday = currentDateStr === todayStr;
 
+  // Filtered bookings based on selected staff
+  const filteredBookings = selectedStaffId
+    ? bookings.filter(b => b.staff_id === selectedStaffId)
+    : bookings;
+
   // Build 28-day strip centred on today
   const dateStripDays = Array.from({ length: 28 }, (_, i) => {
     const d = new Date();
@@ -381,6 +394,37 @@ export default function CalendarPage() {
         </div>
       )}
 
+      {/* ── STAFF FILTER PILLS ── */}
+      {staffList.length > 1 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          <button
+            onClick={() => setSelectedStaffId(null)}
+            style={{
+              padding: "7px 16px", borderRadius: 9999,
+              background: selectedStaffId === null ? G : "#fff",
+              color: selectedStaffId === null ? "#fff" : SECONDARY,
+              boxShadow: selectedStaffId === null ? "0 2px 8px rgba(0,200,150,0.3)" : "0 1px 3px rgba(0,0,0,0.08)",
+              fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
+              border: selectedStaffId === null ? "none" : `1px solid ${BORDER}`,
+            }}
+          >All Staff</button>
+          {staffList.map((s, idx) => (
+            <button
+              key={s.id}
+              onClick={() => setSelectedStaffId(s.id === selectedStaffId ? null : s.id)}
+              style={{
+                padding: "7px 16px", borderRadius: 9999,
+                background: selectedStaffId === s.id ? STAFF_COLORS[idx % STAFF_COLORS.length] : "#fff",
+                color: selectedStaffId === s.id ? "#fff" : SECONDARY,
+                boxShadow: selectedStaffId === s.id ? `0 2px 8px ${STAFF_COLORS[idx % STAFF_COLORS.length]}44` : "0 1px 3px rgba(0,0,0,0.08)",
+                fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                border: selectedStaffId === s.id ? "none" : `1px solid ${BORDER}`,
+              }}
+            >{s.name}</button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div style={{ display: "flex", justifyContent: "center", padding: 80 }}>
           <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
@@ -394,7 +438,7 @@ export default function CalendarPage() {
               onTouchEnd={onTouchEnd}
               style={{ userSelect: "none" }}
             >
-              {bookings.length === 0 ? (
+              {filteredBookings.length === 0 ? (
                 <div style={{
                   background: "#fff", borderRadius: 16, border: `1px solid ${BORDER}`,
                   padding: "60px 24px", textAlign: "center",
@@ -409,7 +453,7 @@ export default function CalendarPage() {
                 </div>
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  {bookings.map(b => {
+                  {filteredBookings.map(b => {
                     const status = (b.status ?? "confirmed") as BookingStatus;
                     const label = BOOKING_STATUS_LABELS[status] ?? BOOKING_STATUS_LABELS.confirmed;
                     const staffColor = getStaffColor(b.staff_id);
@@ -492,7 +536,7 @@ export default function CalendarPage() {
               <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8 }}>
                 {days.map((d, i) => {
                   const ds = formatDateStr(d);
-                  const dayBookings = bookings.filter(b => b.appointment_at?.substring(0, 10) === ds);
+                  const dayBookings = filteredBookings.filter(b => b.appointment_at?.substring(0, 10) === ds);
                   const isDayToday = ds === todayStr;
                   return (
                     <div key={i} style={{
@@ -544,7 +588,7 @@ export default function CalendarPage() {
           {/* ── UPCOMING LIST ── */}
           {view === "upcoming" && (
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {bookings.filter(b => b.status === "confirmed").length === 0 ? (
+              {filteredBookings.filter(b => b.status === "confirmed").length === 0 ? (
                 <div style={{
                   background: "#fff", borderRadius: 16, border: `1px solid ${BORDER}`,
                   padding: 60, textAlign: "center",
@@ -552,7 +596,7 @@ export default function CalendarPage() {
                   <div style={{ fontSize: 40, marginBottom: 12 }}>📅</div>
                   <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: MUTED }}>No upcoming appointments</p>
                 </div>
-              ) : bookings.filter(b => b.status === "confirmed").map(b => {
+              ) : filteredBookings.filter(b => b.status === "confirmed").map(b => {
                 const time = b.appointment_at?.substring(11, 16) ?? "";
                 const dateStr = b.appointment_at?.substring(0, 10) ?? "";
                 const dateObj = new Date(dateStr + "T00:00:00");
@@ -781,6 +825,98 @@ export default function CalendarPage() {
                   {BOOKING_STATUS_LABELS[(selectedBooking.status as BookingStatus)]?.en ?? selectedBooking.status}
                 </div>
               )}
+
+              {/* Review Invite button — shown for completed bookings */}
+              {selectedBooking.status === "completed" && (
+                <button
+                  onClick={() => { setReviewModalBooking(selectedBooking); setShowReviewModal(true); }}
+                  style={{
+                    marginTop: 12, width: "100%", padding: "13px 16px", borderRadius: 12,
+                    background: `${G}15`, color: G, border: `1.5px solid ${G}`,
+                    fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                  }}
+                >
+                  <span>⭐</span> Send Review Invite
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* ── REVIEW INVITE MODAL ── */}
+      {showReviewModal && reviewModalBooking && (
+        <>
+          <div
+            onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); }}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 60 }}
+          />
+          <div style={{
+            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+            width: "min(380px, calc(100vw - 32px))", background: "#fff", borderRadius: 20,
+            boxShadow: "0 20px 60px rgba(0,0,0,0.25)", zIndex: 70, padding: 28,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, margin: 0 }}>
+                Review Invite
+              </h3>
+              <button
+                onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); }}
+                style={{ background: GREY, border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+              >
+                <X size={16} color={SECONDARY} />
+              </button>
+            </div>
+
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: SECONDARY, marginBottom: 20 }}>
+              <strong style={{ color: N }}>{reviewModalBooking.customer_name}</strong>
+              {reviewModalBooking.service_name && <> &mdash; {reviewModalBooking.service_name}</>}
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
+              <div style={{
+                background: GREY, borderRadius: 12, padding: 16, display: "inline-block",
+                border: `1px solid ${BORDER}`,
+              }}>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/review-invite/${ctx?.businessId}`)}`}
+                  alt="QR Code"
+                  width={180}
+                  height={180}
+                  style={{ display: "block", borderRadius: 6 }}
+                />
+              </div>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED, margin: "12px 0 0", textAlign: "center" }}>
+                Show this QR code to the customer or copy the link below
+              </p>
+            </div>
+
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => {
+                  const link = `${typeof window !== "undefined" ? window.location.origin : ""}/review-invite/${ctx?.businessId}`;
+                  navigator.clipboard.writeText(link);
+                  setReviewLinkCopied(true);
+                  setTimeout(() => setReviewLinkCopied(false), 2000);
+                }}
+                style={{
+                  flex: 1, padding: "11px 14px", borderRadius: 10,
+                  background: reviewLinkCopied ? `${G}15` : GREY, color: reviewLinkCopied ? G : N,
+                  border: `1px solid ${reviewLinkCopied ? G : BORDER}`,
+                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                {reviewLinkCopied ? "Copied!" : "Copy Link"}
+              </button>
+              <button
+                onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); }}
+                style={{
+                  padding: "11px 18px", borderRadius: 10,
+                  background: N, color: "#fff", border: "none",
+                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >Close</button>
             </div>
           </div>
         </>

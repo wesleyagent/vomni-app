@@ -170,16 +170,18 @@ export default function BookingSettingsPage() {
     const bizId = ctx!.businessId;
 
     if (editingSvcId) {
-      await db.from("services").update({
+      const { error } = await db.from("services").update({
         name: svcName, name_he: svcNameHe || null,
         duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
       }).eq("id", editingSvcId);
+      if (error) { console.error(error); alert("Failed to save: " + error.message); setSaving(false); return; }
     } else {
-      await db.from("services").insert({
+      const { error } = await db.from("services").insert({
         business_id: bizId, name: svcName, name_he: svcNameHe || null,
         duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
         display_order: services.length, is_active: true,
       });
+      if (error) { console.error(error); alert("Failed to save: " + error.message); setSaving(false); return; }
     }
 
     setShowServiceForm(false);
@@ -198,11 +200,12 @@ export default function BookingSettingsPage() {
     setSaving(true);
     const bizId = ctx!.businessId;
 
-    const { data: newStaff } = await db.from("staff").insert({
+    const { data: newStaff, error: staffErr } = await db.from("staff").insert({
       business_id: bizId, name: staffName, name_he: staffNameHe || null,
       email: staffEmail || null, phone: staffPhone || null,
       is_active: true, display_order: staffList.length,
     }).select("id").single();
+    if (staffErr) { console.error(staffErr); alert("Failed to save: " + staffErr.message); setSaving(false); return; }
 
     // Assign all services to this staff member
     if (newStaff) {

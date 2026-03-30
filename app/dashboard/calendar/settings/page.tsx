@@ -80,12 +80,14 @@ export default function CalendarSettingsPage() {
   const [saved, setSaved] = useState<string | null>(null);
 
   // Handle OAuth redirect result
+  const [showGoogleNotConfigured, setShowGoogleNotConfigured] = useState(false);
+
   useEffect(() => {
     const connected = searchParams.get("connected");
     const error     = searchParams.get("error");
     if (connected === "true") flash("Google Calendar connected successfully!");
     if (error === "cancelled")        flash("Google Calendar connection cancelled.");
-    if (error === "not_configured")   flash("Google Calendar is not configured yet. Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET to your environment.");
+    if (error === "not_configured")   setShowGoogleNotConfigured(true);
     if (error === "token_exchange")   flash("Failed to connect Google Calendar. Please try again.");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -123,6 +125,10 @@ export default function CalendarSettingsPage() {
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleEmail, setGoogleEmail] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+
+  // Outlook Calendar
+  const [outlookConnected, setOutlookConnected] = useState(false);
+  const [outlookEmail, setOutlookEmail] = useState<string | null>(null);
 
   useEffect(() => {
     if (ctx?.businessId) loadAll();
@@ -168,6 +174,19 @@ export default function CalendarSettingsPage() {
       .eq("business_id", bizId)
       .order("start_time");
     setBlockedTimes((blockedData ?? []) as BlockedTime[]);
+
+    // Calendar connections (Outlook, etc.)
+    const { data: calConns } = await db.from("calendar_connections")
+      .select("provider, email, is_active")
+      .eq("business_id", bizId)
+      .eq("is_active", true);
+    if (calConns) {
+      const outlook = calConns.find((c: { provider: string; email: string; is_active: boolean }) => c.provider === "outlook");
+      if (outlook) {
+        setOutlookConnected(true);
+        setOutlookEmail(outlook.email ?? null);
+      }
+    }
 
     setLoading(false);
   }
@@ -216,9 +235,11 @@ export default function CalendarSettingsPage() {
       display_order: editSvcId ? services.find(s => s.id === editSvcId)?.display_order ?? 0 : services.length,
     };
     if (editSvcId) {
-      await db.from("services").update(payload).eq("id", editSvcId);
+      const { error } = await db.from("services").update(payload).eq("id", editSvcId);
+      if (error) { console.error(error); flash("Failed to save: " + error.message); setSavingSvc(false); return; }
     } else {
-      await db.from("services").insert(payload);
+      const { error } = await db.from("services").insert(payload);
+      if (error) { console.error(error); flash("Failed to save: " + error.message); setSavingSvc(false); return; }
     }
     setShowSvcForm(false);
     setSavingSvc(false);
@@ -241,7 +262,7 @@ export default function CalendarSettingsPage() {
   async function saveBlock() {
     setSavingBlock(true);
     const bizId = ctx!.businessId;
-    await db.from("blocked_times").insert({
+    const { error } = await db.from("blocked_times").insert({
       business_id: bizId,
       label: blockLabel || null,
       start_time: blockStartTime,
@@ -250,6 +271,7 @@ export default function CalendarSettingsPage() {
       day_of_week: blockIsRecurring ? blockDayOfWeek : null,
       date: !blockIsRecurring && blockDate ? blockDate : null,
     });
+    if (error) { console.error(error); flash("Failed to save: " + error.message); setSavingBlock(false); return; }
     setShowBlockForm(false);
     setBlockLabel("Lunch break"); setBlockStartTime("13:00"); setBlockEndTime("14:00");
     setBlockIsRecurring(true); setBlockDayOfWeek(null); setBlockDate("");
@@ -395,6 +417,38 @@ export default function CalendarSettingsPage() {
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: SECONDARY, margin: "0 0 20px", lineHeight: 1.6 }}>
           Connect your Google Calendar so your availability is automatically blocked when you have other events. New bookings also appear directly in your calendar.
         </p>
+
+        {showGoogleNotConfigured && (
+          <div style={{
+            background: "#FEF9C3", border: "1.5px solid #FDE047", borderRadius: 12,
+            padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 12,
+          }}>
+            <div style={{ fontSize: 22, flexShrink: 0 }}>⚙️</div>
+            <div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 700, color: "#713F12", marginBottom: 6 }}>
+                Google OAuth not configured
+              </div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#713F12", lineHeight: 1.6 }}>
+                To enable Google Calendar sync, your server environment needs two variables:
+              </div>
+              <div style={{
+                fontFamily: "'Courier New', monospace", fontSize: 12, background: "#FFFDE7",
+                border: "1px solid #FDE047", borderRadius: 8, padding: "10px 14px", marginTop: 10, color: "#713F12",
+              }}>
+                GOOGLE_CLIENT_ID=your-client-id<br/>
+                GOOGLE_CLIENT_SECRET=your-client-secret
+              </div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#713F12", marginTop: 10, lineHeight: 1.6 }}>
+                Create these at{" "}
+                <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noreferrer"
+                  style={{ color: "#713F12", fontWeight: 600 }}>
+                  console.cloud.google.com
+                </a>, then add them to your Vercel project environment variables and redeploy.
+              </div>
+            </div>
+          </div>
+        )}
+
         {googleConnected ? (
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "#F0FDF4", borderRadius: 12, padding: "16px 20px", border: "1px solid #BBF7D0" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -441,6 +495,80 @@ export default function CalendarSettingsPage() {
             <ExternalLink size={16} color={MUTED} />
           </button>
         )}
+      </SectionCard>
+
+      {/* ── 2b. OTHER CALENDAR INTEGRATIONS ── */}
+      <SectionCard title="Other Calendar Integrations">
+        {/* Microsoft Outlook */}
+        {outlookConnected ? (
+          <div style={{
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            background: "#EFF6FF", borderRadius: 12, padding: "16px 20px",
+            border: "1px solid #BFDBFE", marginBottom: 12,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#0078D4", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <rect width="24" height="24" rx="4" fill="#0078D4"/>
+                  <path d="M4 8h16v8a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" fill="#fff" opacity=".9"/>
+                  <path d="M4 8l8 5 8-5" stroke="#0078D4" strokeWidth="1.5"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "#1E3A5F" }}>Outlook Connected</div>
+                {outlookEmail && <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#2563EB", marginTop: 2 }}>{outlookEmail}</div>}
+              </div>
+            </div>
+            <span style={{
+              padding: "4px 12px", borderRadius: 9999, background: "#DBEAFE",
+              fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#1D4ED8",
+            }}>Active</span>
+          </div>
+        ) : (
+          <button
+            onClick={() => { window.location.href = `/api/calendar/outlook/connect?business_id=${ctx?.businessId}`; }}
+            style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "14px 20px", borderRadius: 12, border: `1px solid ${BORDER}`,
+              background: "#fff", cursor: "pointer", width: "100%",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.06)", marginBottom: 12,
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <rect width="24" height="24" rx="4" fill="#0078D4"/>
+              <path d="M4 8h16v8a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" fill="#fff" opacity=".9"/>
+              <path d="M4 8l8 5 8-5" stroke="#0078D4" strokeWidth="1.5"/>
+            </svg>
+            <div style={{ textAlign: "left", flex: 1 }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: N }}>Connect Microsoft Outlook</div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED, marginTop: 2 }}>Sync with your Outlook or Office 365 calendar</div>
+            </div>
+            <ExternalLink size={16} color={MUTED} />
+          </button>
+        )}
+
+        {/* Apple iCloud — coming soon */}
+        <div style={{
+          display: "flex", alignItems: "center", gap: 12,
+          padding: "14px 20px", borderRadius: 12, border: `1px dashed ${BORDER}`,
+          background: GREY, opacity: 0.8,
+        }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2z" fill="#555"/>
+            <path d="M15.5 8.5c-.8-1-2-1.5-3.5-1.5-2.5 0-4.5 2-4.5 4.5s2 4.5 4.5 4.5c1 0 2-.3 2.8-.9" stroke="#fff" strokeWidth="1.5" fill="none"/>
+            <path d="M12 6c1 0 2 .5 2.5 1.5" stroke="#fff" strokeWidth="1.5" fill="none"/>
+          </svg>
+          <div style={{ textAlign: "left", flex: 1 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: SECONDARY }}>Apple iCloud Calendar</div>
+              <span style={{
+                padding: "2px 8px", borderRadius: 9999, background: "#E5E7EB",
+                fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: SECONDARY,
+              }}>Coming soon</span>
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED, marginTop: 2 }}>Sync with your iCloud calendar</div>
+          </div>
+        </div>
       </SectionCard>
 
       {/* ── 3. WORKING HOURS ── */}
