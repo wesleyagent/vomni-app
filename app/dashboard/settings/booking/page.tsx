@@ -14,8 +14,8 @@ const SECONDARY = "#6B7280";
 const MUTED = "#9CA3AF";
 const GREY = "#F7F8FA";
 
-interface ServiceRow { id: string; name: string; name_he: string; duration_minutes: number; price: number | null; display_order: number; }
-interface StaffRow { id: string; name: string; name_he: string; email: string; phone: string; is_active: boolean; }
+interface ServiceRow { id: string; name: string; name_he: string | null; duration_minutes: number; price: number | null; display_order: number; }
+interface StaffRow { id: string; name: string; name_he: string | null; email: string | null; phone: string | null; is_active: boolean; }
 interface HourRow { id: string; day_of_week: number; is_open: boolean; open_time: string; close_time: string; }
 
 const DEFAULT_HOURS = [
@@ -168,31 +168,46 @@ export default function BookingSettingsPage() {
     if (!svcName) return;
     setSaving(true);
     const bizId = ctx!.businessId;
+    const payload = {
+      business_id: bizId, name: svcName, name_he: svcNameHe || null,
+      duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
+    };
 
     if (editingSvcId) {
+      // Optimistic update
+      setServices(prev => prev.map(s => s.id === editingSvcId ? { ...s, ...payload } : s));
       const { error } = await db.from("services").update({
         name: svcName, name_he: svcNameHe || null,
         duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
       }).eq("id", editingSvcId);
-      if (error) { console.error(error); alert("Failed to save: " + error.message); setSaving(false); return; }
+      if (error) { console.error(error); alert("Failed to save: " + error.message); setSaving(false); loadData(); return; }
     } else {
-      const { error } = await db.from("services").insert({
+      const tempId = "temp-" + Date.now();
+      const newSvc: ServiceRow = { id: tempId, name: svcName, name_he: svcNameHe || null, duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null, display_order: services.length };
+      setServices(prev => [...prev, newSvc]);
+      const { data, error } = await db.from("services").insert({
         business_id: bizId, name: svcName, name_he: svcNameHe || null,
         duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
         display_order: services.length, is_active: true,
-      });
-      if (error) { console.error(error); alert("Failed to save: " + error.message); setSaving(false); return; }
+      }).select("id").single();
+      if (error) {
+        console.error(error); alert("Failed to save: " + error.message);
+        setServices(prev => prev.filter(s => s.id !== tempId));
+        setSaving(false); return;
+      } else {
+        setServices(prev => prev.map(s => s.id === tempId ? { ...s, id: data.id } : s));
+      }
     }
 
     setShowServiceForm(false);
     setSvcName(""); setSvcNameHe(""); setSvcDuration(30); setSvcPrice(""); setEditingSvcId(null);
     setSaving(false);
-    loadData();
   }
 
   async function deleteService(id: string) {
+    // Optimistic update
+    setServices(prev => prev.filter(s => s.id !== id));
     await db.from("services").update({ is_active: false }).eq("id", id);
-    loadData();
   }
 
   async function addStaff() {
@@ -200,12 +215,28 @@ export default function BookingSettingsPage() {
     setSaving(true);
     const bizId = ctx!.businessId;
 
+    const tempId = "temp-" + Date.now();
+    const newStaffRow: StaffRow = {
+      id: tempId, name: staffName, name_he: staffNameHe || null,
+      email: staffEmail || null, phone: staffPhone || null,
+      is_active: true,
+    };
+    setStaffList(prev => [...prev, newStaffRow]);
+
     const { data: newStaff, error: staffErr } = await db.from("staff").insert({
       business_id: bizId, name: staffName, name_he: staffNameHe || null,
       email: staffEmail || null, phone: staffPhone || null,
       is_active: true, display_order: staffList.length,
     }).select("id").single();
-    if (staffErr) { console.error(staffErr); alert("Failed to save: " + staffErr.message); setSaving(false); return; }
+
+    if (staffErr) {
+      console.error(staffErr); alert("Failed to save: " + staffErr.message);
+      setStaffList(prev => prev.filter(s => s.id !== tempId));
+      setSaving(false); return;
+    }
+
+    // Replace temp id with real id
+    setStaffList(prev => prev.map(s => s.id === tempId ? { ...s, id: newStaff.id } : s));
 
     // Assign all services to this staff member
     if (newStaff) {
@@ -218,12 +249,12 @@ export default function BookingSettingsPage() {
     setShowStaffForm(false);
     setStaffName(""); setStaffNameHe(""); setStaffEmail(""); setStaffPhone("");
     setSaving(false);
-    loadData();
   }
 
   async function removeStaff(id: string) {
+    // Optimistic update
+    setStaffList(prev => prev.filter(s => s.id !== id));
     await db.from("staff").update({ is_active: false }).eq("id", id);
-    loadData();
   }
 
   async function checkSlugAvailability(value?: string) {

@@ -17,6 +17,7 @@ const N = "#0A0F1E";
 const TABS = [
   { href: "/dashboard",           label: "Overview",       key: "overview"  },
   { href: "/dashboard/calendar",  label: "Calendar",       key: "calendar"  },
+  { href: "/dashboard/team",      label: "Team",           key: "team"      },
   { href: "/dashboard/customers", label: "Customers",      key: "customers" },
   { href: "/dashboard/feedback",  label: "Feedback Inbox", key: "feedback"  },
   { href: "/dashboard/analytics", label: "Analytics",      key: "analytics" },

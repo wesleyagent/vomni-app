@@ -81,6 +81,9 @@ export default function CalendarPage() {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewModalBooking, setReviewModalBooking] = useState<CalendarBooking | null>(null);
   const [reviewLinkCopied, setReviewLinkCopied] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState("");
+  const [showQR, setShowQR] = useState(false);
+  const [businessName, setBusinessName] = useState("");
 
   // Swipe detection
   const touchStartX = useRef<number>(0);
@@ -826,10 +829,18 @@ export default function CalendarPage() {
                 </div>
               )}
 
-              {/* Review Invite button — shown for completed bookings */}
-              {selectedBooking.status === "completed" && (
+              {/* Review Invite button — shown for completed or confirmed bookings */}
+              {(selectedBooking.status === "completed" || selectedBooking.status === "confirmed") && (
                 <button
-                  onClick={() => { setReviewModalBooking(selectedBooking); setShowReviewModal(true); }}
+                  onClick={() => {
+                    setReviewModalBooking(selectedBooking);
+                    const reviewUrl = `${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/review-invite/${ctx?.businessId}`;
+                    const name = selectedBooking.customer_name ?? "there";
+                    const bName = ctx?.businessName ?? "us";
+                    setReviewMessage(`Hi ${name}! Thanks for visiting ${bName}. We'd love to hear your feedback — could you leave us a quick Google review? 🌟 ${reviewUrl}`);
+                    setShowQR(false);
+                    setShowReviewModal(true);
+                  }}
                   style={{
                     marginTop: 12, width: "100%", padding: "13px 16px", borderRadius: 12,
                     background: `${G}15`, color: G, border: `1.5px solid ${G}`,
@@ -837,7 +848,7 @@ export default function CalendarPage() {
                     display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
                   }}
                 >
-                  <span>⭐</span> Send Review Invite
+                  <span>⭐</span> Request Review
                 </button>
               )}
             </div>
@@ -849,75 +860,121 @@ export default function CalendarPage() {
       {showReviewModal && reviewModalBooking && (
         <>
           <div
-            onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); }}
+            onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); }}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 60 }}
           />
           <div style={{
             position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-            width: "min(380px, calc(100vw - 32px))", background: "#fff", borderRadius: 20,
+            width: "min(400px, calc(100vw - 32px))", background: "#fff", borderRadius: 20,
             boxShadow: "0 20px 60px rgba(0,0,0,0.25)", zIndex: 70, padding: 28,
+            maxHeight: "90vh", overflowY: "auto",
           }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
               <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, margin: 0 }}>
-                Review Invite
+                Request a Review
               </h3>
               <button
-                onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); }}
+                onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); }}
                 style={{ background: GREY, border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <X size={16} color={SECONDARY} />
               </button>
             </div>
 
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: SECONDARY, marginBottom: 20 }}>
-              <strong style={{ color: N }}>{reviewModalBooking.customer_name}</strong>
-              {reviewModalBooking.service_name && <> &mdash; {reviewModalBooking.service_name}</>}
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: SECONDARY, marginBottom: 16 }}>
+              For <strong style={{ color: N }}>{reviewModalBooking.customer_name}</strong>
+              {reviewModalBooking.service_name && <> — {reviewModalBooking.service_name}</>}
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 24 }}>
-              <div style={{
-                background: GREY, borderRadius: 12, padding: 16, display: "inline-block",
-                border: `1px solid ${BORDER}`,
-              }}>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : ""}/review-invite/${ctx?.businessId}`)}`}
-                  alt="QR Code"
-                  width={180}
-                  height={180}
-                  style={{ display: "block", borderRadius: 6 }}
-                />
-              </div>
-              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED, margin: "12px 0 0", textAlign: "center" }}>
-                Show this QR code to the customer or copy the link below
-              </p>
+            {/* Editable message */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Message</label>
+              <textarea
+                value={reviewMessage}
+                onChange={e => setReviewMessage(e.target.value)}
+                rows={4}
+                style={{
+                  width: "100%", padding: "10px 14px", borderRadius: 10,
+                  border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 13,
+                  color: N, outline: "none", resize: "none", boxSizing: "border-box",
+                  lineHeight: 1.6,
+                }}
+              />
             </div>
 
-            <div style={{ display: "flex", gap: 8 }}>
+            {/* Action buttons */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
               <button
                 onClick={() => {
-                  const link = `${typeof window !== "undefined" ? window.location.origin : ""}/review-invite/${ctx?.businessId}`;
-                  navigator.clipboard.writeText(link);
+                  const reviewUrl = `${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/review-invite/${ctx?.businessId}`;
+                  navigator.clipboard.writeText(reviewUrl);
                   setReviewLinkCopied(true);
                   setTimeout(() => setReviewLinkCopied(false), 2000);
                 }}
                 style={{
-                  flex: 1, padding: "11px 14px", borderRadius: 10,
-                  background: reviewLinkCopied ? `${G}15` : GREY, color: reviewLinkCopied ? G : N,
+                  flex: 1, padding: "10px 8px", borderRadius: 10,
+                  background: reviewLinkCopied ? `${G}15` : GREY,
+                  color: reviewLinkCopied ? G : N,
                   border: `1px solid ${reviewLinkCopied ? G : BORDER}`,
-                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer",
                 }}
               >
-                {reviewLinkCopied ? "Copied!" : "Copy Link"}
+                {reviewLinkCopied ? "✓ Copied!" : "📋 Copy Link"}
               </button>
+              {reviewModalBooking.customer_phone && (
+                <a
+                  href={`https://wa.me/${reviewModalBooking.customer_phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(reviewMessage)}`}
+                  target="_blank" rel="noreferrer"
+                  style={{
+                    flex: 1, padding: "10px 8px", borderRadius: 10,
+                    background: "#25D36620", color: "#128C7E",
+                    border: "1px solid #25D36640",
+                    fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                    textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center",
+                  }}
+                >
+                  💬 WhatsApp
+                </a>
+              )}
               <button
-                onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); }}
+                onClick={() => setShowQR(q => !q)}
                 style={{
-                  padding: "11px 18px", borderRadius: 10,
-                  background: N, color: "#fff", border: "none",
-                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  flex: 1, padding: "10px 8px", borderRadius: 10,
+                  background: showQR ? `${N}10` : GREY, color: N,
+                  border: `1px solid ${showQR ? N : BORDER}`,
+                  fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer",
                 }}
-              >Close</button>
+              >
+                🔗 QR Code
+              </button>
             </div>
+
+            {/* QR Code */}
+            {showQR && (
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
+                <div style={{ background: GREY, borderRadius: 12, padding: 16, border: `1px solid ${BORDER}` }}>
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(`${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/review-invite/${ctx?.businessId}`)}`}
+                    alt="QR Code"
+                    width={180}
+                    height={180}
+                    style={{ display: "block", borderRadius: 6 }}
+                  />
+                </div>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED, margin: "10px 0 0", textAlign: "center" }}>
+                  Show this to the customer to scan
+                </p>
+              </div>
+            )}
+
+            <button
+              onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); }}
+              style={{
+                width: "100%", padding: "13px 16px", borderRadius: 12,
+                background: G, color: "#fff", border: "none",
+                fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer",
+              }}
+            >Done</button>
           </div>
         </>
       )}
