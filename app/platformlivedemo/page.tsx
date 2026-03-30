@@ -689,23 +689,6 @@ export default function PlatformLiveDemo() {
           </div>
         </IPhone>
 
-        {!presenterMode && (
-          <p
-            className="demo-hint"
-            style={{
-              fontFamily: "Inter, sans-serif",
-              fontSize: 13,
-              color: "rgba(255,255,255,0.35)",
-              fontStyle: "italic",
-              margin: 0,
-              textAlign: "center",
-              maxWidth: 420,
-            }}
-          >
-            This is what unhappy customers see - Google is still available but
-            they naturally choose to message you privately first
-          </p>
-        )}
 
         {!presenterMode && (
           <button
