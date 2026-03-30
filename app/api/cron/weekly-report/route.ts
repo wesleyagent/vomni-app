@@ -169,7 +169,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Missing env vars" }, { status: 500 });
   }
 
-  const admin = createClient(url, serviceKey);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const admin: any = createClient(url, serviceKey);
 
   // Find all active businesses
   const { data: businesses } = await admin

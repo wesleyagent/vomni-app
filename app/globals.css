@@ -247,24 +247,10 @@ h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; }
   .burger-btn.open .bar:nth-child(2) { opacity: 0; transform: scaleX(0); }
   .burger-btn.open .bar:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 
-  /* ─────────────────── STICKY BOTTOM CTA ─────────────────── */
+  /* ─────────────────── STICKY BOTTOM CTA — hidden on mobile ─────────────────── */
   .sticky-mobile-cta {
-    display: block !important;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 998;
-    background: white;
-    padding: 12px 20px 20px;
-    padding-bottom: calc(20px + env(safe-area-inset-bottom));
-    border-top: 1px solid var(--border);
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
-    transform: translateY(100%);
-    transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    display: none !important;
   }
-  .sticky-mobile-cta.visible   { transform: translateY(0); }
-  .sticky-mobile-cta.dismissed { display: none !important; }
   .sticky-mobile-cta-inner {
     display: flex;
     align-items: center;
@@ -373,10 +359,28 @@ h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; }
   }
 
   /* ─────────────────── PAIN SECTION ─────────────────── */
+  .pain-two-col {
+    grid-template-columns: 1fr !important;
+    gap: 32px !important;
+  }
+  .pain-two-col > div { text-align: center !important; }
   .pain-headline {
     font-size: clamp(28px, 7vw, 40px) !important;
     text-align: center !important;
   }
+  .pain-section .container > .pain-two-col > div:first-child p {
+    text-align: center !important;
+  }
+  .pain-section .container > .pain-two-col > div:first-child button {
+    width: 100% !important;
+    min-height: 56px !important;
+  }
+  .pain-stat {
+    flex-direction: column !important;
+    text-align: center !important;
+    gap: 12px !important;
+  }
+  .pain-stat p { text-align: center !important; }
   /* Pain grid: horizontal carousel on all mobile (not just ≤480px) */
   .pain-grid {
     display: flex !important;
@@ -645,6 +649,14 @@ h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; }
     gap: 6px;
     margin-top: 16px;
   }
+
+  /* ─────────────────── TRANSLATE WIDGET ─────────────────── */
+  .wt-lang-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .wt-panel, .wt-panel * {
+    max-width: none !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -657,4 +669,19 @@ h1, h2, h3, h4 { font-family: 'Bricolage Grotesque', sans-serif; }
   .section-headline   { font-size: clamp(26px, 7vw, 32px) !important; }
   .final-cta-headline { font-size: clamp(26px, 7vw, 32px) !important; }
   .book-demo-headline { font-size: clamp(26px, 7vw, 32px) !important; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   TRANSLATE WIDGET — mobile sizing
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .wt-trigger-btn {
+    width: 56px !important;
+    height: 56px !important;
+    font-size: 24px !important;
+  }
+  .wt-container {
+    bottom: 16px !important;
+    left: 16px !important;
+  }
 }

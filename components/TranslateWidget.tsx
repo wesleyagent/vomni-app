@@ -2,8 +2,27 @@
 
 import { useState, useEffect, useRef } from "react";
 
-interface Currency { code: string; symbol: string; name: string; flag: string; rate: number; }
 interface Language { code: string; name: string; flag: string; }
+interface Currency { code: string; symbol: string; name: string; flag: string; rate: number; }
+
+const LANGUAGES: Language[] = [
+  { code: "en",    flag: "🇬🇧", name: "English"    },
+  { code: "iw",    flag: "🇮🇱", name: "עברית"      },
+  { code: "ar",    flag: "🇸🇦", name: "العربية"    },
+  { code: "zh-CN", flag: "🇨🇳", name: "中文"       },
+  { code: "fr",    flag: "🇫🇷", name: "Français"   },
+  { code: "de",    flag: "🇩🇪", name: "Deutsch"    },
+  { code: "hi",    flag: "🇮🇳", name: "हिन्दी"     },
+  { code: "it",    flag: "🇮🇹", name: "Italiano"   },
+  { code: "ja",    flag: "🇯🇵", name: "日本語"     },
+  { code: "ko",    flag: "🇰🇷", name: "한국어"     },
+  { code: "pt",    flag: "🇧🇷", name: "Português"  },
+  { code: "ru",    flag: "🇷🇺", name: "Русский"    },
+  { code: "es",    flag: "🇪🇸", name: "Español"    },
+  { code: "tr",    flag: "🇹🇷", name: "Türkçe"     },
+  { code: "uk",    flag: "🇺🇦", name: "Українська" },
+  { code: "nl",    flag: "🇳🇱", name: "Nederlands"  },
+];
 
 const CURRENCIES: Currency[] = [
   { code: "GBP", symbol: "£",   flag: "🇬🇧", name: "British Pound",      rate: 1      },
@@ -20,186 +39,148 @@ const CURRENCIES: Currency[] = [
   { code: "NGN", symbol: "₦",   flag: "🇳🇬", name: "Nigerian Naira",     rate: 2095   },
 ];
 
-const LANGUAGES: Language[] = [
-  { code: "en",    flag: "🇬🇧", name: "English"    },
-  { code: "ar",    flag: "🇸🇦", name: "العربية"    },
-  { code: "zh-CN", flag: "🇨🇳", name: "中文"       },
-  { code: "fr",    flag: "🇫🇷", name: "Français"   },
-  { code: "de",    flag: "🇩🇪", name: "Deutsch"    },
-  { code: "iw",    flag: "🇮🇱", name: "עברית"      },
-  { code: "hi",    flag: "🇮🇳", name: "हिन्दी"     },
-  { code: "it",    flag: "🇮🇹", name: "Italiano"   },
-  { code: "ja",    flag: "🇯🇵", name: "日本語"     },
-  { code: "ko",    flag: "🇰🇷", name: "한국어"     },
-  { code: "pt",    flag: "🇧🇷", name: "Português"  },
-  { code: "ru",    flag: "🇷🇺", name: "Русский"    },
-  { code: "es",    flag: "🇪🇸", name: "Español"    },
-  { code: "tr",    flag: "🇹🇷", name: "Türkçe"     },
-  { code: "uk",    flag: "🇺🇦", name: "Українська" },
-  { code: "nl",    flag: "🇳🇱", name: "Nederlands"  },
-];
-
-type Snap = { node: Text; original: string };
-
-// Read current googtrans cookie to detect active language on load
-function readGoogTransCookie(): string {
-  if (typeof document === "undefined") return "en";
-  const m = document.cookie.match(/googtrans=\/en\/([^;]+)/);
-  return m ? m[1] : "en";
+/** Clears every variant of the googtrans cookie */
+function clearGoogTransCookie() {
+  const h = window.location.hostname;
+  const exp = "expires=Thu, 01 Jan 1970 00:00:01 UTC; path=/;";
+  document.cookie = `googtrans=; ${exp}`;
+  document.cookie = `googtrans=; ${exp} domain=${h};`;
+  document.cookie = `googtrans=; ${exp} domain=.${h};`;
 }
 
+type PriceSnap = { node: Text; original: string };
+
 export default function TranslateWidget() {
-  const [open, setOpen]           = useState(false);
-  const [tab, setTab]             = useState<"lang" | "currency">("lang");
-  const [activeLang, setActiveLang]       = useState("en");
+  const [open,           setOpen]           = useState(false);
+  const [tab,            setTab]            = useState<"lang" | "currency">("lang");
+  const [activeLang,     setActiveLang]     = useState("en");
   const [activeCurrency, setActiveCurrency] = useState("GBP");
   const panelRef  = useRef<HTMLDivElement>(null);
-  const snaps     = useRef<Snap[]>([]);
-  const snapDone  = useRef(false);
+  const priceSnaps = useRef<PriceSnap[]>([]);
 
-  // Detect active language from cookie on mount, then trigger GT if non-English
+  // ── On mount: ensure page always starts in English ───────────────────────
   useEffect(() => {
-    const lang = readGoogTransCookie();
-    setActiveLang(lang);
-    if (lang !== "en") {
-      // After GT initialises, programmatically set the language via the hidden combo
-      let attempts = 0;
-      const tryTrigger = () => {
-        const sel = document.querySelector(".goog-te-combo") as HTMLSelectElement | null;
-        if (sel) {
-          sel.value = lang;
-          sel.dispatchEvent(new Event("change", { bubbles: true }));
-          return;
-        }
-        if (attempts++ < 20) setTimeout(tryTrigger, 300);
-      };
-      setTimeout(tryTrigger, 800);
-    }
+    clearGoogTransCookie();
+    setActiveLang("en");
   }, []);
 
-  // Load Google Translate script — mount element OFF-SCREEN (not display:none)
-  // so GT can initialise properly
+  // ── Load Google Translate (hidden, no auto-display) ───────────────────────
   useEffect(() => {
     (window as any).googleTranslateElementInit = () => {
       try {
         new (window as any).google.translate.TranslateElement(
-          { pageLanguage: "en", autoDisplay: false, layout: 0 },
+          { pageLanguage: "en", autoDisplay: false },
           "gt_root"
         );
       } catch { /* ignore */ }
     };
     if (!document.getElementById("gt_script")) {
-      const s = document.createElement("script");
-      s.id  = "gt_script";
-      s.src = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
-      s.async = true;
+      const s  = document.createElement("script");
+      s.id     = "gt_script";
+      s.src    = "//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit";
+      s.async  = true;
       document.head.appendChild(s);
     }
   }, []);
 
-  // Snapshot all £ text nodes — retry until found or 5s timeout
+  // ── Snapshot £ price nodes for currency conversion ────────────────────────
   useEffect(() => {
-    let attempts = 0;
+    let tries = 0;
     function collect() {
-      const found: Snap[] = [];
+      const found: PriceSnap[] = [];
       function walk(n: Node) {
         if (n.nodeType === Node.TEXT_NODE) {
-          const t = n.textContent || "";
+          const t = n.textContent ?? "";
           if (/£\d/.test(t)) {
             const p = (n as Text).parentElement;
-            if (p && !["SCRIPT","STYLE","NOSCRIPT","TEXTAREA"].includes(p.tagName)) {
+            if (p && !["SCRIPT","STYLE","NOSCRIPT","TEXTAREA"].includes(p.tagName))
               found.push({ node: n as Text, original: t });
-            }
           }
-        } else {
-          n.childNodes.forEach(walk);
-        }
+        } else { n.childNodes.forEach(walk); }
       }
       walk(document.body);
-      if (found.length > 0 || attempts >= 10) {
-        snaps.current = found;
-        snapDone.current = true;
-      } else {
-        attempts++;
-        setTimeout(collect, 500);
-      }
+      if (found.length > 0 || tries++ >= 10) priceSnaps.current = found;
+      else setTimeout(collect, 500);
     }
     setTimeout(collect, 1800);
   }, []);
 
-  // ── Language: try programmatic trigger first; fall back to cookie + reload ──
+  // ── Close on outside click ────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node))
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  // ── Language switcher ─────────────────────────────────────────────────────
   function applyLanguage(code: string) {
     setActiveLang(code);
     setOpen(false);
 
-    // Always persist the choice in cookie so it survives page navigations
     if (code === "en") {
-      document.cookie = "googtrans=; expires=Thu, 01 Jan 1970 00:00:01 UTC; path=/;";
-      document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:01 UTC; path=/; domain=.${window.location.hostname}`;
-    } else {
-      document.cookie = `googtrans=/en/${code}; path=/`;
-      document.cookie = `googtrans=/en/${code}; path=/; domain=.${window.location.hostname}`;
+      clearGoogTransCookie();
+      // Restore notranslate so auto-translation is blocked again
+      document.documentElement.setAttribute("translate", "no");
+      window.location.reload();
+      return;
     }
 
-    // Try to trigger GT's hidden combo select (no-reload path)
-    const sel = document.querySelector(".goog-te-combo") as HTMLSelectElement | null;
-    if (sel) {
-      sel.value = code === "en" ? "" : code;
-      sel.dispatchEvent(new Event("change", { bubbles: true }));
-      return; // done — no page reload needed
-    }
+    // Allow GT to translate — remove the notranslate block
+    document.documentElement.removeAttribute("translate");
 
-    // GT combo not ready yet — reload so cookie kicks in on next load
-    window.location.reload();
+    // Set the googtrans cookie then trigger GT
+    const h = window.location.hostname;
+    document.cookie = `googtrans=/en/${code}; path=/`;
+    document.cookie = `googtrans=/en/${code}; path=/; domain=.${h}`;
+
+    const tryTrigger = (attempts = 0) => {
+      const sel = document.querySelector(".goog-te-combo") as HTMLSelectElement | null;
+      if (sel) {
+        sel.value = code;
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      } else if (attempts < 20) {
+        setTimeout(() => tryTrigger(attempts + 1), 300);
+      }
+    };
+    setTimeout(() => tryTrigger(), 500);
   }
 
-  // ── Currency: walk text nodes and replace £ amounts ──────────────────────
+  // ── Currency converter ────────────────────────────────────────────────────
   function applyCurrency(code: string) {
     setActiveCurrency(code);
     setOpen(false);
     const target = CURRENCIES.find(c => c.code === code)!;
 
-    // Re-snapshot if not done yet
-    if (!snapDone.current) {
-      const found: Snap[] = [];
+    // Re-collect if needed
+    if (priceSnaps.current.length === 0) {
+      const found: PriceSnap[] = [];
       function walk(n: Node) {
         if (n.nodeType === Node.TEXT_NODE) {
-          const t = n.textContent || "";
+          const t = n.textContent ?? "";
           if (/£\d/.test(t)) {
             const p = (n as Text).parentElement;
-            if (p && !["SCRIPT","STYLE","NOSCRIPT","TEXTAREA"].includes(p.tagName)) {
+            if (p && !["SCRIPT","STYLE","NOSCRIPT","TEXTAREA"].includes(p.tagName))
               found.push({ node: n as Text, original: t });
-            }
           }
         } else { n.childNodes.forEach(walk); }
       }
       walk(document.body);
-      snaps.current = found;
+      priceSnaps.current = found;
     }
 
-    snaps.current.forEach(({ node, original }) => {
+    priceSnaps.current.forEach(({ node, original }) => {
       if (!document.body.contains(node)) return;
-      if (code === "GBP") {
-        node.textContent = original;
-        return;
-      }
+      if (code === "GBP") { node.textContent = original; return; }
       node.textContent = original.replace(/£([\d,]+)/g, (_, raw) => {
         const gbp = parseInt(raw.replace(/,/g, ""), 10);
-        const converted = Math.round(gbp * target.rate);
-        return target.symbol + " " + converted.toLocaleString();
+        return target.symbol + " " + Math.round(gbp * target.rate).toLocaleString();
       });
     });
   }
-
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const h = (e: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", h);
-    return () => document.removeEventListener("mousedown", h);
-  }, [open]);
 
   const curLang = LANGUAGES.find(l => l.code === activeLang) ?? LANGUAGES[0];
   const curCurr = CURRENCIES.find(c => c.code === activeCurrency) ?? CURRENCIES[0];
@@ -207,42 +188,38 @@ export default function TranslateWidget() {
 
   return (
     <>
-      {/* GT mount — off-screen but NOT display:none so GT can initialise */}
+      {/* Hidden GT mount point */}
       <div id="gt_root" style={{ position: "fixed", left: -9999, top: -9999, width: 1, height: 1, overflow: "hidden", pointerEvents: "none" }} />
 
-      {/* Suppress Google Translate toolbar while keeping the element alive */}
+      {/* Suppress GT toolbar */}
       <style>{`
-        .goog-te-banner-frame, .goog-te-ftab-float,
-        #goog-gt-tt, .goog-te-balloon-frame { display: none !important; }
+        .goog-te-banner-frame, #goog-gt-tt, .goog-te-balloon-frame,
+        .goog-te-ftab-float, .skiptranslate > iframe { display: none !important; }
         body { top: 0 !important; }
-        .skiptranslate > iframe { display: none !important; }
-        @keyframes wtPanelIn {
-          from { opacity:0; transform:translateY(8px) scale(0.97); }
-          to   { opacity:1; transform:translateY(0)   scale(1); }
-        }
+        @keyframes wtIn { from { opacity:0; transform:translateY(8px) scale(0.97); } to { opacity:1; transform:none; } }
       `}</style>
 
-      <div ref={panelRef} style={{ position:"fixed", bottom:24, left:24, zIndex:9000 }}>
+      <div ref={panelRef} className="wt-container" style={{ position: "fixed", bottom: 24, left: 24, zIndex: 9000 }}>
 
         {/* Panel */}
         {open && (
-          <div style={{
-            position:"absolute", bottom:62, left:0, width:340,
-            background:"#fff", borderRadius:20,
-            boxShadow:"0 24px 80px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)",
-            border:"1px solid #E5E7EB", overflow:"hidden",
-            animation:"wtPanelIn 0.18s ease",
+          <div className="wt-panel" style={{
+            position: "absolute", bottom: 62, left: 0,
+            width: "min(340px, calc(100vw - 48px))",
+            background: "#fff", borderRadius: 20,
+            boxShadow: "0 24px 80px rgba(0,0,0,0.18), 0 4px 16px rgba(0,0,0,0.08)",
+            border: "1px solid #E5E7EB", overflow: "hidden",
+            animation: "wtIn 0.18s ease",
           }}>
-
             {/* Tabs */}
-            <div style={{ display:"flex", borderBottom:"1px solid #E5E7EB" }}>
-              {(["lang","currency"] as const).map(t => (
+            <div style={{ display: "flex", borderBottom: "1px solid #E5E7EB" }}>
+              {(["lang", "currency"] as const).map(t => (
                 <button key={t} onClick={() => setTab(t)} style={{
-                  flex:1, padding:"13px 0", background:"none", border:"none",
-                  fontFamily:"Inter,sans-serif", fontSize:13, fontWeight:600,
-                  cursor:"pointer", color: tab===t ? "#0A0F1E" : "#9CA3AF",
-                  borderBottom:`2px solid ${tab===t ? "#00C896" : "transparent"}`,
-                  transition:"all 0.15s",
+                  flex: 1, padding: "13px 0", background: "none", border: "none",
+                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", color: tab === t ? "#0A0F1E" : "#9CA3AF",
+                  borderBottom: `2px solid ${tab === t ? "#00C896" : "transparent"}`,
+                  transition: "all 0.15s",
                 }}>
                   {t === "lang" ? "🌐  Language" : "💱  Currency"}
                 </button>
@@ -251,22 +228,22 @@ export default function TranslateWidget() {
 
             {/* Language grid */}
             {tab === "lang" && (
-              <div style={{ padding:12, maxHeight:340, overflowY:"auto" }}>
-                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:6 }}>
+              <div style={{ padding: 12, maxHeight: 340, overflowY: "auto" }}>
+                <div className="wt-lang-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
                   {LANGUAGES.map(lang => {
                     const active = activeLang === lang.code;
                     return (
                       <button key={lang.code} onClick={() => applyLanguage(lang.code)} style={{
-                        display:"flex", alignItems:"center", gap:8,
-                        padding:"9px 11px", borderRadius:10,
-                        border:`1px solid ${active ? "#00C896" : "#E5E7EB"}`,
+                        display: "flex", alignItems: "center", gap: 8,
+                        padding: "9px 11px", borderRadius: 10,
+                        border: `1px solid ${active ? "#00C896" : "#E5E7EB"}`,
                         background: active ? "rgba(0,200,150,0.07)" : "#fff",
-                        fontFamily:"Inter,sans-serif", fontSize:13,
+                        fontFamily: "Inter, sans-serif", fontSize: 13,
                         color: active ? "#00C896" : "#111827",
                         fontWeight: active ? 600 : 400,
-                        cursor:"pointer", textAlign:"left", transition:"all 0.12s",
+                        cursor: "pointer", textAlign: "left", transition: "all 0.12s",
                       }}>
-                        <span style={{ fontSize:17 }}>{lang.flag}</span>
+                        <span style={{ fontSize: 17 }}>{lang.flag}</span>
                         {lang.name}
                       </button>
                     );
@@ -277,29 +254,29 @@ export default function TranslateWidget() {
 
             {/* Currency list */}
             {tab === "currency" && (
-              <div style={{ padding:12, maxHeight:340, overflowY:"auto" }}>
-                <p style={{ fontFamily:"Inter,sans-serif", fontSize:11, color:"#9CA3AF", margin:"0 0 8px 4px", letterSpacing:"0.06em" }}>
+              <div style={{ padding: 12, maxHeight: 340, overflowY: "auto" }}>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9CA3AF", margin: "0 0 8px 4px", letterSpacing: "0.06em" }}>
                   APPROXIMATE RATES · UPDATED MONTHLY
                 </p>
-                <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                   {CURRENCIES.map(curr => {
                     const active = activeCurrency === curr.code;
                     return (
                       <button key={curr.code} onClick={() => applyCurrency(curr.code)} style={{
-                        display:"flex", alignItems:"center", justifyContent:"space-between",
-                        padding:"9px 12px", borderRadius:10,
-                        border:`1px solid ${active ? "#00C896" : "#E5E7EB"}`,
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "9px 12px", borderRadius: 10,
+                        border: `1px solid ${active ? "#00C896" : "#E5E7EB"}`,
                         background: active ? "rgba(0,200,150,0.07)" : "#fff",
-                        fontFamily:"Inter,sans-serif", fontSize:13,
+                        fontFamily: "Inter, sans-serif", fontSize: 13,
                         color: active ? "#00C896" : "#111827",
                         fontWeight: active ? 600 : 400,
-                        cursor:"pointer", textAlign:"left", transition:"all 0.12s",
+                        cursor: "pointer", textAlign: "left", transition: "all 0.12s",
                       }}>
-                        <span style={{ display:"flex", alignItems:"center", gap:8 }}>
-                          <span style={{ fontSize:16 }}>{curr.flag}</span>
+                        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                          <span style={{ fontSize: 16 }}>{curr.flag}</span>
                           {curr.name}
                         </span>
-                        <span style={{ fontFamily:"Inter,sans-serif", fontSize:12, color: active?"#00C896":"#9CA3AF", fontWeight:600 }}>
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: active ? "#00C896" : "#9CA3AF", fontWeight: 600 }}>
                           {curr.symbol}
                         </span>
                       </button>
@@ -315,14 +292,15 @@ export default function TranslateWidget() {
         <button
           onClick={() => setOpen(o => !o)}
           title="Language & Currency"
+          className="wt-trigger-btn"
           style={{
-            width:50, height:50, borderRadius:"50%",
+            width: 50, height: 50, borderRadius: "50%",
             background: open ? "#00C896" : "#0A0F1E",
-            border:"none", cursor:"pointer",
-            display:"flex", alignItems:"center", justifyContent:"center",
-            boxShadow:"0 4px 20px rgba(0,0,0,0.22)",
-            transition:"background 0.2s, transform 0.15s",
-            fontSize:20,
+            border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.22)",
+            transition: "background 0.2s, transform 0.15s",
+            fontSize: 20,
           }}
           onMouseEnter={e => (e.currentTarget.style.transform = "scale(1.08)")}
           onMouseLeave={e => (e.currentTarget.style.transform = "scale(1)")}
@@ -330,14 +308,14 @@ export default function TranslateWidget() {
           {open ? "✕" : "🌐"}
         </button>
 
-        {/* Badge showing active state */}
+        {/* Active state badge */}
         {nonDefault && !open && (
           <div style={{
-            position:"absolute", top:-6, right:-6,
-            background:"#00C896", borderRadius:9999,
-            padding:"2px 7px", fontSize:10, fontWeight:700,
-            fontFamily:"Inter,sans-serif", color:"#fff",
-            pointerEvents:"none", whiteSpace:"nowrap",
+            position: "absolute", top: -6, right: -6,
+            background: "#00C896", borderRadius: 9999,
+            padding: "2px 7px", fontSize: 10, fontWeight: 700,
+            fontFamily: "Inter, sans-serif", color: "#fff",
+            pointerEvents: "none", whiteSpace: "nowrap",
           }}>
             {activeLang !== "en" ? curLang.flag : ""}
             {activeCurrency !== "GBP" ? " " + curCurr.symbol : ""}
