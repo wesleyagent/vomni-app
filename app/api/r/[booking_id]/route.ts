@@ -17,12 +17,25 @@ export async function GET(
 
   const { data: booking, error: bkErr } = await supabaseAdmin
     .from("bookings")
-    .select("id, business_id, customer_name")
+    .select("id, business_id, customer_name, review_status, rating")
     .eq("id", booking_id)
     .single();
 
   if (bkErr || !booking) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+  }
+
+  // ── One-use link: if rating already submitted, return alreadyUsed flag ───
+  const completedStatuses = ["form_submitted", "redirected", "private_feedback",
+    "reviewed_negative", "reviewed_positive", "private_feedback_from_positive"];
+  if (booking.review_status && completedStatuses.includes(booking.review_status)) {
+    // Fetch business name only — no need for full data
+    const { data: biz } = await supabaseAdmin
+      .from("businesses")
+      .select("name")
+      .eq("id", booking.business_id)
+      .single();
+    return NextResponse.json({ alreadyUsed: true, businessName: biz?.name ?? "us" });
   }
 
   // Try with logo_url first; fall back to without it if the column doesn't exist yet

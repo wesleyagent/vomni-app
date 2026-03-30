@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-type Screen = "loading" | "rating" | "google" | "private" | "private_from_positive" | "done";
+type Screen = "loading" | "already_used" | "rating" | "google" | "private" | "private_from_positive" | "done";
 
 type Business = {
   name: string;
@@ -97,6 +97,13 @@ export default function RatingPage() {
         // Debug — check browser console for these values
         console.log("Business data:", biz);
         console.log("Google link:", biz?.google_review_link);
+
+        // One-use link — already rated
+        if (data.alreadyUsed) {
+          setBusiness({ name: data.businessName, google_review_link: null, logo_url: null, owner_name: null, weekly_google_redirects: null, weekly_redirect_cap: null });
+          setScreen("already_used");
+          return;
+        }
 
         if (bk)  setBooking(bk);
         if (biz) setBusiness(biz);
@@ -217,6 +224,20 @@ export default function RatingPage() {
           {screen === "loading" && (
             <div style={{ display: "flex", justifyContent: "center", paddingTop: 100 }}>
               <div style={{ width: 36, height: 36, border: "3px solid #E5E7EB", borderTopColor: G, borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            </div>
+          )}
+
+          {/* ── ALREADY USED ── */}
+          {screen === "already_used" && (
+            <div style={card}>
+              <BizHeader business={business} bizName={bizName} />
+              <Tick />
+              <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 12px" }}>
+                Thanks for visiting {bizName}
+              </h1>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 15, color: "#6B7280", textAlign: "center", margin: 0, lineHeight: 1.6 }}>
+                You&apos;ve already shared your feedback — we really appreciate it.
+              </p>
             </div>
           )}
 
