@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { encryptTokenPayload } from "@/lib/google-calendar";
 
 const CLIENT_ID    = process.env.GOOGLE_CLIENT_ID    ?? "";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? "";
@@ -71,8 +72,8 @@ export async function GET(req: NextRequest) {
     // Non-fatal — we just won't show the email
   }
 
-  // Persist tokens — store as JSON in calendar_token column
-  const tokenPayload = JSON.stringify({
+  // Persist tokens — stored encrypted with AES-256-GCM
+  const tokenPayload = encryptTokenPayload({
     access_token:  tokens.access_token,
     refresh_token: tokens.refresh_token ?? null,
     expires_at:    Date.now() + tokens.expires_in * 1000,

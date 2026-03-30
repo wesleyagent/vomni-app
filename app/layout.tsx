@@ -19,6 +19,19 @@ export default function RootLayout({
     <html lang="en" translate="no">
       <head>
         <meta name="google" content="notranslate" />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#00C896" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Vomni" />
+        {/* Service worker registration */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+              navigator.serviceWorker.register('/sw.js').catch(function() {});
+            });
+          }
+        ` }} />
         {/* Clear googtrans cookie before anything loads — prevents auto Hebrew translation */}
         <script dangerouslySetInnerHTML={{ __html: `
           (function() {

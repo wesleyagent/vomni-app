@@ -222,7 +222,22 @@ export default function CalendarPage() {
       };
     });
 
-    await db.from("bookings").insert(rows);
+    // Atomic transaction via RPC — rolls back all if any slot is taken
+    const { data: rpcResult, error: rpcErr } = await db.rpc("insert_recurring_bookings", {
+      p_rows: rows as unknown as Record<string, unknown>[],
+    });
+
+    if (rpcErr || (rpcResult && !(rpcResult as { success: boolean }).success)) {
+      const errMsg = (rpcResult as { error?: string } | null)?.error;
+      alert(
+        errMsg === "slot_taken"
+          ? "One or more of these slots was just taken. Please choose different times."
+          : "Failed to create bookings. Please try again."
+      );
+      setSaving(false);
+      return;
+    }
+
     setShowNewForm(false);
     setNewName(""); setNewPhone(""); setNewServiceId(""); setNewStaffId("");
     setNewDate(""); setNewTime(""); setNewNotes("");

@@ -769,6 +769,22 @@ function Step4BookingSetup({
 
     const supabase = (await import("@/lib/db")).db;
 
+    // Resolve slug — check for collisions, append -2, -3 etc. if taken
+    const baseSlug = slug.toLowerCase().replace(/[^a-z0-9-]/g, "");
+    let finalSlug = baseSlug;
+    let attempt = 1;
+    while (true) {
+      const { data: existing } = await supabase
+        .from("businesses")
+        .select("id")
+        .eq("booking_slug", finalSlug)
+        .neq("id", bizId)
+        .maybeSingle();
+      if (!existing) break;
+      attempt++;
+      finalSlug = `${baseSlug}-${attempt}`;
+    }
+
     // Save business hours
     await supabase.from("business_hours").delete().eq("business_id", bizId);
     await supabase.from("business_hours").insert(
@@ -783,12 +799,12 @@ function Step4BookingSetup({
 
     // Set slug and enable booking
     await supabase.from("businesses").update({
-      booking_slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+      booking_slug: finalSlug,
       booking_enabled: true,
     }).eq("id", bizId);
 
     setLocalSaving(false);
-    onComplete(slug.toLowerCase().replace(/[^a-z0-9-]/g, ""));
+    onComplete(finalSlug);
   }
 
   return (

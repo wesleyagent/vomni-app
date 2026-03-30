@@ -299,6 +299,24 @@ export default function CalendarSettingsPage() {
     <div style={{ padding: "32px 40px", maxWidth: 860, margin: "0 auto" }}>
       <style>{`@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');`}</style>
 
+      {/* Google Calendar disconnected banner */}
+      {searchParams.get("error") === "gcal_disconnected" && (
+        <div style={{
+          background: "#FEF3C7", border: "1.5px solid #FCD34D", borderRadius: 12,
+          padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "flex-start", gap: 12,
+        }}>
+          <span style={{ fontSize: 20 }}>⚠️</span>
+          <div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "#92400E" }}>
+              Google Calendar disconnected
+            </div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#92400E", marginTop: 4, lineHeight: 1.5 }}>
+              Your Google Calendar connection expired or was revoked. Please reconnect to keep your availability accurate.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {saved && (
         <div style={{

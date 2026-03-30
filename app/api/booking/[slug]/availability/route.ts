@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { computeAvailableSlots } from "@/lib/booking-utils";
 import { getAccessToken, getGoogleBusyTimes } from "@/lib/google-calendar";
+import { getUnifiedBusyTimes } from "@/lib/calendar-providers";
 import type { BusinessHours, StaffHours } from "@/types/booking";
 
 // GET /api/booking/[slug]/availability?date=YYYY-MM-DD&service_id=X&staff_id=X
@@ -65,10 +66,10 @@ export async function GET(
     .eq("business_id", business.id);
   const bizHours = (bizHoursRaw ?? []) as BusinessHours[];
 
-  // Resolve Google Calendar access token (if connected)
+  // Resolve legacy Google Calendar token (if connected directly)
   let gcalToken: string | null = null;
   if (business.google_calendar_connected && business.calendar_token) {
-    gcalToken = await getAccessToken(business.calendar_token as string);
+    gcalToken = await getAccessToken(business.calendar_token as string, business.id);
   }
 
   // ── Smart shortcuts ────────────────────────────────────────────────────────
@@ -119,13 +120,14 @@ async function getSlotsForDate(
   timezone: string,
   gcalToken: string | null = null,
 ): Promise<string[]> {
-  // Fetch Google Calendar busy times for this date (if connected)
-  const gcalBusy = gcalToken
-    ? await getGoogleBusyTimes(gcalToken, date, timezone)
-    : [];
+  // Fetch busy times from ALL connected calendars (legacy Google + multi-provider)
+  const [gcalBusy, unifiedBusy] = await Promise.all([
+    gcalToken ? getGoogleBusyTimes(gcalToken, date, timezone, businessId) : [],
+    getUnifiedBusyTimes(businessId, staffId === "any" ? null : staffId, date, timezone),
+  ]);
 
-  // Convert busy periods to the same format as blocked_times
-  const gcalBlocked = gcalBusy.map(b => ({ start_at: b.start, end_at: b.end }));
+  // Convert to the same format as blocked_times
+  const gcalBlocked = [...gcalBusy, ...unifiedBusy].map(b => ({ start_at: b.start, end_at: b.end }));
 
   if (!staffId || staffId === "any") {
     const { data: staffServicesRaw } = await supabaseAdmin

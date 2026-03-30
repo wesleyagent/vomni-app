@@ -1,9 +1,40 @@
 /**
  * Google Calendar helpers — token refresh + freeBusy query
+ * Tokens are stored encrypted with AES-256-GCM (see lib/crypto.ts).
  */
+
+import { encrypt, decrypt } from "@/lib/crypto";
+import { supabaseAdmin }    from "@/lib/supabase-admin";
 
 const CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     ?? "";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? "";
+
+// ── In-memory freeBusy cache ──────────────────────────────────────────────────
+// Key: `${businessId}:${dateStr}` — 60 second TTL per slot
+const freeBusyCache = new Map<string, { value: { start: string; end: string }[]; expiresAt: number }>();
+
+function getCached(key: string): { start: string; end: string }[] | null {
+  const entry = freeBusyCache.get(key);
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) { freeBusyCache.delete(key); return null; }
+  return entry.value;
+}
+
+function setCache(key: string, value: { start: string; end: string }[]) {
+  freeBusyCache.set(key, { value, expiresAt: Date.now() + 60_000 });
+}
+
+// Cleanup stale cache every 5 minutes
+if (typeof setInterval !== "undefined") {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of freeBusyCache.entries()) {
+      if (now > v.expiresAt) freeBusyCache.delete(k);
+    }
+  }, 5 * 60 * 1000);
+}
+
+// ── Token types ───────────────────────────────────────────────────────────────
 
 interface StoredTokens {
   access_token:  string;
@@ -12,26 +43,62 @@ interface StoredTokens {
   email:         string | null;
 }
 
+// ── Encryption helpers ────────────────────────────────────────────────────────
+
 /**
- * Given the raw calendar_token JSON string stored in the DB,
- * return a valid access token (refreshes automatically if expired).
+ * Encrypt token JSON before writing to DB.
  */
-export async function getAccessToken(tokenJson: string): Promise<string | null> {
-  let tokens: StoredTokens;
+export function encryptTokenPayload(tokens: StoredTokens): string {
+  return encrypt(JSON.stringify(tokens));
+}
+
+/**
+ * Decrypt token JSON read from DB.
+ * Returns null if decryption fails (wrong key / corrupted data).
+ */
+export function decryptTokenPayload(ciphertext: string): StoredTokens | null {
+  // Backwards-compat: if value is valid plain JSON (pre-encryption), parse directly
   try {
-    tokens = JSON.parse(tokenJson) as StoredTokens;
+    const plain = JSON.parse(ciphertext) as StoredTokens;
+    if (plain.access_token) return plain;
+  } catch { /* not plain JSON — try decryption */ }
+
+  const decrypted = decrypt(ciphertext);
+  if (!decrypted) return null;
+  try {
+    return JSON.parse(decrypted) as StoredTokens;
   } catch {
     return null;
   }
+}
 
-  // If token is still valid (with 60s buffer), return it directly
+// ── Access token retrieval ────────────────────────────────────────────────────
+
+/**
+ * Given the encrypted calendar_token string stored in the DB,
+ * return a valid access token (refreshes automatically if expired).
+ *
+ * If refresh fails, marks the business as disconnected in the DB
+ * so the dashboard can surface a reconnect prompt.
+ */
+export async function getAccessToken(
+  tokenCiphertext: string,
+  businessId?: string,
+): Promise<string | null> {
+  const tokens = decryptTokenPayload(tokenCiphertext);
+  if (!tokens) return null;
+
+  // Token still valid (60s buffer)
   if (tokens.access_token && tokens.expires_at > Date.now() + 60_000) {
     return tokens.access_token;
   }
 
-  if (!tokens.refresh_token) return null;
+  if (!tokens.refresh_token) {
+    if (businessId) await markDisconnected(businessId);
+    return null;
+  }
 
-  // Refresh the access token
+  // Attempt token refresh
   const res = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -43,32 +110,67 @@ export async function getAccessToken(tokenJson: string): Promise<string | null> 
     }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    console.warn("[gcal] Token refresh failed — disconnecting business", businessId);
+    if (businessId) await markDisconnected(businessId);
+    return null;
+  }
 
   const data = await res.json() as { access_token: string; expires_in: number };
-  // Note: we don't persist the new token here to avoid write amplification.
-  // The short lifetime means this adds at most one refresh call per cold start.
-  return data.access_token ?? null;
+  if (!data.access_token) {
+    if (businessId) await markDisconnected(businessId);
+    return null;
+  }
+
+  // Persist refreshed token (encrypted) back to DB
+  const updated: StoredTokens = {
+    ...tokens,
+    access_token: data.access_token,
+    expires_at:   Date.now() + data.expires_in * 1000,
+  };
+
+  if (businessId) {
+    await supabaseAdmin
+      .from("businesses")
+      .update({ calendar_token: encryptTokenPayload(updated) })
+      .eq("id", businessId);
+  }
+
+  return data.access_token;
 }
+
+async function markDisconnected(businessId: string) {
+  await supabaseAdmin
+    .from("businesses")
+    .update({ google_calendar_connected: false })
+    .eq("id", businessId);
+}
+
+// ── freeBusy query ────────────────────────────────────────────────────────────
 
 /**
  * Query Google Calendar freeBusy API for the given date.
- * Returns an array of busy periods as { start: string, end: string } in ISO format.
+ * Results are cached in memory for 60 seconds per (businessId, date) key.
  */
 export async function getGoogleBusyTimes(
   accessToken: string,
-  dateStr: string,   // "YYYY-MM-DD"
+  dateStr: string,        // "YYYY-MM-DD"
   timezone: string,
+  businessId?: string,    // used as cache key prefix
 ): Promise<{ start: string; end: string }[]> {
-  const timeMin = `${dateStr}T00:00:00`;
-  const timeMax = `${dateStr}T23:59:59`;
+  const cacheKey = `${businessId ?? "anon"}:${dateStr}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
 
-  // Convert to UTC ISO strings for the API (freeBusy accepts local times with tz param)
+  // Build time range in local midnight → midnight UTC
+  const dayStart = new Date(`${dateStr}T00:00:00`);
+  const dayEnd   = new Date(`${dateStr}T23:59:59`);
+
   const body = {
-    timeMin: new Date(`${timeMin}Z`).toISOString(),
-    timeMax: new Date(`${timeMax}Z`).toISOString(),
+    timeMin:  dayStart.toISOString(),
+    timeMax:  dayEnd.toISOString(),
     timeZone: timezone,
-    items: [{ id: "primary" }],
+    items:    [{ id: "primary" }],
   };
 
   try {
@@ -81,15 +183,20 @@ export async function getGoogleBusyTimes(
       body: JSON.stringify(body),
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      setCache(cacheKey, []);
+      return [];
+    }
 
     const data = await res.json() as {
       calendars: Record<string, { busy: { start: string; end: string }[] }>;
     };
 
-    const primary = data.calendars?.["primary"];
-    return primary?.busy ?? [];
+    const busy = data.calendars?.["primary"]?.busy ?? [];
+    setCache(cacheKey, busy);
+    return busy;
   } catch {
+    setCache(cacheKey, []);
     return [];
   }
 }

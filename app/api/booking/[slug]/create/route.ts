@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generateCancellationToken, computeAvailableSlots } from "@/lib/booking-utils";
 import { sendBookingMessage } from "@/lib/twilio";
 import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
+import { sendEmail, buildOwnerNotifyHtml, buildCustomerConfirmHtml } from "@/lib/email";
 import type { BusinessHours, StaffHours } from "@/types/booking";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
@@ -211,8 +212,14 @@ export async function POST(
     .eq("id", bookingId)
     .single();
 
-  // Send confirmation SMS
   const cancelUrl = `${APP_URL}/cancel/${cancellationToken}`;
+  const icalUrl   = `${APP_URL}/api/booking/${slug}/calendar.ics?booking_id=${bookingId}`;
+  const apptLabel = new Date(`${appointmentAt}Z`).toLocaleString("en-GB", {
+    weekday: "short", year: "numeric", month: "short", day: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  });
+
+  // Send confirmation SMS
   const smsBody = staffName
     ? `Hi ${safeFirst}! ✅ Your ${service.name} appointment at ${business.name} is confirmed for ${date} at ${time} with ${staffName}. Cancel: ${cancelUrl}`
     : `Hi ${safeFirst}! ✅ Your ${service.name} appointment at ${business.name} is confirmed for ${date} at ${time}. Cancel: ${cancelUrl}`;
@@ -222,83 +229,56 @@ export async function POST(
     await supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId);
   }
 
-  // Email notification to business owner
-  const notifyEmail = (business as typeof business & { notification_email?: string; owner_email?: string }).notification_email
-    ?? (business as typeof business & { notification_email?: string; owner_email?: string }).owner_email;
+  const biz = business as typeof business & {
+    notification_email?: string;
+    owner_email?: string;
+    address?: string | null;
+  };
+  const notifyEmail = biz.notification_email ?? biz.owner_email;
 
-  if (notifyEmail && process.env.RESEND_API_KEY) {
-    const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
-    const cancelUrl = `${appUrl}/cancel/${cancellationToken}`;
-    const apptDate  = new Date(appointmentAt).toLocaleString("en-GB", {
-      weekday: "short", year: "numeric", month: "short", day: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
-
-    const emailHtml = `<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#F7F8FA;font-family:Inter,sans-serif;">
-<table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F8FA;padding:40px 20px;">
-  <tr><td align="center">
-  <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-    <tr><td style="background:#0A0F1E;padding:20px 32px;">
-      <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;color:#fff;">vomni</span>
-    </td></tr>
-    <tr><td style="padding:28px 32px;">
-      <div style="background:#00C896;border-radius:12px;padding:20px 24px;margin-bottom:24px;">
-        <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:18px;font-weight:800;color:#fff;margin-bottom:4px;">New Booking!</div>
-        <div style="font-family:Inter,sans-serif;font-size:14px;color:rgba(255,255,255,0.85);">${apptDate}</div>
-      </div>
-      <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;margin-bottom:24px;">
-        ${[
-          ["Customer",  customerName],
-          ["Phone",     safePhone],
-          ["Service",   service.name],
-          ["Duration",  `${service.duration_minutes} min`],
-          ...(service.price ? [["Price", `£${service.price}`]] : []),
-          ...(staffName ? [["Staff", staffName]] : []),
-          ...(safeNotes ? [["Notes", safeNotes]] : []),
-        ].map(([label, val], i) => `
-        <tr style="background:${i % 2 === 0 ? "#F9FAFB" : "#fff"}">
-          <td style="padding:10px 16px;font-family:Inter,sans-serif;font-size:12px;font-weight:600;color:#6B7280;width:110px;">${label}</td>
-          <td style="padding:10px 16px;font-family:Inter,sans-serif;font-size:14px;color:#0A0F1E;">${val}</td>
-        </tr>`).join("")}
-      </table>
-      <div style="text-align:center;margin-bottom:8px;">
-        <a href="${appUrl}/dashboard/calendar" style="display:inline-block;padding:13px 28px;background:#0A0F1E;color:#fff;text-decoration:none;border-radius:9999px;font-size:14px;font-weight:700;font-family:'Bricolage Grotesque',sans-serif;">
-          View in Calendar →
-        </a>
-      </div>
-      <div style="text-align:center;">
-        <a href="${cancelUrl}" style="font-family:Inter,sans-serif;font-size:12px;color:#9CA3AF;text-decoration:none;">Customer cancel link</a>
-      </div>
-    </td></tr>
-    <tr><td style="padding:16px 32px;border-top:1px solid #F0F0F0;text-align:center;">
-      <p style="font-size:12px;color:#D1D5DB;margin:0;font-family:Inter,sans-serif;">
-        <a href="${appUrl}" style="color:#9CA3AF;text-decoration:none;">vomni.io</a>
-        &nbsp;·&nbsp;
-        <a href="mailto:hello@vomni.io" style="color:#9CA3AF;text-decoration:none;">hello@vomni.io</a>
-      </p>
-    </td></tr>
-  </table>
-  </td></tr>
-</table>
-</body>
-</html>`;
-
-    fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization:  `Bearer ${process.env.RESEND_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from:    process.env.RESEND_FROM_ADDRESS ?? "bookings@vomni.app",
-        to:      [notifyEmail],
-        subject: `New booking: ${customerName} — ${service.name} on ${date} at ${time}`,
-        html:    emailHtml,
+  // Email to business owner — logged, non-blocking
+  if (notifyEmail) {
+    sendEmail({
+      to:        notifyEmail,
+      subject:   `New booking: ${customerName} — ${service.name} on ${date} at ${time}`,
+      type:      "booking_owner_notify",
+      bookingId,
+      html: buildOwnerNotifyHtml({
+        customerName,
+        phone:       safePhone,
+        service:     service.name,
+        duration:    service.duration_minutes,
+        price:       service.price ?? null,
+        staffName,
+        notes:       safeNotes,
+        date, time,
+        apptLabel,
+        calendarUrl: `${APP_URL}/dashboard/calendar`,
+        cancelUrl,
       }),
-    }).catch(err => console.error("[booking/create] email notification failed:", err));
+    }).catch(err => console.error("[booking/create] owner email failed:", err));
+  }
+
+  // Confirmation email to customer — if email provided
+  if (email) {
+    sendEmail({
+      to:        email,
+      subject:   `Booking confirmed — ${service.name} at ${business.name}`,
+      type:      "booking_customer_confirm",
+      bookingId,
+      html: buildCustomerConfirmHtml({
+        firstName:    safeFirst,
+        businessName: business.name ?? "your appointment",
+        service:      service.name,
+        duration:     service.duration_minutes,
+        staffName,
+        apptLabel,
+        date, time,
+        icalUrl,
+        cancelUrl,
+        address:      biz.address ?? null,
+      }),
+    }).catch(err => console.error("[booking/create] customer email failed:", err));
   }
 
   // Audit log
