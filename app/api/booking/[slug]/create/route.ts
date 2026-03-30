@@ -289,6 +289,14 @@ export async function POST(
     details: { ip, service: service.name, date, time },
   });
 
+  // Push to Google Calendar (non-blocking)
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
+  fetch(`${appUrl}/api/calendar/google/sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
+  }).catch(err => console.error("[booking/create] google sync failed:", err));
+
   return NextResponse.json({
     booking: {
       id: created?.id ?? bookingId,
