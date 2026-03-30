@@ -92,8 +92,11 @@ export default function PricingPage() {
           <h1 className="pricing-hero-h1" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: "#fff", textAlign: "center", margin: "0 0 16px" }}>
             Simple, honest pricing.
           </h1>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: "rgba(255,255,255,0.5)", textAlign: "center", margin: "0 0 40px" }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: "rgba(255,255,255,0.5)", textAlign: "center", margin: "0 0 16px" }}>
             No setup fees. No long contracts. Cancel whenever.
+          </p>
+          <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: G, textAlign: "center", margin: "0 0 40px" }}>
+            Zero commissions. Zero per-booking fees. Zero hidden costs. Ever.
           </p>
 
           {/* ── Billing toggle ───────────────────────────────────────────── */}
@@ -155,7 +158,7 @@ export default function PricingPage() {
               )}
               <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Review request automation", "Basic dashboard", "Email support"].map(f => (
+                {["Booking system included", "Up to 2 staff members", "Reputation management", "Up to 1 location", "Email support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <circle cx="8" cy="8" r="7" fill="#E5E7EB"/>
@@ -209,7 +212,7 @@ export default function PricingPage() {
               )}
               <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Everything in Starter", "Full dashboard", "AI insights and suggested replies", "Analytics", "Weekly email reports"].map(f => (
+                {["Everything in Starter", "Up to 5 staff members", "Up to 3 locations", "AI insights and suggested replies", "Competitor benchmarking", "Weekly reports", "Priority support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <circle cx="8" cy="8" r="7" fill="rgba(0,200,150,0.15)"/>
@@ -260,7 +263,7 @@ export default function PricingPage() {
               )}
               <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Everything in Growth", "Dedicated SMS number + priority support"].map(f => (
+                {["Everything in Growth", "Unlimited staff", "Unlimited locations", "Dedicated SMS number", "White label — remove Vomni branding", "Monthly strategy call", "Same day support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <circle cx="8" cy="8" r="7" fill="rgba(245,166,35,0.2)"/>
@@ -301,6 +304,52 @@ export default function PricingPage() {
             </a>{" "}
             and we&apos;ll get you set up in minutes.
           </p>
+        </div>
+      </section>
+
+      {/* Competitor Comparison Table */}
+      <section style={{ padding: "0 0 80px" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 48px" }}>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: "#fff", textAlign: "center", margin: "0 0 40px" }}>
+            How Vomni compares
+          </h2>
+          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+              <thead>
+                <tr>
+                  {["", "Vomni Growth", "Fresha Team", "Booksy"].map((h, i) => (
+                    <th key={i} style={{
+                      padding: "16px 20px", textAlign: i === 0 ? "left" : "center",
+                      fontWeight: 700, fontSize: 14,
+                      color: i === 1 ? G : "rgba(255,255,255,0.5)",
+                      borderBottom: "1px solid rgba(255,255,255,0.08)",
+                    }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[
+                  ["Monthly cost", "£79", "£79+", "£30+"],
+                  ["Commission on new clients", "None", "20%", "None"],
+                  ["Per staff charge", "None", "£10/staff", "£20/staff"],
+                  ["Reputation management", "Included", "Not included", "Not included"],
+                  ["Hebrew support", "Native", "Limited", "Limited"],
+                  ["Hidden fees", "None", "Yes", "Yes"],
+                ].map((row, ri) => (
+                  <tr key={ri}>
+                    {row.map((cell, ci) => (
+                      <td key={ci} style={{
+                        padding: "14px 20px", textAlign: ci === 0 ? "left" : "center",
+                        fontSize: 14, color: ci === 1 && (cell === "None" || cell === "Included" || cell === "Native" || cell === "£79") ? G : "rgba(255,255,255,0.6)",
+                        fontWeight: ci === 0 ? 500 : 400,
+                        borderBottom: ri < 5 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                      }}>{cell}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 

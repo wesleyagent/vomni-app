@@ -1,0 +1,76 @@
+import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { sendBookingMessage } from "@/lib/twilio";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
+
+// GET /api/cron/no-show-rebooking
+// Runs every 30 minutes. Finds no-show bookings from 2h ago and sends re-booking SMS.
+export async function GET() {
+  const now = new Date();
+
+  // Look for no-shows that happened 90–150 minutes ago (2h window centre)
+  const min = new Date(now.getTime() - 150 * 60 * 1000);
+  const max = new Date(now.getTime() - 90 * 60 * 1000);
+
+  const { data: noShows, error } = await supabaseAdmin
+    .from("bookings")
+    .select("id, customer_name, customer_phone, business_id, service_name, appointment_at, sms_status")
+    .eq("status", "no_show")
+    .gte("appointment_at", min.toISOString())
+    .lte("appointment_at", max.toISOString());
+
+  if (error) {
+    console.error("[cron/no-show-rebooking] query error:", error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!noShows || noShows.length === 0) {
+    return NextResponse.json({ processed: 0 });
+  }
+
+  let processed = 0;
+
+  for (const booking of noShows) {
+    // Skip if rebooking SMS already sent
+    if (booking.sms_status === "noshow_sms_sent") continue;
+
+    const { data: biz } = await supabaseAdmin
+      .from("businesses")
+      .select("name, booking_slug, whatsapp_enabled")
+      .eq("id", booking.business_id)
+      .single();
+
+    const firstName = booking.customer_name?.split(" ")[0] ?? "there";
+    const rebookUrl = biz?.booking_slug ? `${APP_URL}/book/${biz.booking_slug}` : null;
+
+    const body = rebookUrl
+      ? `Hi ${firstName}, we missed you today at ${biz?.name ?? "us"}! 😊 We'd love to see you — book your next ${booking.service_name ?? "appointment"} here: ${rebookUrl}`
+      : `Hi ${firstName}, we missed you today at ${biz?.name ?? "us"}! We'd love to see you soon — please contact us to rebook your ${booking.service_name ?? "appointment"}.`;
+
+    const result = await sendBookingMessage(
+      booking.customer_phone,
+      body,
+      biz?.whatsapp_enabled ?? false
+    );
+
+    if (result.success || true) { // Always update to avoid re-sending
+      await supabaseAdmin
+        .from("bookings")
+        .update({ sms_status: "noshow_sms_sent" })
+        .eq("id", booking.id);
+
+      await supabaseAdmin.from("booking_audit_log").insert({
+        booking_id: booking.id,
+        action: "no_show_sms",
+        actor: "system",
+        details: { sms_sent: result.success },
+      });
+
+      processed++;
+    }
+  }
+
+  console.log(`[cron/no-show-rebooking] processed=${processed}`);
+  return NextResponse.json({ processed });
+}

@@ -15,6 +15,144 @@ const N  = "#0A0F1E";
 const AM = "#F59E0B";
 const RD = "#EF4444";
 
+// ── Booking Stats ────────────────────────────────────────────────────────────
+
+interface BookingStatData {
+  today: number;
+  week: number;
+  month: number;
+  monthRevenue: number;
+  noShowRate: number;
+  topService: string;
+  nextAppt: { customer_name: string; service_name: string; appointment_at: string } | null;
+}
+
+function BookingStats({ businessId }: { businessId: string }) {
+  const [stats, setStats] = useState<BookingStatData | null>(null);
+
+  useEffect(() => {
+    if (!businessId) return;
+    (async () => {
+      const now      = new Date();
+      const todayStr = now.toISOString().substring(0, 10);
+      const weekStart = new Date(now); weekStart.setDate(now.getDate() - now.getDay());
+      const weekEnd   = new Date(weekStart); weekEnd.setDate(weekStart.getDate() + 6);
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+      const [{ data: todayRows }, { data: weekRows }, { data: monthRows }, { data: nextRows }] = await Promise.all([
+        db.from("bookings").select("id")
+          .eq("business_id", businessId).eq("status", "confirmed")
+          .gte("appointment_at", `${todayStr}T00:00:00`).lte("appointment_at", `${todayStr}T23:59:59`),
+        db.from("bookings").select("id, status, service_name")
+          .eq("business_id", businessId)
+          .gte("appointment_at", weekStart.toISOString()).lte("appointment_at", weekEnd.toISOString()),
+        db.from("bookings").select("id, status, service_name, service_price")
+          .eq("business_id", businessId)
+          .gte("appointment_at", monthStart.toISOString()),
+        db.from("bookings").select("customer_name, service_name, appointment_at")
+          .eq("business_id", businessId).eq("status", "confirmed")
+          .gt("appointment_at", now.toISOString())
+          .order("appointment_at", { ascending: true }).limit(1),
+      ]);
+
+      const noShows  = (weekRows ?? []).filter(b => b.status === "no_show").length;
+      const totalWeek = (weekRows ?? []).length;
+
+      const confirmedMonth = (monthRows ?? []).filter(b => b.status === "confirmed" || b.status === "completed");
+      const monthRevenue   = confirmedMonth.reduce((sum, b) => sum + (b.service_price ?? 0), 0);
+
+      const svcCount: Record<string, number> = {};
+      (monthRows ?? []).forEach(b => { if (b.service_name) svcCount[b.service_name] = (svcCount[b.service_name] ?? 0) + 1; });
+      const topSvc = Object.entries(svcCount).sort((a, b) => b[1] - a[1])[0]?.[0] ?? "—";
+
+      setStats({
+        today:        todayRows?.length ?? 0,
+        week:         totalWeek,
+        month:        monthRows?.length ?? 0,
+        monthRevenue,
+        noShowRate:   totalWeek > 0 ? Math.round((noShows / totalWeek) * 100) : 0,
+        topService:   topSvc,
+        nextAppt:     nextRows?.[0] ?? null,
+      });
+    })();
+  }, [businessId]);
+
+  if (!stats || stats.month === 0) return null;
+
+  const fmtTime = (iso: string) => {
+    const d = new Date(iso);
+    return d.toLocaleString("en-GB", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  };
+
+  const cards = [
+    { label: "Today's Appointments", value: String(stats.today), color: G },
+    { label: "This Week",            value: String(stats.week),  color: N },
+    { label: "This Month",           value: String(stats.month), color: N },
+    {
+      label: "Est. Monthly Revenue",
+      value: stats.monthRevenue > 0 ? `£${stats.monthRevenue.toLocaleString()}` : "—",
+      color: G, small: stats.monthRevenue > 9999,
+    },
+    {
+      label: "No-Show Rate (week)",
+      value: `${stats.noShowRate}%`,
+      color: stats.noShowRate > 15 ? "#EF4444" : G,
+    },
+    { label: "Top Service", value: stats.topService, color: N, small: true },
+  ];
+
+  return (
+    <div style={{ marginBottom: 24 }}>
+      {/* Next appointment banner */}
+      {stats.nextAppt && (
+        <Link href="/dashboard/calendar" style={{ textDecoration: "none" }}>
+          <div style={{
+            background: G, borderRadius: 12, padding: "14px 20px", marginBottom: 12,
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
+            boxShadow: "0 2px 8px rgba(0,200,150,0.25)",
+          }}>
+            <div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.7)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 3 }}>
+                Next appointment
+              </div>
+              <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700, color: "#fff" }}>
+                {stats.nextAppt.customer_name} — {stats.nextAppt.service_name}
+              </div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "rgba(255,255,255,0.85)", marginTop: 2 }}>
+                {fmtTime(stats.nextAppt.appointment_at)}
+              </div>
+            </div>
+            <ArrowRight size={20} color="rgba(255,255,255,0.7)" />
+          </div>
+        </Link>
+      )}
+
+      {/* Stat cards */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+        {cards.map((card, i) => (
+          <div key={i} style={{
+            background: "#fff", borderRadius: 12, border: `1px solid ${BORDER}`, padding: "16px 20px",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.04)",
+          }}>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 8px" }}>
+              {card.label}
+            </p>
+            <div style={{
+              fontFamily: "'Bricolage Grotesque', sans-serif",
+              fontSize: card.small ? 16 : 28, fontWeight: 700,
+              color: card.color as string, lineHeight: 1,
+            }}>
+              {card.value}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const BORDER = "#E5E7EB";
+
 // ── Confetti ─────────────────────────────────────────────────────────────────
 
 function Confetti({ onClose }: { onClose: () => void }) {
@@ -511,6 +649,9 @@ export default function DashboardOverview() {
           )}
         </div>
       )}
+
+      {/* Booking System Stats */}
+      <BookingStats businessId={businessId} />
 
       {/* Section 2: Review Funnel */}
       <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "24px", marginBottom: 40, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>

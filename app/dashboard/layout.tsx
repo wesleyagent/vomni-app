@@ -16,6 +16,7 @@ const N = "#0A0F1E";
 
 const TABS = [
   { href: "/dashboard",           label: "Overview",       key: "overview"  },
+  { href: "/dashboard/calendar",  label: "Calendar",       key: "calendar"  },
   { href: "/dashboard/customers", label: "Customers",      key: "customers" },
   { href: "/dashboard/feedback",  label: "Feedback Inbox", key: "feedback"  },
   { href: "/dashboard/analytics", label: "Analytics",      key: "analytics" },
@@ -164,11 +165,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
           @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.5} }
           .nav-tab:hover { color: #00C896 !important; border-bottom-color: rgba(0,200,150,0.3) !important; }
+          .dash-header-inner { padding: 0 40px; }
+          .dash-tab-bar { padding: 0 40px; overflow-x: auto; scrollbar-width: none; }
+          .dash-tab-bar::-webkit-scrollbar { display: none; }
+          .dash-notif-panel { width: 380px; }
+          @media (max-width: 640px) {
+            .dash-header-inner { padding: 0 16px !important; }
+            .dash-tab-bar { padding: 0 8px !important; }
+            .dash-notif-panel { width: 100vw !important; }
+          }
         `}</style>
 
         {/* Top Header */}
         <header style={{ background: "#fff", borderBottom: "1px solid #E5E7EB", position: "sticky", top: 0, zIndex: 40 }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 40px", height: 64 }}>
+          <div className="dash-header-inner" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", height: 64 }}>
             {/* Logo + Business Name */}
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
               <Link href="/dashboard" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontWeight: 700, fontSize: 22, color: N, textDecoration: "none", letterSpacing: "-0.5px" }}>
@@ -241,7 +251,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           {/* Tab Bar */}
-          <div style={{ display: "flex", gap: 0, padding: "0 40px", background: "#fff", borderTop: "1px solid #F3F4F6" }}>
+          <div className="dash-tab-bar" style={{ display: "flex", gap: 0, background: "#fff", borderTop: "1px solid #F3F4F6" }}>
             {TABS.map(tab => {
               const active = isActive(tab.href);
               const isFeedback = tab.key === "feedback";
@@ -395,8 +405,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.3)", zIndex: 45 }}
               onClick={() => setNotifOpen(false)}
             />
-            <div style={{
-              position: "fixed", top: 0, right: 0, bottom: 0, width: 380, background: "#fff",
+            <div className="dash-notif-panel" style={{
+              position: "fixed", top: 0, right: 0, bottom: 0, background: "#fff",
               boxShadow: "-4px 0 24px rgba(0,0,0,0.12)", zIndex: 50,
               animation: "slideIn 0.2s ease-out",
               display: "flex", flexDirection: "column",

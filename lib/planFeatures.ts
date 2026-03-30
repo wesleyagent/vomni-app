@@ -9,6 +9,11 @@ export const PLAN_FEATURES = {
     custom_number: false,
     weekly_reports: false,
     priority_support: false,
+    booking_system: true,
+    max_staff: 2,
+    max_locations: 1,
+    white_label: false,
+    competitor_benchmarking: false,
   },
   growth: {
     name: 'Growth',
@@ -20,6 +25,11 @@ export const PLAN_FEATURES = {
     custom_number: false,
     weekly_reports: true,
     priority_support: false,
+    booking_system: true,
+    max_staff: 5,
+    max_locations: 3,
+    white_label: false,
+    competitor_benchmarking: true,
   },
   pro: {
     name: 'Pro',
@@ -31,6 +41,11 @@ export const PLAN_FEATURES = {
     custom_number: true,
     weekly_reports: true,
     priority_support: true,
+    booking_system: true,
+    max_staff: 999, // unlimited
+    max_locations: 999, // unlimited
+    white_label: true,
+    competitor_benchmarking: true,
   },
 } as const;
 
@@ -43,7 +58,6 @@ export function hasFeature(plan: string | null | undefined, feature: PlanFeature
   return !!(PLAN_FEATURES[p]?.[feature] ?? false);
 }
 
-
 export function getPlanName(plan: string | null | undefined): string {
   const p = (plan ?? 'growth') as PlanName;
   return PLAN_FEATURES[p]?.name ?? 'Growth';
@@ -53,4 +67,14 @@ export function getUpgradePlan(feature: PlanFeatureKey): PlanName {
   if (PLAN_FEATURES.starter[feature]) return 'starter';
   if (PLAN_FEATURES.growth[feature]) return 'growth';
   return 'pro';
+}
+
+export function getMaxStaff(plan: string | null | undefined): number {
+  const p = (plan ?? 'growth') as PlanName;
+  return PLAN_FEATURES[p]?.max_staff ?? 5;
+}
+
+export function getMaxLocations(plan: string | null | undefined): number {
+  const p = (plan ?? 'growth') as PlanName;
+  return PLAN_FEATURES[p]?.max_locations ?? 3;
 }

@@ -42,7 +42,7 @@ export async function GET(
   let business: Record<string, unknown> | null = null;
   const { data: bizFull, error: bizErr } = await supabaseAdmin
     .from("businesses")
-    .select("name, google_review_link, logo_url, owner_name, weekly_google_redirects, weekly_redirect_cap")
+    .select("name, google_review_link, logo_url, owner_name, weekly_google_redirects, weekly_redirect_cap, booking_slug, booking_enabled")
     .eq("id", booking.business_id)
     .single();
 
@@ -50,7 +50,7 @@ export async function GET(
     console.error("[/api/r] business fetch error (full):", bizErr.message);
     const { data: bizFallback, error: bizFallbackErr } = await supabaseAdmin
       .from("businesses")
-      .select("name, google_review_link, owner_name, weekly_google_redirects, weekly_redirect_cap")
+      .select("name, google_review_link, owner_name, weekly_google_redirects, weekly_redirect_cap, booking_slug, booking_enabled")
       .eq("id", booking.business_id)
       .single();
 

@@ -739,6 +739,137 @@ function Step3GDPR({ onNext, saving }: { onNext: () => void; saving: boolean }) 
   );
 }
 
+// ── Step 4: Booking Setup (replaces email forwarding) ────────────────────────
+
+function Step4BookingSetup({
+  bizId, onComplete, saving,
+}: {
+  bizId: string; onComplete: (slug: string) => void; saving: boolean;
+}) {
+  const [hours, setHours] = useState([
+    { day: 0, open: true,  from: "09:00", to: "18:00" },
+    { day: 1, open: true,  from: "09:00", to: "18:00" },
+    { day: 2, open: true,  from: "09:00", to: "18:00" },
+    { day: 3, open: true,  from: "09:00", to: "18:00" },
+    { day: 4, open: true,  from: "09:00", to: "18:00" },
+    { day: 5, open: true,  from: "09:00", to: "14:00" },
+    { day: 6, open: false, from: "09:00", to: "18:00" },
+  ]);
+  const [svcName, setSvcName] = useState("");
+  const [svcDuration, setSvcDuration] = useState(30);
+  const [svcPrice, setSvcPrice] = useState("");
+  const [slug, setSlug] = useState("");
+  const [localSaving, setLocalSaving] = useState(false);
+
+  const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+  async function handleComplete() {
+    if (!svcName || !slug) return;
+    setLocalSaving(true);
+
+    const supabase = (await import("@/lib/db")).db;
+
+    // Save business hours
+    await supabase.from("business_hours").delete().eq("business_id", bizId);
+    await supabase.from("business_hours").insert(
+      hours.map(h => ({ business_id: bizId, day_of_week: h.day, is_open: h.open, open_time: h.from, close_time: h.to }))
+    );
+
+    // Create first service
+    await supabase.from("services").insert({
+      business_id: bizId, name: svcName, duration_minutes: svcDuration,
+      price: svcPrice ? parseFloat(svcPrice) : null, is_active: true, display_order: 0,
+    });
+
+    // Set slug and enable booking
+    await supabase.from("businesses").update({
+      booking_slug: slug.toLowerCase().replace(/[^a-z0-9-]/g, ""),
+      booking_enabled: true,
+    }).eq("id", bizId);
+
+    setLocalSaving(false);
+    onComplete(slug.toLowerCase().replace(/[^a-z0-9-]/g, ""));
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
+        <StepCircle n={4} active={true} done={false} />
+        <div>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: N, margin: 0 }}>Set up your booking page</h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "4px 0 0" }}>Step 4 of 7 — customers can start booking directly</p>
+        </div>
+      </div>
+
+      <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 32 }}>
+        <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(0,200,150,0.06)", border: `1px solid rgba(0,200,150,0.2)`, marginBottom: 24 }}>
+          <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: N, lineHeight: 1.6 }}>
+            <strong>You&apos;re almost live!</strong> Set up your booking page and customers can start booking appointments directly — no more phone calls. Review requests will be sent automatically after each appointment.
+          </p>
+        </div>
+
+        {/* Business Hours */}
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 12px" }}>Business Hours</h3>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+          {hours.map((h, i) => (
+            <div key={h.day} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 8, width: 110, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: N }}>
+                <input type="checkbox" checked={h.open} onChange={e => { const next = [...hours]; next[i].open = e.target.checked; setHours(next); }} style={{ accentColor: G }} />
+                {dayNames[h.day]}
+              </label>
+              {h.open ? (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <input type="time" value={h.from} onChange={e => { const next = [...hours]; next[i].from = e.target.value; setHours(next); }} style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${BD}`, fontSize: 13 }} />
+                  <span style={{ color: "#9CA3AF", fontSize: 12 }}>to</span>
+                  <input type="time" value={h.to} onChange={e => { const next = [...hours]; next[i].to = e.target.value; setHours(next); }} style={{ padding: "4px 8px", borderRadius: 6, border: `1px solid ${BD}`, fontSize: 13 }} />
+                </div>
+              ) : <span style={{ fontSize: 13, color: "#9CA3AF" }}>Closed</span>}
+            </div>
+          ))}
+        </div>
+
+        {/* First Service */}
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 12px" }}>Your First Service</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 10, marginBottom: 24 }}>
+          <input value={svcName} onChange={e => setSvcName(e.target.value)} placeholder="e.g. Haircut" style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${BD}`, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none" }} />
+          <select value={svcDuration} onChange={e => setSvcDuration(Number(e.target.value))} style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${BD}`, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none" }}>
+            {[15, 20, 30, 45, 60, 90, 120].map(m => <option key={m} value={m}>{m} min</option>)}
+          </select>
+          <input value={svcPrice} onChange={e => setSvcPrice(e.target.value)} placeholder="Price (optional)" type="number" style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${BD}`, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none" }} />
+        </div>
+
+        {/* Booking URL */}
+        <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 12px" }}>Booking Page URL</h3>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 32 }}>
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#9CA3AF" }}>vomni.io/book/</span>
+          <input
+            value={slug}
+            onChange={e => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+            placeholder="your-business"
+            style={{ flex: 1, padding: "10px 14px", borderRadius: 10, border: `1px solid ${BD}`, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none" }}
+          />
+        </div>
+
+        <button
+          onClick={handleComplete}
+          disabled={!svcName || !slug || localSaving || saving}
+          style={{
+            width: "100%", padding: "16px 24px", borderRadius: 9999,
+            background: (!svcName || !slug) ? "#D1D5DB" : G,
+            color: "#fff", border: "none",
+            fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700,
+            cursor: (!svcName || !slug) ? "default" : "pointer",
+          }}
+        >
+          {localSaving ? "Setting up..." : "Enable Booking Page & Continue"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Step 4 Legacy: Email Forwarding (kept for reference) ──────────────────────
+
 function Step4Forwarding({
   selectedProvider, setSelectedProvider,
   onComplete, saving,
@@ -1017,8 +1148,173 @@ function Step6Logo({
   );
 }
 
-// Step7Done is the same component, renamed for the new 7-step flow
-const Step7Done = Step6Done;
+// Step8Done is the same component, renamed for the new 8-step flow
+const Step8Done = Step6Done;
+
+// ── Step 5: Get More Bookings (Google Maps + Instagram) ───────────────────
+
+function Step5Discover({
+  googleMapsUrl, setGoogleMapsUrl,
+  instagramHandle, setInstagramHandle,
+  bookingSlug,
+  onNext, onSkip, saving,
+}: {
+  googleMapsUrl: string; setGoogleMapsUrl: (v: string) => void;
+  instagramHandle: string; setInstagramHandle: (v: string) => void;
+  bookingSlug: string;
+  onNext: () => void; onSkip: () => void; saving: boolean;
+}) {
+  const bookingUrl = bookingSlug ? `https://vomni.io/book/${bookingSlug}` : "";
+  const waText = encodeURIComponent(`Book an appointment here: ${bookingUrl}`);
+  const igCaption = encodeURIComponent(`📅 Book your next appointment online!\n${bookingUrl}`);
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
+        <StepCircle n={5} active={true} done={false} />
+        <div>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: N, margin: 0 }}>Get more bookings</h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "4px 0 0" }}>Step 5 of 8 — share your booking link everywhere</p>
+        </div>
+      </div>
+
+      {bookingUrl && (
+        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${BD}`, padding: "16px 20px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div>
+            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", marginBottom: 4 }}>Your booking link</div>
+            <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700, color: N }}>{bookingUrl}</div>
+          </div>
+          <CopyBtn text={bookingUrl} label="Copy link" />
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+        {/* Google Maps */}
+        <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 24 }}>
+          <div style={{ marginBottom: 16 }}>
+            <svg viewBox="0 0 48 48" width={40} height={40}>
+              <circle cx="24" cy="20" r="14" fill="#4285F4" />
+              <circle cx="24" cy="20" r="6" fill="#fff" />
+              <path d="M24 34 L24 48" stroke="#34A853" strokeWidth="3" strokeLinecap="round" />
+              <path d="M16 28 Q24 40 24 48 Q24 40 32 28" fill="#EA4335" />
+            </svg>
+          </div>
+          <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: N, margin: "0 0 6px" }}>Google Business Profile</h3>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 12px", lineHeight: 1.5 }}>
+            Add your booking link so customers can book directly from Google Maps & Search.
+          </p>
+          <input
+            value={googleMapsUrl}
+            onChange={e => setGoogleMapsUrl(e.target.value)}
+            placeholder="https://maps.google.com/..."
+            style={{ ...inputStyle, fontSize: 13, marginBottom: 10 }}
+          />
+          <div style={{ background: "#F8FAFF", borderRadius: 10, padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#374151", lineHeight: 1.7 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: N }}>How to add your booking link:</div>
+            {[
+              "Go to business.google.com and sign in",
+              "Click your business → Edit profile",
+              'Under "Contact", find the "Website" field',
+              "Paste your Vomni booking link and save",
+              'Your profile will show a "Book" button within 24 hours',
+            ].map((step, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                <span style={{ minWidth: 18, height: 18, borderRadius: "50%", background: G, color: "#fff", fontWeight: 700, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
+                <span>{step}</span>
+              </div>
+            ))}
+            <div style={{ marginTop: 8, paddingTop: 8, borderTop: "1px solid #E5E7EB", color: "#6B7280", fontSize: 11 }}>
+              ℹ️ You don&apos;t need to be a Google partner — anyone can add a booking URL to their profile.
+            </div>
+          </div>
+        </div>
+
+        {/* Instagram */}
+        <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 24 }}>
+          <div style={{ marginBottom: 16 }}>
+            <svg viewBox="0 0 48 48" width={40} height={40}>
+              <defs>
+                <linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%">
+                  <stop offset="0%" stopColor="#f09433" />
+                  <stop offset="25%" stopColor="#e6683c" />
+                  <stop offset="50%" stopColor="#dc2743" />
+                  <stop offset="75%" stopColor="#cc2366" />
+                  <stop offset="100%" stopColor="#bc1888" />
+                </linearGradient>
+              </defs>
+              <rect width="48" height="48" rx="12" fill="url(#ig)" />
+              <rect x="12" y="12" width="24" height="24" rx="7" fill="none" stroke="white" strokeWidth="2.5" />
+              <circle cx="24" cy="24" r="6.5" fill="none" stroke="white" strokeWidth="2.5" />
+              <circle cx="33" cy="15" r="2" fill="white" />
+            </svg>
+          </div>
+          <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: N, margin: "0 0 6px" }}>Instagram</h3>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 14px", lineHeight: 1.5 }}>
+            Add your booking link to your Instagram bio and share a post to let followers book instantly.
+          </p>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#9CA3AF" }}>@</span>
+            <input
+              value={instagramHandle}
+              onChange={e => setInstagramHandle(e.target.value.replace(/^@/, ""))}
+              placeholder="yourbusiness"
+              style={{ ...inputStyle, fontSize: 13 }}
+            />
+          </div>
+          {bookingUrl && instagramHandle && (
+            <a
+              href={`https://www.instagram.com/?caption=${igCaption}`}
+              target="_blank"
+              style={{
+                display: "block", marginTop: 10, padding: "10px 14px", borderRadius: 8,
+                background: "linear-gradient(135deg, #f09433, #dc2743, #bc1888)",
+                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                color: "#fff", textDecoration: "none", textAlign: "center",
+              }}
+            >Share post with booking link ↗</a>
+          )}
+        </div>
+      </div>
+
+      {/* WhatsApp share */}
+      {bookingUrl && (
+        <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${BD}`, padding: "16px 20px", marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: "50%", background: "#25D366", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <svg viewBox="0 0 24 24" width={20} height={20} fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347" /></svg>
+            </div>
+            <div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: N }}>Share via WhatsApp</div>
+              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280" }}>Send your booking link to existing customers</div>
+            </div>
+          </div>
+          <a
+            href={`https://wa.me/?text=${waText}`}
+            target="_blank"
+            style={{
+              padding: "9px 18px", borderRadius: 9999,
+              background: "#25D366", color: "#fff",
+              fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+              textDecoration: "none", whiteSpace: "nowrap",
+            }}
+          >Share ↗</a>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <Btn onClick={onNext} disabled={saving}>
+          Save & Continue <ChevronRight size={16} />
+        </Btn>
+        <button
+          onClick={onSkip}
+          style={{ background: "none", border: "none", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#9CA3AF", cursor: "pointer", textDecoration: "underline" }}
+        >
+          Skip for now →
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── Main ──────────────────────────────────────────────────────────────────
 
@@ -1049,7 +1345,12 @@ export default function OnboardingPage() {
   const [bookingReceived, setBookingReceived] = useState(false);
   const [bookingTimedOut, setBookingTimedOut] = useState(false);
 
-  // Step 6 — logo upload
+  // Step 5 — get more bookings
+  const [googleMapsUrl, setGoogleMapsUrl] = useState("");
+  const [instagramHandle, setInstagramHandle] = useState("");
+  const [bookingSlug, setBookingSlug] = useState("");
+
+  // Step 7 — logo upload
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [logoUploading, setLogoUploading] = useState(false);
@@ -1075,17 +1376,20 @@ export default function OnboardingPage() {
       setInitialRating(biz.initial_google_rating != null ? String(biz.initial_google_rating) : "");
       setReviewCount(biz.initial_review_count != null ? String(biz.initial_review_count) : "");
       setFirstName((biz.owner_name ?? "").split(" ")[0] || "there");
+      setGoogleMapsUrl(biz.google_maps_url ?? "");
+      setInstagramHandle(biz.instagram_handle ?? "");
+      setBookingSlug(biz.booking_slug ?? "");
 
       const savedStep: number = biz.onboarding_step ?? 1;
-      if (savedStep >= 7) { router.replace("/dashboard"); return; }
+      if (savedStep >= 8) { router.replace("/dashboard"); return; }
       setStep(savedStep < 1 ? 1 : savedStep);
       setLoading(false);
     })();
   }, [router]);
 
-  // Step 5: poll for first booking
+  // Step 6: poll for first booking
   useEffect(() => {
-    if (step !== 5 || !bizId) return;
+    if (step !== 6 || !bizId) return;
     const poll = setInterval(async () => {
       const { data } = await db.from("bookings").select("id").eq("business_id", bizId).limit(1);
       if (data && data.length > 0) { setBookingReceived(true); clearInterval(poll); }
@@ -1177,15 +1481,15 @@ export default function OnboardingPage() {
       {/* Header */}
       <div style={{ background: "#fff", borderBottom: `1px solid ${BD}`, padding: "16px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 800, color: N, margin: 0 }}>Vomni</h1>
-        {step > 1 && step < 7 && (
-          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF" }}>Step {step} of 7</span>
+        {step > 1 && step < 8 && (
+          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF" }}>Step {step} of 8</span>
         )}
       </div>
 
       {/* Progress bar */}
-      {step > 1 && step < 7 && (
+      {step > 1 && step < 8 && (
         <div style={{ height: 3, background: "#E5E7EB" }}>
-          <div style={{ height: "100%", width: `${((step - 1) / 6) * 100}%`, background: G, transition: "width 0.4s ease" }} />
+          <div style={{ height: "100%", width: `${((step - 1) / 7) * 100}%`, background: G, transition: "width 0.4s ease" }} />
         </div>
       )}
 
@@ -1210,23 +1514,37 @@ export default function OnboardingPage() {
           <Step3GDPR onNext={completeStep3} saving={saving} />
         )}
         {step === 4 && (
-          <Step4Forwarding
-            selectedProvider={provider}
-            setSelectedProvider={setProvider}
-            onComplete={() => advance(5)}
+          <Step4BookingSetup
+            bizId={bizId}
+            onComplete={(slug) => { setBookingSlug(slug); advance(5); }}
             saving={saving}
           />
         )}
         {step === 5 && (
-          <Step5Booking
-            businessId={bizId}
-            bookingReceived={bookingReceived}
-            timedOut={bookingTimedOut}
+          <Step5Discover
+            googleMapsUrl={googleMapsUrl}
+            setGoogleMapsUrl={setGoogleMapsUrl}
+            instagramHandle={instagramHandle}
+            setInstagramHandle={setInstagramHandle}
+            bookingSlug={bookingSlug}
+            onNext={() => advance(6, {
+              google_maps_url: googleMapsUrl || null,
+              instagram_handle: instagramHandle || null,
+            })}
             onSkip={() => advance(6)}
             saving={saving}
           />
         )}
         {step === 6 && (
+          <Step5Booking
+            businessId={bizId}
+            bookingReceived={bookingReceived}
+            timedOut={bookingTimedOut}
+            onSkip={() => advance(7)}
+            saving={saving}
+          />
+        )}
+        {step === 7 && (
           <Step6Logo
             bizId={bizId}
             logoFile={logoFile}
@@ -1236,12 +1554,12 @@ export default function OnboardingPage() {
             logoUploading={logoUploading}
             setLogoUploading={setLogoUploading}
             saving={saving}
-            onNext={() => advance(7)}
-            onSkip={() => advance(7)}
+            onNext={() => advance(8)}
+            onSkip={() => advance(8)}
           />
         )}
-        {step === 7 && (
-          <Step7Done onDashboard={() => router.replace("/dashboard")} />
+        {step === 8 && (
+          <Step8Done onDashboard={() => router.replace("/dashboard")} />
         )}
       </div>
     </div>

@@ -11,6 +11,8 @@ type Business = {
   owner_name: string | null;
   weekly_google_redirects: number | null;
   weekly_redirect_cap: number | null;
+  booking_slug: string | null;
+  booking_enabled: boolean | null;
 };
 
 type Booking = {
@@ -100,7 +102,7 @@ export default function RatingPage() {
 
         // One-use link — already rated
         if (data.alreadyUsed) {
-          setBusiness({ name: data.businessName, google_review_link: null, logo_url: null, owner_name: null, weekly_google_redirects: null, weekly_redirect_cap: null });
+          setBusiness({ name: data.businessName, google_review_link: null, logo_url: null, owner_name: null, weekly_google_redirects: null, weekly_redirect_cap: null, booking_slug: null, booking_enabled: null });
           setScreen("already_used");
           return;
         }
@@ -361,6 +363,26 @@ export default function RatingPage() {
                   Send us a private message instead
                 </a>
               )}
+
+              {/* Rebooking CTA — book again shortcut */}
+              {business?.booking_enabled && business?.booking_slug && (
+                <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${BD}` }}>
+                  <a
+                    href={`/book/${business.booking_slug}`}
+                    style={{
+                      display: "block",
+                      textAlign: "center",
+                      fontFamily: "Inter,sans-serif",
+                      fontSize: 14,
+                      color: G,
+                      fontWeight: 600,
+                      textDecoration: "none",
+                    }}
+                  >
+                    📅 Book your next visit →
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
@@ -455,9 +477,28 @@ export default function RatingPage() {
           {screen === "done" && (
             <div style={{ ...card, textAlign: "center", padding: "52px 24px" }}>
               <Tick />
-              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#374151", margin: 0, lineHeight: 1.7 }}>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#374151", margin: "0 0 24px", lineHeight: 1.7 }}>
                 {doneMsg}
               </p>
+              {/* Rebooking CTA — shown for 4-5 star ratings */}
+              {rating >= 4 && business?.booking_enabled && business?.booking_slug && (
+                <a
+                  href={`/book/${business.booking_slug}`}
+                  style={{
+                    display: "inline-block",
+                    padding: "13px 28px",
+                    background: G,
+                    color: "#fff",
+                    borderRadius: 9999,
+                    fontFamily: "Inter,sans-serif",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    textDecoration: "none",
+                  }}
+                >
+                  Book your next visit →
+                </a>
+              )}
             </div>
           )}
 
