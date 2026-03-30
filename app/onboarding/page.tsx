@@ -1373,33 +1373,45 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await db.auth.getUser();
-      if (!user) { router.replace("/login"); return; }
+      try {
+        const { data: { user } } = await db.auth.getUser();
+        if (!user) { router.replace("/login"); return; }
 
-      const { data: biz } = await db
-        .from("businesses")
-        .select("*")
-        .eq("owner_email", user.email)
-        .single();
+        const { data: biz } = await db
+          .from("businesses")
+          .select("*")
+          .eq("owner_email", user.email)
+          .single();
 
-      if (!biz) { router.replace("/signup"); return; }
+        if (!biz) { router.replace("/signup"); return; }
 
-      setBizId(biz.id);
-      setBizName(biz.name ?? "");
-      setBizType(biz.business_type ?? "");
-      setGoogleLink(biz.google_review_link ?? "");
-      setNotifEmail(biz.notification_email ?? user.email ?? "");
-      setInitialRating(biz.initial_google_rating != null ? String(biz.initial_google_rating) : "");
-      setReviewCount(biz.initial_review_count != null ? String(biz.initial_review_count) : "");
-      setFirstName((biz.owner_name ?? "").split(" ")[0] || "there");
-      setGoogleMapsUrl(biz.google_maps_url ?? "");
-      setInstagramHandle(biz.instagram_handle ?? "");
-      setBookingSlug(biz.booking_slug ?? "");
+        setBizId(biz.id);
+        setBizName(biz.name ?? "");
+        setBizType(biz.business_type ?? "");
+        setGoogleLink(biz.google_review_link ?? "");
+        setNotifEmail(biz.notification_email ?? user.email ?? "");
+        setInitialRating(biz.initial_google_rating != null ? String(biz.initial_google_rating) : "");
+        setReviewCount(biz.initial_review_count != null ? String(biz.initial_review_count) : "");
+        setFirstName((biz.owner_name ?? "").split(" ")[0] || "there");
+        setGoogleMapsUrl(biz.google_maps_url ?? "");
+        setInstagramHandle(biz.instagram_handle ?? "");
+        setBookingSlug(biz.booking_slug ?? "");
 
-      const savedStep: number = biz.onboarding_step ?? 1;
-      if (savedStep >= 8) { router.replace("/dashboard"); return; }
-      setStep(savedStep < 1 ? 1 : savedStep);
-      setLoading(false);
+        const forceReset = typeof window !== "undefined" &&
+          new URLSearchParams(window.location.search).get("reset") === "1";
+        if (forceReset) {
+          await db.from("businesses").update({ onboarding_step: 1 }).eq("id", biz.id);
+          setStep(1);
+        } else {
+          const savedStep: number = biz.onboarding_step ?? 1;
+          if (savedStep >= 8) { router.replace("/dashboard"); return; }
+          setStep(savedStep < 1 ? 1 : savedStep);
+        }
+      } catch (err) {
+        console.error("[onboarding] load error:", err);
+      } finally {
+        setLoading(false);
+      }
     })();
   }, [router]);
 
