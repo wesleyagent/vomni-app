@@ -59,10 +59,16 @@ export async function GET(req: NextRequest) {
 
   const expiresAt = new Date(Date.now() + (expires_in ?? 3600) * 1000).toISOString();
 
-  // Upsert calendar connection
-  const { error: upsertErr } = await supabaseAdmin
+  // Delete existing connection then insert fresh (avoids upsert constraint issues)
+  await supabaseAdmin
     .from("calendar_connections")
-    .upsert({
+    .delete()
+    .eq("business_id", businessId)
+    .eq("provider", "google");
+
+  const { error: insertErr } = await supabaseAdmin
+    .from("calendar_connections")
+    .insert({
       business_id: businessId,
       provider: "google",
       access_token,
@@ -71,10 +77,10 @@ export async function GET(req: NextRequest) {
       calendar_id: calendarEmail,
       is_active: true,
       updated_at: new Date().toISOString(),
-    }, { onConflict: "business_id,provider" });
+    });
 
-  if (upsertErr) {
-    console.error("[google-calendar callback] upsert error:", upsertErr.message);
+  if (insertErr) {
+    console.error("[google-calendar callback] insert error:", insertErr.message);
     return NextResponse.redirect(`${settingsUrl}?calendar_error=save_failed`);
   }
 
