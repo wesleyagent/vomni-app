@@ -20,9 +20,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Google OAuth not configured" }, { status: 500 });
   }
 
-  // Always use the canonical app URL for OAuth redirect (must match Google Cloud Console)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
-  const redirectUri = `${appUrl}/api/auth/callback/google-calendar`;
+  // Use the request origin so the redirect_uri always matches the domain being used
+  const origin = req.nextUrl.origin;
+  const redirectUri = `${origin}/api/auth/callback/google-calendar`;
 
   const params = new URLSearchParams({
     client_id: clientId,
