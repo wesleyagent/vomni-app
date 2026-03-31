@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const businessId = req.nextUrl.searchParams.get("state");
   const error = req.nextUrl.searchParams.get("error");
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
+  const appUrl = req.nextUrl.origin;
   const settingsUrl = `${appUrl}/dashboard/calendar/settings`;
 
   if (error || !code || !businessId) {
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID!;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET!;
-  const redirectUri = `${appUrl}/api/auth/callback/google-calendar`;
+  const redirectUri = `${req.nextUrl.origin}/api/auth/callback/google-calendar`;
 
   // Exchange code for tokens
   const tokenRes = await fetch(TOKEN_URL, {

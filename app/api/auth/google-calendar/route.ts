@@ -20,8 +20,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Google OAuth not configured" }, { status: 500 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
-  const redirectUri = `${appUrl}/api/auth/callback/google-calendar`;
+  // Use the request's own origin so it works on any deployment (preview or production)
+  const origin = req.nextUrl.origin;
+  const redirectUri = `${origin}/api/auth/callback/google-calendar`;
 
   const params = new URLSearchParams({
     client_id: clientId,
