@@ -310,7 +310,7 @@ export default function CalendarSettingsPage() {
     flash("Calendar token generated");
   }
 
-  const bookingUrl = bookingSlug ? `https://vomni.io/book/${bookingSlug}` : null;
+  const bookingUrl = bookingSlug ? `${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/book/${bookingSlug}` : null;
 
   function copyLink() {
     if (!bookingUrl) return;

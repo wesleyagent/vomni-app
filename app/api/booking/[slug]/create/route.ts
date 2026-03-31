@@ -281,6 +281,15 @@ export async function POST(
     }).catch(err => console.error("[booking/create] customer email failed:", err));
   }
 
+  // Notification: new booking (non-blocking, fire and forget)
+  void supabaseAdmin.from("notifications").insert({
+    business_id: business.id,
+    type: "new_booking",
+    title: "New booking",
+    body: `${customerName} booked ${service.name} on ${date} at ${time}`,
+    read: false,
+  });
+
   // Audit log
   await supabaseAdmin.from("booking_audit_log").insert({
     booking_id: bookingId,

@@ -311,6 +311,17 @@ export default function CalendarPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={() => { setShowNewForm(true); setNewDate(currentDateStr); }}
+            style={{
+              background: G, border: "none", borderRadius: 9999,
+              padding: "7px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+              color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", gap: 5,
+            }}
+          >
+            <Plus size={15} strokeWidth={2.5} /> New Booking
+          </button>
+
           {!isToday && view !== "upcoming" && (
             <button
               onClick={() => setCurrentDate(new Date())}

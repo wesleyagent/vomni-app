@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, Building2, Bell, Lock, Smartphone, Gift, ExternalLink, CheckCircle, Copy, Phone, ImageIcon } from "lucide-react";
+import { Save, Building2, Bell, Lock, Smartphone, ExternalLink, CheckCircle, ImageIcon } from "lucide-react";
 import { useBusinessContext } from "../_context";
 import { db, getMyBusiness, updateBusiness, type DBBusiness } from "@/lib/db";
-import { hasFeature } from "@/lib/planFeatures";
-import UpgradePrompt from "@/components/UpgradePrompt";
 
 const G  = "#00C896";
 const N  = "#0A0F1E";
@@ -64,11 +62,6 @@ function Toast({ message, type }: { message: string; type: "success" | "error" }
   );
 }
 
-function generateReferralCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  return Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-}
-
 export default function SettingsPage() {
   const { businessId, email } = useBusinessContext();
 
@@ -82,9 +75,6 @@ export default function SettingsPage() {
   const [ownerName,    setOwnerName]    = useState("");
   const [googleLink,   setGoogleLink]   = useState("");
   const [notifEmail,   setNotifEmail]   = useState("");
-  const [referralCode, setReferralCode] = useState("");
-  const [referralCount,setReferralCount]= useState(0);
-  const [copyLabel,    setCopyLabel]    = useState("Copy link");
   const [googleValid,  setGoogleValid]  = useState<boolean | null>(null);
 
   const [currentPw,    setCurrentPw]    = useState("");
@@ -109,24 +99,6 @@ export default function SettingsPage() {
         setGoogleLink(data.google_review_link ?? "");
         setNotifEmail(data.notification_email ?? email);
         setLogoUrl((data as DBBusiness & { logo_url?: string }).logo_url ?? null);
-
-        // Handle referral code (non-blocking)
-        try {
-          let code = (data as DBBusiness & { referral_code?: string }).referral_code ?? "";
-          if (!code) {
-            code = generateReferralCode();
-            await db.from("businesses").update({ referral_code: code } as Record<string, unknown>).eq("id", data.id);
-          }
-          setReferralCode(code);
-        } catch { /* column may not exist yet */ }
-
-        // Count referrals (non-blocking)
-        try {
-          const { count } = await db.from("referrals")
-            .select("id", { count: "exact", head: true })
-            .eq("referrer_business_id", data.id);
-          setReferralCount(count ?? 0);
-        } catch { /* table may not exist yet */ }
       }
       setLoading(false);
     }).catch(() => setLoading(false));
@@ -203,15 +175,6 @@ export default function SettingsPage() {
     if (error) { setPwError(error.message); }
     else { setCurrentPw(""); setNewPw(""); setConfirmPw(""); showToast("Password updated successfully"); }
     setPwSaving(false);
-  }
-
-  function copyReferralLink() {
-    const link = `https://vomni.io?ref=${referralCode}`;
-    navigator.clipboard.writeText(link).then(() => {
-      setCopyLabel("Copied!");
-      setTimeout(() => setCopyLabel("Copy link"), 2000);
-    });
-    void currentPw; // suppress unused warning
   }
 
   if (loading) {
@@ -362,32 +325,6 @@ export default function SettingsPage() {
         </div>
       </form>
 
-      {/* Custom Number - Pro only */}
-      <div style={{ marginBottom: 0 }}>
-        {hasFeature(biz?.plan, "custom_number") ? (
-          <SectionCard icon={Phone} title="Dedicated SMS Number">
-            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: 0 }}>
-              Your dedicated Twilio number for outbound SMS. Contact <a href="mailto:support@vomni.io" style={{ color: G }}>support@vomni.io</a> to configure your number.
-            </p>
-            {(biz as DBBusiness & { twilio_number?: string })?.twilio_number ? (
-              <div style={{ display: "inline-flex", padding: "8px 16px", borderRadius: 9999, background: "rgba(0,200,150,0.1)", fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: G, letterSpacing: "0.05em" }}>
-                {(biz as DBBusiness & { twilio_number?: string }).twilio_number}
-              </div>
-            ) : (
-              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>No number assigned yet.</p>
-            )}
-          </SectionCard>
-        ) : (
-          <div style={{ marginBottom: 24 }}>
-            <UpgradePrompt
-              feature="Dedicated SMS Number"
-              description="Get your own branded SMS number for sending review requests - available on the Pro plan."
-              requiredPlan="pro"
-            />
-          </div>
-        )}
-      </div>
-
       {/* SMS Preview - Read Only */}
       <SectionCard icon={Smartphone} title="Your Automated Review Request">
         <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: 0 }}>
@@ -420,45 +357,6 @@ export default function SettingsPage() {
           Want to customise this? Contact{" "}
           <a href="mailto:support@vomni.io" style={{ color: G }}>support@vomni.io</a>
         </p>
-      </SectionCard>
-
-      {/* Referral Section */}
-      <SectionCard icon={Gift} title="Refer a Business, Get a Month Free">
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", margin: 0, lineHeight: 1.6 }}>
-          Know another business that could benefit from Vomni? Share your referral link and get one month free for every business that signs up.
-        </p>
-
-        <div>
-          <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
-            Your Referral Code
-          </label>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800, color: G, letterSpacing: "0.1em", background: "rgba(0,200,150,0.08)", padding: "10px 20px", borderRadius: 10, border: `1px solid rgba(0,200,150,0.2)` }}>
-              {referralCode || "------"}
-            </div>
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280" }}>
-              {referralCount} referral{referralCount !== 1 ? "s" : ""} made
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
-            Referral Link
-          </label>
-          <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-            <div style={{ flex: 1, padding: "11px 14px", borderRadius: 10, border: `1px solid ${BD}`, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", background: "#F9FAFB", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              https://vomni.io?ref={referralCode}
-            </div>
-            <button
-              onClick={copyReferralLink}
-              style={{ display: "flex", alignItems: "center", gap: 6, padding: "11px 18px", borderRadius: 10, border: `1px solid ${BD}`, background: "#fff", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: N, cursor: "pointer", whiteSpace: "nowrap" }}
-            >
-              <Copy size={14} />
-              {copyLabel}
-            </button>
-          </div>
-        </div>
       </SectionCard>
 
       {/* Password Change */}

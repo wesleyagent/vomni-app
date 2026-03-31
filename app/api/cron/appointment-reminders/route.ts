@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { sendBookingMessage } from "@/lib/twilio";
+import { sendEmail } from "@/lib/email";
 
 // GET /api/cron/appointment-reminders
-// Runs hourly via Vercel cron. Finds bookings 23-25h away and sends reminder SMS.
+// Runs hourly via Vercel cron. Finds bookings 23-25h away and sends reminder email.
 export async function GET() {
   const now = new Date();
 
@@ -13,7 +13,7 @@ export async function GET() {
 
   const { data: bookings, error } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_name, customer_phone, appointment_at, service_name, staff_id, business_id, cancellation_token")
+    .select("id, customer_name, customer_email, appointment_at, service_name, staff_id, business_id, cancellation_token")
     .eq("status", "confirmed")
     .eq("reminder_sent", false)
     .gte("appointment_at", min.toISOString())
@@ -35,7 +35,7 @@ export async function GET() {
     // Get business info
     const { data: biz } = await supabaseAdmin
       .from("businesses")
-      .select("name, booking_slug, whatsapp_enabled")
+      .select("name, booking_slug, notification_email, owner_email")
       .eq("id", booking.business_id)
       .single();
 
@@ -48,34 +48,50 @@ export async function GET() {
     }
 
     const time = booking.appointment_at?.substring(11, 16) ?? "";
-    const date = booking.appointment_at?.substring(0, 10) ?? "";
     const bizName = biz?.name ?? "your appointment";
+    const serviceName = booking.service_name ?? "appointment";
     const firstName = booking.customer_name?.split(" ")[0] ?? booking.customer_name ?? "there";
     const cancelUrl = booking.cancellation_token
       ? `${process.env.NEXT_PUBLIC_APP_URL}/cancel/${booking.cancellation_token}`
       : null;
 
-    const body = [
-      `Hi ${firstName}! 📅 Reminder: you have a ${booking.service_name ?? "appointment"} at ${bizName} tomorrow at ${time}`,
-      staffName ? `with ${staffName}` : null,
-      cancelUrl ? `\nNeed to cancel? ${cancelUrl}` : null,
-    ].filter(Boolean).join(" ");
+    // Mark reminder_sent regardless of email presence to avoid retry loops
+    if (!booking.customer_email) {
+      await supabaseAdmin
+        .from("bookings")
+        .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
+        .eq("id", booking.id);
+      errors.push(`${booking.id}: no customer email`);
+      continue;
+    }
 
-    const result = await sendBookingMessage(
-      booking.customer_phone,
-      body,
-      biz?.whatsapp_enabled ?? false
-    );
+    const staffLine = staffName ? ` with ${staffName}` : "";
+    const cancelLine = cancelUrl ? ` Need to cancel? ${cancelUrl}` : "";
 
-    if (result.success) {
+    const html = [
+      `<p>Hi ${firstName},</p>`,
+      `<p>Just a reminder that you have a <strong>${serviceName}</strong> appointment at <strong>${bizName}</strong> tomorrow at <strong>${time}</strong>${staffLine}.</p>`,
+      cancelUrl ? `<p>Need to cancel? <a href="${cancelUrl}">${cancelUrl}</a></p>` : "",
+    ].filter(Boolean).join("");
+
+    try {
+      await sendEmail({
+        to: booking.customer_email,
+        subject: `Appointment Reminder — ${serviceName} at ${bizName}`,
+        type: "booking_reminder" as const,
+        bookingId: booking.id,
+        html,
+      });
+
       await supabaseAdmin
         .from("bookings")
         .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
         .eq("id", booking.id);
       processed++;
-    } else {
-      errors.push(`${booking.id}: ${result.error}`);
-      // Still mark as sent to avoid retry loops (SMS failures are usually permanent)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      errors.push(`${booking.id}: ${msg}`);
+      // Still mark as sent to avoid retry loops (email failures are usually permanent)
       await supabaseAdmin
         .from("bookings")
         .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })

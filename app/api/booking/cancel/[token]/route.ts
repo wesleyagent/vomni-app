@@ -118,6 +118,15 @@ export async function POST(
     return NextResponse.json({ error: "Failed to cancel" }, { status: 500 });
   }
 
+  // Notification: booking cancelled (non-blocking, fire and forget)
+  void supabaseAdmin.from("notifications").insert({
+    business_id: booking.business_id,
+    type: "booking_cancelled",
+    title: "Booking cancelled",
+    body: `${booking.customer_name} cancelled their ${booking.service_name} on ${booking.appointment_at?.substring(0,10) ?? ""} at ${booking.appointment_at?.substring(11,16) ?? ""}`,
+    read: false,
+  });
+
   // Audit log
   await supabaseAdmin.from("booking_audit_log").insert({
     booking_id: booking.id,
