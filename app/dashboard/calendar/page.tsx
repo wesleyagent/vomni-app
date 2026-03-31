@@ -89,6 +89,7 @@ export default function CalendarPage() {
   interface GCalEvent { id: string; title: string; start: string; end: string; allDay: boolean; }
   const [gcalEvents, setGcalEvents] = useState<GCalEvent[]>([]);
   const [gcalConnected, setGcalConnected] = useState(false);
+  const [gcalError, setGcalError] = useState(false);
 
   // Swipe detection
   const touchStartX = useRef<number>(0);
@@ -163,9 +164,11 @@ export default function CalendarPage() {
     // Fetch Google Calendar events (non-blocking)
     fetch(`/api/calendar/google/events?business_id=${bizId}&start=${startDate}&end=${endDate}`)
       .then(r => r.json())
-      .then((d: { events?: GCalEvent[]; connected?: boolean }) => {
+      .then((d: { events?: GCalEvent[]; connected?: boolean; error?: string }) => {
         setGcalEvents(d.events ?? []);
         setGcalConnected(d.connected ?? false);
+        // Show error banner if connected but fetch failed (expired token etc.)
+        setGcalError(!!(d.connected && d.error));
       })
       .catch(() => {});
 
@@ -669,15 +672,32 @@ export default function CalendarPage() {
         </>
       )}
 
+      {/* ── Google Calendar sync error banner ── */}
+      {gcalError && (
+        <div style={{
+          position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)",
+          background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: 12,
+          padding: "10px 20px", zIndex: 999,
+          display: "flex", alignItems: "center", gap: 10,
+          fontFamily: "Inter, sans-serif", fontSize: 13, color: "#92400E",
+          boxShadow: "0 2px 12px rgba(0,0,0,0.12)",
+        }}>
+          ⚠️ Google Calendar sync error —{" "}
+          <a href="/dashboard/calendar/settings" style={{ color: "#92400E", fontWeight: 600, textDecoration: "underline" }}>
+            Reconnect in Settings
+          </a>
+        </div>
+      )}
+
       {/* ── FAB ── */}
       <button
         onClick={() => { setShowNewForm(true); setNewDate(currentDateStr); }}
         style={{
-          position: "fixed", bottom: 32, right: 32, width: 56, height: 56,
+          position: "fixed", bottom: 90, right: 24, width: 56, height: 56,
           borderRadius: "50%", background: G, color: "#fff", border: "none",
           boxShadow: "0 4px 20px rgba(0,200,150,0.45)", cursor: "pointer",
           display: "flex", alignItems: "center", justifyContent: "center",
-          zIndex: 40, transition: "transform 0.15s, box-shadow 0.15s",
+          zIndex: 1002, transition: "transform 0.15s, box-shadow 0.15s",
         }}
         onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.08)"; }}
         onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}

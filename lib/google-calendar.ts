@@ -171,13 +171,21 @@ export async function getAccessTokenForBusiness(
     // Token still valid
     if (expiresAt > Date.now() + 60_000) return conn.access_token;
 
-    // Refresh token
+    // Try refresh first
     if (conn.refresh_token) {
       const refreshed = await refreshAccessToken(conn.refresh_token, businessId, "connection");
       if (refreshed) return refreshed;
     }
-    await markDisconnected(businessId);
-    return null;
+
+    // Refresh failed — if access_token exists, try it anyway (may still work)
+    // Only mark disconnected if token is definitely stale (older than 2h)
+    if (expiresAt > 0 && expiresAt < Date.now() - 2 * 60 * 60 * 1000) {
+      await markDisconnected(businessId);
+      return null;
+    }
+
+    // Token recently expired but refresh unavailable — try it anyway
+    return conn.access_token;
   }
 
   // 2. Fall back to legacy businesses.calendar_token
