@@ -76,8 +76,10 @@ export default function BookingSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [slugDebounce, setSlugDebounce] = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [pageOrigin, setPageOrigin] = useState("");
 
   useEffect(() => {
+    setPageOrigin(window.location.origin);
     if (ctx?.businessId) loadData();
   }, [ctx?.businessId]);
 
@@ -375,13 +377,13 @@ export default function BookingSettingsPage() {
   }
 
   function copyBookingUrl() {
-    const url = `${window.location.origin}/book/${slug}`;
+    const url = `${pageOrigin}/book/${slug}`;
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const bookingUrl = slug ? `${typeof window !== "undefined" ? window.location.origin : ""}/book/${slug}` : "";
+  const bookingUrl = slug && pageOrigin ? `${pageOrigin}/book/${slug}` : "";
 
   if (loading) {
     return (
@@ -999,7 +1001,7 @@ export default function BookingSettingsPage() {
               </div>
               {calendarToken && slug && (
                 <div style={{ background: GREY, borderRadius: 8, padding: "8px 12px", fontFamily: "Inter, sans-serif", fontSize: 11, color: SECONDARY, wordBreak: "break-all" }}>
-                  {`${typeof window !== "undefined" ? window.location.origin : ""}/api/booking/${slug}/calendar.ics?token=${calendarToken}`}
+                  {`${pageOrigin}/api/booking/${slug}/calendar.ics?token=${calendarToken}`}
                 </div>
               )}
             </div>

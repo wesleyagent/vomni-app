@@ -80,6 +80,7 @@ export default function CalendarSettingsPage() {
   // Booking link
   const [bookingSlug, setBookingSlug] = useState("");
   const [copied, setCopied] = useState(false);
+  const [pageOrigin, setPageOrigin] = useState("");
 
   // Working hours
   const [hours, setHours] = useState<HourRow[]>(DEFAULT_HOURS.map(h => ({ ...h })));
@@ -118,6 +119,7 @@ export default function CalendarSettingsPage() {
   const [disconnectingGoogle, setDisconnectingGoogle] = useState(false);
 
   useEffect(() => {
+    setPageOrigin(window.location.origin);
     if (ctx?.businessId) loadAll();
   }, [ctx?.businessId]);
 
@@ -378,7 +380,7 @@ export default function CalendarSettingsPage() {
     }
   }
 
-  const bookingUrl = bookingSlug ? `${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/book/${bookingSlug}` : null;
+  const bookingUrl = bookingSlug && pageOrigin ? `${pageOrigin}/book/${bookingSlug}` : null;
 
   function copyLink() {
     if (!bookingUrl) return;
