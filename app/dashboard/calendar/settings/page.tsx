@@ -179,7 +179,7 @@ export default function CalendarSettingsPage() {
         window.history.replaceState({}, "", window.location.pathname);
         setGoogleConnected(true);
       } else if (params.get("calendar_error")) {
-        flash("Google Calendar connection failed. Please try again.");
+        flash("Error: " + params.get("calendar_error"));
         window.history.replaceState({}, "", window.location.pathname);
       }
     }

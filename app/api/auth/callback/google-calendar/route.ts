@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
   if (insertErr) {
     console.error("[google-calendar callback] insert error:", insertErr.message);
-    return NextResponse.redirect(`${settingsUrl}?calendar_error=save_failed`);
+    return NextResponse.redirect(`${settingsUrl}?calendar_error=${encodeURIComponent(insertErr.message)}`);
   }
 
   // Register webhook for push notifications (so Google notifies us of changes)
