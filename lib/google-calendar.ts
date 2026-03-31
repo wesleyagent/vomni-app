@@ -140,10 +140,91 @@ export async function getAccessToken(
 }
 
 async function markDisconnected(businessId: string) {
-  await supabaseAdmin
+  await Promise.all([
+    supabaseAdmin.from("businesses").update({ google_calendar_connected: false }).eq("id", businessId),
+    supabaseAdmin.from("calendar_connections").update({ is_active: false }).eq("business_id", businessId).eq("provider", "google"),
+  ]);
+}
+
+// ── Unified access token retrieval ───────────────────────────────────────────
+
+/**
+ * Get a valid Google Calendar access token for a business.
+ * Checks calendar_connections table first (new system),
+ * falls back to businesses.calendar_token (legacy encrypted system).
+ * Handles automatic token refresh for both.
+ */
+export async function getAccessTokenForBusiness(
+  businessId: string,
+): Promise<string | null> {
+  // 1. Try new calendar_connections table first
+  const { data: conn } = await supabaseAdmin
+    .from("calendar_connections")
+    .select("access_token, refresh_token, token_expires_at")
+    .eq("business_id", businessId)
+    .eq("provider", "google")
+    .eq("is_active", true)
+    .single();
+
+  if (conn?.access_token) {
+    const expiresAt = conn.token_expires_at ? new Date(conn.token_expires_at).getTime() : 0;
+    // Token still valid
+    if (expiresAt > Date.now() + 60_000) return conn.access_token;
+
+    // Refresh token
+    if (conn.refresh_token) {
+      const refreshed = await refreshAccessToken(conn.refresh_token, businessId, "connection");
+      if (refreshed) return refreshed;
+    }
+    await markDisconnected(businessId);
+    return null;
+  }
+
+  // 2. Fall back to legacy businesses.calendar_token
+  const { data: biz } = await supabaseAdmin
     .from("businesses")
-    .update({ google_calendar_connected: false })
-    .eq("id", businessId);
+    .select("calendar_token, google_calendar_connected")
+    .eq("id", businessId)
+    .single();
+
+  if (biz?.google_calendar_connected && biz?.calendar_token) {
+    return getAccessToken(biz.calendar_token as string, businessId);
+  }
+
+  return null;
+}
+
+async function refreshAccessToken(
+  refreshToken: string,
+  businessId: string,
+  target: "connection" | "legacy",
+): Promise<string | null> {
+  const res = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: CLIENT_ID,
+      client_secret: CLIENT_SECRET,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!res.ok) return null;
+
+  const data = await res.json() as { access_token: string; expires_in: number };
+  if (!data.access_token) return null;
+
+  const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString();
+
+  if (target === "connection") {
+    await supabaseAdmin.from("calendar_connections")
+      .update({ access_token: data.access_token, token_expires_at: expiresAt, updated_at: new Date().toISOString() })
+      .eq("business_id", businessId)
+      .eq("provider", "google");
+  }
+
+  return data.access_token;
 }
 
 // ── freeBusy query ────────────────────────────────────────────────────────────

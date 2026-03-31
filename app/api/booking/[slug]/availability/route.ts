@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { computeAvailableSlots } from "@/lib/booking-utils";
-import { getAccessToken, getGoogleBusyTimes } from "@/lib/google-calendar";
+import { getAccessTokenForBusiness, getGoogleBusyTimes } from "@/lib/google-calendar";
 import { getUnifiedBusyTimes } from "@/lib/calendar-providers";
 import type { BusinessHours, StaffHours } from "@/types/booking";
 
@@ -32,7 +32,7 @@ export async function GET(
   // Fetch business
   const { data: business } = await supabaseAdmin
     .from("businesses")
-    .select("id, booking_buffer_minutes, booking_advance_days, booking_timezone, booking_enabled, google_calendar_connected, calendar_token")
+    .select("id, booking_buffer_minutes, booking_advance_days, booking_timezone, booking_enabled")
     .eq("booking_slug", slug)
     .single();
 
@@ -66,11 +66,8 @@ export async function GET(
     .eq("business_id", business.id);
   const bizHours = (bizHoursRaw ?? []) as BusinessHours[];
 
-  // Resolve legacy Google Calendar token (if connected directly)
-  let gcalToken: string | null = null;
-  if (business.google_calendar_connected && business.calendar_token) {
-    gcalToken = await getAccessToken(business.calendar_token as string, business.id);
-  }
+  // Get Google Calendar access token — checks calendar_connections first, falls back to legacy
+  const gcalToken = await getAccessTokenForBusiness(business.id);
 
   // ── Smart shortcuts ────────────────────────────────────────────────────────
   if (find === "next_today" || find === "next_week") {
