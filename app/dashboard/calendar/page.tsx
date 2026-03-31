@@ -85,6 +85,11 @@ export default function CalendarPage() {
   const [showQR, setShowQR] = useState(false);
   const [businessName, setBusinessName] = useState("");
 
+  // Google Calendar events
+  interface GCalEvent { id: string; title: string; start: string; end: string; allDay: boolean; }
+  const [gcalEvents, setGcalEvents] = useState<GCalEvent[]>([]);
+  const [gcalConnected, setGcalConnected] = useState(false);
+
   // Swipe detection
   const touchStartX = useRef<number>(0);
   const touchStartY = useRef<number>(0);
@@ -154,6 +159,15 @@ export default function CalendarPage() {
 
     const { data: svcData } = await db.from("services").select("id, name").eq("business_id", bizId).eq("is_active", true);
     setServiceList((svcData ?? []) as { id: string; name: string }[]);
+
+    // Fetch Google Calendar events (non-blocking)
+    fetch(`/api/calendar/google/events?business_id=${bizId}&start=${startDate}&end=${endDate}`)
+      .then(r => r.json())
+      .then((d: { events?: GCalEvent[]; connected?: boolean }) => {
+        setGcalEvents(d.events ?? []);
+        setGcalConnected(d.connected ?? false);
+      })
+      .catch(() => {});
 
     setLoading(false);
   }
@@ -422,7 +436,23 @@ export default function CalendarPage() {
               onTouchEnd={onTouchEnd}
               style={{ userSelect: "none" }}
             >
-              {filteredBookings.length === 0 ? (
+              {/* Google Calendar events for this day */}
+              {gcalConnected && gcalEvents.filter(e => e.start.substring(0, 10) === formatDateStr(currentDate)).map(e => (
+                <div key={e.id} style={{
+                  background: "#EFF6FF", borderRadius: 12, border: "1px solid #BFDBFE",
+                  padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, marginBottom: 6,
+                }}>
+                  <div style={{ width: 4, height: 36, borderRadius: 2, background: "#3B82F6", flexShrink: 0 }} />
+                  <div style={{ flex: 1 }}>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#1D4ED8", margin: 0 }}>
+                      {e.allDay ? "All day" : `${e.start.substring(11, 16)} – ${e.end.substring(11, 16)}`}
+                    </p>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#1E40AF", margin: "2px 0 0" }}>{e.title}</p>
+                  </div>
+                  <span style={{ fontSize: 11, color: "#93C5FD", fontFamily: "Inter, sans-serif" }}>Google Calendar</span>
+                </div>
+              ))}
+              {filteredBookings.length === 0 && gcalEvents.filter(e => e.start.substring(0, 10) === formatDateStr(currentDate)).length === 0 ? (
                 <div style={{
                   background: "#fff", borderRadius: 16, border: `1px solid ${BORDER}`,
                   padding: "60px 24px", textAlign: "center",
@@ -435,7 +465,7 @@ export default function CalendarPage() {
                     Tap + to add an appointment
                   </p>
                 </div>
-              ) : (
+              ) : filteredBookings.length > 0 ? (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {filteredBookings.map(b => {
                     const status = (b.status ?? "confirmed") as BookingStatus;
@@ -503,7 +533,7 @@ export default function CalendarPage() {
                     );
                   })}
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
