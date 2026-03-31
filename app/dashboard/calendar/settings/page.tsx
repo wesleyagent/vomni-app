@@ -205,12 +205,23 @@ export default function CalendarSettingsPage() {
   async function saveHours() {
     setSavingHours(true);
     const bizId = ctx!.businessId;
-    await db.from("business_hours").delete().eq("business_id", bizId);
-    await db.from("business_hours").insert(
-      hours.map(h => ({ business_id: bizId, day_of_week: h.day_of_week, is_open: h.is_open, open_time: h.open_time, close_time: h.close_time }))
-    );
-    setSavingHours(false);
-    flash("Working hours saved");
+    try {
+      const res = await fetch("/api/business-hours", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: bizId, hours }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        flash("Failed to save hours: " + (data.error ?? res.statusText));
+      } else {
+        flash("Working hours saved");
+      }
+    } catch (err) {
+      flash("Failed to save hours");
+    } finally {
+      setSavingHours(false);
+    }
   }
 
   function updateHour(day: number, field: keyof HourRow, value: boolean | string) {
@@ -233,70 +244,114 @@ export default function CalendarSettingsPage() {
     if (!svcName) return;
     setSavingSvc(true);
     const bizId = ctx!.businessId;
-    const payload = {
-      business_id: bizId, name: svcName, duration_minutes: svcDuration,
-      price: svcPrice ? parseFloat(svcPrice) : null, is_active: true,
-      color: svcColor,
-      display_order: editSvcId ? services.find(s => s.id === editSvcId)?.display_order ?? 0 : services.length,
-    };
+    const display_order = editSvcId ? services.find(s => s.id === editSvcId)?.display_order ?? 0 : services.length;
 
     if (editSvcId) {
-      // Optimistic update
-      setServices(prev => prev.map(s => s.id === editSvcId ? { ...s, ...payload } : s));
-      const { error } = await db.from("services").update(payload).eq("id", editSvcId);
-      if (error) { flash("Failed to update service"); loadAll(); }
+      setServices(prev => prev.map(s => s.id === editSvcId ? {
+        ...s, name: svcName, duration_minutes: svcDuration,
+        price: svcPrice ? parseFloat(svcPrice) : null, color: svcColor,
+      } : s));
+      try {
+        const res = await fetch("/api/services", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editSvcId, name: svcName, duration_minutes: svcDuration,
+            price: svcPrice ? parseFloat(svcPrice) : null, is_active: true,
+            color: svcColor, display_order,
+          }),
+        });
+        if (!res.ok) { flash("Failed to update service"); loadAll(); }
+        else flash("Service updated");
+      } catch { flash("Failed to update service"); loadAll(); }
     } else {
       const tempId = "temp-" + Date.now();
-      setServices(prev => [...prev, { id: tempId, ...payload } as ServiceRow]);
-      const { data, error } = await db.from("services").insert(payload).select("id").single();
-      if (error) { flash("Failed to add service"); setServices(prev => prev.filter(s => s.id !== tempId)); }
-      else setServices(prev => prev.map(s => s.id === tempId ? { ...s, id: data.id } : s));
+      setServices(prev => [...prev, {
+        id: tempId, name: svcName, duration_minutes: svcDuration,
+        price: svcPrice ? parseFloat(svcPrice) : null, is_active: true,
+        color: svcColor, display_order,
+      } as ServiceRow]);
+      try {
+        const res = await fetch("/api/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            business_id: bizId, name: svcName, duration_minutes: svcDuration,
+            price: svcPrice ? parseFloat(svcPrice) : null, is_active: true,
+            color: svcColor, display_order,
+          }),
+        });
+        if (!res.ok) { flash("Failed to add service"); setServices(prev => prev.filter(s => s.id !== tempId)); }
+        else {
+          const data = await res.json();
+          setServices(prev => prev.map(s => s.id === tempId ? { ...s, id: data.id } : s));
+          flash("Service added");
+        }
+      } catch { flash("Failed to add service"); setServices(prev => prev.filter(s => s.id !== tempId)); }
     }
 
     setShowSvcForm(false);
     setSavingSvc(false);
-    flash(editSvcId ? "Service updated" : "Service added");
   }
 
   async function toggleSvc(id: string, active: boolean) {
-    // Optimistic update
     setServices(prev => prev.map(s => s.id === id ? { ...s, is_active: !active } : s));
-    const { error } = await db.from("services").update({ is_active: !active }).eq("id", id);
-    if (error) { flash("Failed to update service"); loadAll(); }
+    try {
+      const res = await fetch("/api/services", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, is_active: !active }),
+      });
+      if (!res.ok) { flash("Failed to update service"); loadAll(); }
+    } catch { flash("Failed to update service"); loadAll(); }
   }
 
   async function deleteSvc(id: string) {
     if (!confirm("Delete this service? This won't affect existing bookings.")) return;
-    // Optimistic update
     setServices(prev => prev.filter(s => s.id !== id));
-    const { error } = await db.from("services").delete().eq("id", id);
-    if (error) { flash("Failed to delete service"); loadAll(); }
+    try {
+      await fetch(`/api/services?id=${id}`, { method: "DELETE" });
+    } catch { flash("Failed to delete service"); loadAll(); }
   }
 
   // ── Blocked times ──────────────────────────────────────────────────────────
   async function saveBlock() {
     setSavingBlock(true);
     const bizId = ctx!.businessId;
-    const { error } = await db.from("blocked_times").insert({
-      business_id: bizId,
-      label: blockLabel || null,
-      start_time: blockStartTime,
-      end_time: blockEndTime,
-      is_recurring: blockIsRecurring,
-      day_of_week: blockIsRecurring ? blockDayOfWeek : null,
-      date: !blockIsRecurring && blockDate ? blockDate : null,
-    });
-    if (error) { console.error(error); flash("Failed to save: " + error.message); setSavingBlock(false); return; }
-    setShowBlockForm(false);
-    setBlockLabel("Lunch break"); setBlockStartTime("13:00"); setBlockEndTime("14:00");
-    setBlockIsRecurring(true); setBlockDayOfWeek(null); setBlockDate("");
-    setSavingBlock(false);
-    flash("Time block added");
-    loadAll();
+    try {
+      const res = await fetch("/api/blocked-times", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business_id: bizId,
+          label: blockLabel || null,
+          start_time: blockStartTime,
+          end_time: blockEndTime,
+          is_recurring: blockIsRecurring,
+          day_of_week: blockIsRecurring ? blockDayOfWeek : null,
+          date: !blockIsRecurring && blockDate ? blockDate : null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        flash("Failed to save: " + (data.error ?? res.statusText));
+        setSavingBlock(false);
+        return;
+      }
+      setShowBlockForm(false);
+      setBlockLabel("Lunch break"); setBlockStartTime("13:00"); setBlockEndTime("14:00");
+      setBlockIsRecurring(true); setBlockDayOfWeek(null); setBlockDate("");
+      flash("Time block added");
+      loadAll();
+    } catch {
+      flash("Failed to save blocked time");
+    } finally {
+      setSavingBlock(false);
+    }
   }
 
   async function deleteBlock(id: string) {
-    await db.from("blocked_times").delete().eq("id", id);
+    await fetch(`/api/blocked-times?id=${id}`, { method: "DELETE" });
     loadAll();
   }
 
@@ -304,10 +359,23 @@ export default function CalendarSettingsPage() {
   async function generateCalendarToken() {
     setGeneratingToken(true);
     const token = crypto.randomUUID().replace(/-/g, "");
-    await db.from("businesses").update({ calendar_token: token }).eq("id", ctx!.businessId);
-    setCalendarToken(token);
-    setGeneratingToken(false);
-    flash("Calendar token generated");
+    try {
+      const res = await fetch("/api/business-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: ctx!.businessId, calendar_token: token }),
+      });
+      if (res.ok) {
+        setCalendarToken(token);
+        flash("Calendar token generated");
+      } else {
+        flash("Failed to generate token");
+      }
+    } catch {
+      flash("Failed to generate token");
+    } finally {
+      setGeneratingToken(false);
+    }
   }
 
   const bookingUrl = bookingSlug ? `${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/book/${bookingSlug}` : null;

@@ -150,52 +150,79 @@ export default function BookingSettingsPage() {
     setSaving(true);
     const bizId = ctx!.businessId;
 
-    // Delete existing and re-insert
-    await db.from("business_hours").delete().eq("business_id", bizId);
-    await db.from("business_hours").insert(
-      hours.map(h => ({
-        business_id: bizId,
-        day_of_week: h.day,
-        is_open: h.open,
-        open_time: h.from,
-        close_time: h.to,
-      }))
-    );
-    setSaving(false);
+    try {
+      const res = await fetch("/api/business-hours", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business_id: bizId,
+          hours: hours.map(h => ({
+            day_of_week: h.day,
+            is_open: h.open,
+            open_time: h.from,
+            close_time: h.to,
+          })),
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Failed to save hours: " + (data.error ?? res.statusText));
+      }
+    } catch {
+      alert("Failed to save hours");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function addService() {
     if (!svcName) return;
     setSaving(true);
     const bizId = ctx!.businessId;
-    const payload = {
-      business_id: bizId, name: svcName, name_he: svcNameHe || null,
-      duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
-    };
 
     if (editingSvcId) {
       // Optimistic update
-      setServices(prev => prev.map(s => s.id === editingSvcId ? { ...s, ...payload } : s));
-      const { error } = await db.from("services").update({
-        name: svcName, name_he: svcNameHe || null,
+      setServices(prev => prev.map(s => s.id === editingSvcId ? {
+        ...s, name: svcName, name_he: svcNameHe || null,
         duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
-      }).eq("id", editingSvcId);
-      if (error) { console.error(error); alert("Failed to save: " + error.message); setSaving(false); loadData(); return; }
+      } : s));
+      try {
+        const res = await fetch("/api/services", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: editingSvcId,
+            name: svcName, name_he: svcNameHe || null,
+            duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
+          }),
+        });
+        if (!res.ok) { alert("Failed to update service"); loadData(); setSaving(false); return; }
+      } catch { alert("Failed to update service"); setSaving(false); return; }
     } else {
       const tempId = "temp-" + Date.now();
       const newSvc: ServiceRow = { id: tempId, name: svcName, name_he: svcNameHe || null, duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null, display_order: services.length };
       setServices(prev => [...prev, newSvc]);
-      const { data, error } = await db.from("services").insert({
-        business_id: bizId, name: svcName, name_he: svcNameHe || null,
-        duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
-        display_order: services.length, is_active: true,
-      }).select("id").single();
-      if (error) {
-        console.error(error); alert("Failed to save: " + error.message);
+      try {
+        const res = await fetch("/api/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            business_id: bizId, name: svcName, name_he: svcNameHe || null,
+            duration_minutes: svcDuration, price: svcPrice ? parseFloat(svcPrice) : null,
+            display_order: services.length, is_active: true,
+          }),
+        });
+        if (!res.ok) {
+          alert("Failed to add service");
+          setServices(prev => prev.filter(s => s.id !== tempId));
+          setSaving(false); return;
+        }
+        const data = await res.json();
+        setServices(prev => prev.map(s => s.id === tempId ? { ...s, id: data.id } : s));
+      } catch {
+        alert("Failed to add service");
         setServices(prev => prev.filter(s => s.id !== tempId));
         setSaving(false); return;
-      } else {
-        setServices(prev => prev.map(s => s.id === tempId ? { ...s, id: data.id } : s));
       }
     }
 
@@ -207,7 +234,7 @@ export default function BookingSettingsPage() {
   async function deleteService(id: string) {
     // Optimistic update
     setServices(prev => prev.filter(s => s.id !== id));
-    await db.from("services").update({ is_active: false }).eq("id", id);
+    await fetch(`/api/services?id=${id}`, { method: "DELETE" });
   }
 
   async function addStaff() {
@@ -286,35 +313,65 @@ export default function BookingSettingsPage() {
     const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
       .map(b => b.toString(16).padStart(2, "0")).join("");
     setCalendarToken(token);
-    await db.from("businesses").update({ calendar_token: token }).eq("id", ctx!.businessId);
+    await fetch("/api/business-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ business_id: ctx!.businessId, calendar_token: token }),
+    });
   }
 
   async function saveSlugAndEnable() {
     setSaving(true);
     const bizId = ctx!.businessId;
-    await db.from("businesses").update({
-      booking_slug: slug,
-      booking_enabled: true,
-    }).eq("id", bizId);
-    setBookingEnabled(true);
-    setWizardStep(0);
-    setSaving(false);
+    try {
+      const res = await fetch("/api/business-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: bizId, booking_slug: slug, booking_enabled: true }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Failed to save: " + (data.error ?? res.statusText));
+        setSaving(false);
+        return;
+      }
+      setBookingEnabled(true);
+      setWizardStep(0);
+    } catch {
+      alert("Failed to save booking settings");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function saveSettings() {
     setSaving(true);
-    await db.from("businesses").update({
-      booking_buffer_minutes: bufferMinutes,
-      booking_advance_days: advanceDays,
-      booking_cancellation_hours: cancellationHours,
-      booking_confirmation_message: confirmationMsg || null,
-      booking_confirmation_message_he: confirmationMsgHe || null,
-      booking_enabled: !bookingPaused,
-      whatsapp_enabled: whatsappEnabled,
-      google_maps_url: googleMapsUrl || null,
-      instagram_handle: instagramHandle || null,
-    }).eq("id", ctx!.businessId);
-    setSaving(false);
+    try {
+      const res = await fetch("/api/business-settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          business_id: ctx!.businessId,
+          booking_buffer_minutes: bufferMinutes,
+          booking_advance_days: advanceDays,
+          booking_cancellation_hours: cancellationHours,
+          booking_confirmation_message: confirmationMsg || null,
+          booking_confirmation_message_he: confirmationMsgHe || null,
+          booking_enabled: !bookingPaused,
+          whatsapp_enabled: whatsappEnabled,
+          google_maps_url: googleMapsUrl || null,
+          instagram_handle: instagramHandle || null,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert("Failed to save settings: " + (data.error ?? res.statusText));
+      }
+    } catch {
+      alert("Failed to save settings");
+    } finally {
+      setSaving(false);
+    }
   }
 
   function copyBookingUrl() {
