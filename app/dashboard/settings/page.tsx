@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Save, Building2, Bell, Lock, Smartphone, ExternalLink, CheckCircle, ImageIcon } from "lucide-react";
+import { Save, Building2, Bell, Lock, Smartphone, ExternalLink, CheckCircle, ImageIcon, ArrowRight, Users, Download } from "lucide-react";
 import { useBusinessContext } from "../_context";
 import { db, getMyBusiness, updateBusiness, type DBBusiness } from "@/lib/db";
 
@@ -384,6 +384,51 @@ export default function SettingsPage() {
           </div>
         </SectionCard>
       </form>
+
+      {/* Switch to Vomni */}
+      <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${BD}`, padding: 28, marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <ArrowRight size={20} style={{ color: G }} />
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 600, color: N, margin: 0 }}>Switch to Vomni</h2>
+        </div>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.6 }}>
+          Moving from another booking platform? Import your entire client list in minutes — no data lost, no downtime.
+        </p>
+        <a
+          href="/dashboard/switch"
+          style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 22px", borderRadius: 10, background: G, color: "#fff", textDecoration: "none", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600 }}
+        >
+          Start migration wizard →
+        </a>
+      </div>
+
+      {/* Your Data */}
+      <div style={{ background: "#fff", borderRadius: 16, border: `1px solid ${BD}`, padding: 28, marginBottom: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
+          <Users size={20} style={{ color: G }} />
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 600, color: N, margin: 0 }}>Your Data</h2>
+        </div>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.5 }}>
+          Your client data belongs to you. Export it anytime — no restrictions, no hoops to jump through.
+        </p>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          {businessId && (
+            <a
+              href={`/api/migration/export-clients?business_id=${businessId}`}
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: `1px solid ${BD}`, background: "#fff", color: N, textDecoration: "none", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600 }}
+            >
+              <Download size={15} /> Export all clients (CSV)
+            </a>
+          )}
+          <a
+            href="/data-ownership"
+            target="_blank" rel="noreferrer"
+            style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 18px", borderRadius: 10, border: `1px solid #A7F3D0`, background: "#F0FDF9", color: G, textDecoration: "none", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600 }}
+          >
+            🔒 Our data promise
+          </a>
+        </div>
+      </div>
 
       {/* Sign Out */}
       <div style={{ marginTop: 8, padding: 24, borderRadius: 16, border: "1px solid #FEE2E2", background: "#FFF5F5" }}>

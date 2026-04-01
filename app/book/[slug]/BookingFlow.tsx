@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import DataOwnershipBadge from "@/components/DataOwnershipBadge";
 import { formatPrice, formatDuration, formatBookingDate, generateICS } from "@/lib/booking-utils";
 import {
   DAY_NAMES_SHORT_HE, DAY_NAMES_SHORT_EN,
@@ -1001,6 +1002,9 @@ export default function BookingFlow({ slug }: { slug: string }) {
             </div>
           </section>
         )}
+      </div>
+      <div style={{ display: "flex", justifyContent: "center", padding: "16px 24px 32px" }}>
+        <DataOwnershipBadge />
       </div>
     </div>
   );
