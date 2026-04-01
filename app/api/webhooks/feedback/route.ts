@@ -158,6 +158,31 @@ export async function POST(req: NextRequest) {
       `✅ Feedback email sent to ${business.owner_email} (${rating}★ from ${customerName})`
     );
 
+    // Send push notification to business (non-blocking)
+    try {
+      const { data: tokens } = await supabaseAdmin
+        .from('device_tokens')
+        .select('token')
+        .eq('business_id', business_id);
+
+      if (tokens && tokens.length > 0) {
+        const messages = tokens.map((t: { token: string }) => ({
+          to: t.token,
+          title: 'New review',
+          body: `⭐ ${customerName} left you a ${rating}-star review`,
+          data: { type: 'new_review' },
+        }));
+
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(messages),
+        });
+      }
+    } catch (e) {
+      console.error('Push notification failed:', e);
+    }
+
     return NextResponse.json({ success: true, emailSentTo: business.owner_email });
   } catch (err) {
     console.error("Webhook error:", err);

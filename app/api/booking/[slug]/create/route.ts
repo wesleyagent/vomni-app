@@ -290,6 +290,32 @@ export async function POST(
     read: false,
   });
 
+  // Send push notification to business (non-blocking)
+  try {
+    const { data: tokens } = await supabaseAdmin
+      .from('device_tokens')
+      .select('token')
+      .eq('business_id', business.id);
+
+    if (tokens && tokens.length > 0) {
+      const messages = tokens.map((t: { token: string }) => ({
+        to: t.token,
+        title: 'New booking',
+        body: `📅 ${customerName} booked ${service.name} at ${appointmentAt}`,
+        data: { type: 'new_booking', date: appointmentAt },
+      }));
+
+      await fetch('https://exp.host/--/api/v2/push/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(messages),
+      });
+    }
+  } catch (e) {
+    // Non-blocking - don't fail the booking
+    console.error('Push notification failed:', e);
+  }
+
   // Audit log
   await supabaseAdmin.from("booking_audit_log").insert({
     booking_id: bookingId,
