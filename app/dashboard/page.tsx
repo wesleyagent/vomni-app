@@ -528,20 +528,20 @@ export default function DashboardOverview() {
           sub={total === 0 ? <span style={{ color: "#D1D5DB", fontSize: 12 }}>no bookings yet</span> : "reviews sent to Google so far"}
         />
 
-        {/* Card 2: Negative Shielded */}
+        {/* Card 2: Private Feedback */}
         <div className="hero-card" style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "28px 28px 22px", transition: "box-shadow 0.2s ease, transform 0.2s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
-            Negative Reviews Shielded
+            Private Feedback
           </p>
           <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 56, fontWeight: 800, color: negativeCaught > 0 ? N : "#D1D5DB", lineHeight: 1, margin: "0 0 8px" }}>
             {negativeCaught > 0 ? negativeCaught : "-"}
           </div>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: negativeCaught > 0 ? "#6B7280" : "#9CA3AF", margin: "0 0 8px" }}>
-            {negativeCaught > 0 ? "complaints caught before going public" : "none caught yet - you're doing great"}
+            {negativeCaught > 0 ? "customers shared private feedback" : "inbox is empty — great service!"}
           </p>
           {negativeCaught > 0 && (
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "4px 10px", borderRadius: 9999, background: "rgba(0,200,150,0.1)", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: G }}>
-              <Shield size={12} /> Protected from Google
+              <Shield size={12} /> Resolved privately
             </span>
           )}
         </div>

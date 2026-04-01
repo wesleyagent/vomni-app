@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   turbopack: {},
   experimental: {
     serverActions: {
-      allowedOrigins: ["vomni.io", "www.vomni.io", "localhost:3000", "localhost:3001"],
+      allowedOrigins: ["vomni.io", "www.vomni.io", "localhost:3000", "localhost:3001", "vomni-app-git-booking-platform-wesleyagents-projects.vercel.app"],
     },
   },
   async headers() {

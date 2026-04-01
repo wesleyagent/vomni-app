@@ -675,7 +675,7 @@ export default function CalendarPage() {
       {/* ── Google Calendar sync error banner ── */}
       {gcalError && (
         <div style={{
-          position: "fixed", bottom: 90, left: "50%", transform: "translateX(-50%)",
+          position: "fixed", bottom: 24, left: "50%", transform: "translateX(-50%)",
           background: "#FEF3C7", border: "1px solid #FCD34D", borderRadius: 12,
           padding: "10px 20px", zIndex: 999,
           display: "flex", alignItems: "center", gap: 10,
@@ -688,23 +688,6 @@ export default function CalendarPage() {
           </a>
         </div>
       )}
-
-      {/* ── FAB ── */}
-      <button
-        onClick={() => { setShowNewForm(true); setNewDate(currentDateStr); }}
-        style={{
-          position: "fixed", bottom: 90, right: 24, width: 56, height: 56,
-          borderRadius: "50%", background: G, color: "#fff", border: "none",
-          boxShadow: "0 4px 20px rgba(0,200,150,0.45)", cursor: "pointer",
-          display: "flex", alignItems: "center", justifyContent: "center",
-          zIndex: 1002, transition: "transform 0.15s, box-shadow 0.15s",
-        }}
-        onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1.08)"; }}
-        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.transform = "scale(1)"; }}
-        aria-label="New appointment"
-      >
-        <Plus size={26} strokeWidth={2.5} />
-      </button>
 
       {/* ── APPOINTMENT DETAIL BOTTOM SHEET ── */}
       {selectedBooking && (
