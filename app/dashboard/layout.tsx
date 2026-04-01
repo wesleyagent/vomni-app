@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Bell, LogOut, X } from "lucide-react";
@@ -45,6 +45,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifOpen,     setNotifOpen]     = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [trialInfo,     setTrialInfo]     = useState<{ isTrial: boolean; daysRemaining: number; trialExpired: boolean } | null>(null);
+
+  // Review request modal
+  const [showReviewModal,  setShowReviewModal]  = useState(false);
+  const [reviewMessage,    setReviewMessage]    = useState("");
+  const [reviewLinkCopied, setReviewLinkCopied] = useState(false);
+  const [showQR,           setShowQR]           = useState(false);
+  const reviewUrlRef = useRef("");
 
   useEffect(() => {
     (async () => {
@@ -148,6 +155,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return `${Math.floor(h / 24)}d ago`;
   }
 
+  function openReviewModal() {
+    const bizId = ctx?.businessId;
+    const bizName = ctx?.businessName ?? "us";
+    const url = typeof window !== "undefined" ? `${window.location.origin}/review-invite/${bizId}` : `/review-invite/${bizId}`;
+    reviewUrlRef.current = url;
+    setReviewMessage(`Thanks for visiting ${bizName}! We'd love your feedback — could you leave us a quick review? ${url}`);
+    setReviewLinkCopied(false);
+    setShowQR(false);
+    setShowReviewModal(true);
+  }
+
   if (loading) {
     return (
       <div style={{ display: "flex", height: "100vh", alignItems: "center", justifyContent: "center", background: "#F7F8FA" }}>
@@ -219,8 +237,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               )}
             </div>
 
-            {/* Right: Bell + Avatar */}
+            {/* Right: Request Review + Bell + Avatar */}
             <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              {/* Request Review */}
+              <button
+                onClick={openReviewModal}
+                style={{
+                  padding: "7px 16px", borderRadius: 9999,
+                  background: "transparent", color: "#374151",
+                  border: "1.5px solid #D1D5DB",
+                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", whiteSpace: "nowrap",
+                  transition: "border-color 0.15s, color 0.15s",
+                }}
+                onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = G; (e.currentTarget as HTMLButtonElement).style.color = G; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = "#D1D5DB"; (e.currentTarget as HTMLButtonElement).style.color = "#374151"; }}
+              >
+                Request Review
+              </button>
+
               {/* Notification Bell */}
               <button
                 onClick={() => { setNotifOpen(o => !o); if (!notifOpen && unread > 0) markAllRead(); }}
@@ -455,6 +490,108 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         <ChatWidget context="dashboard" business={ctx ? { id: ctx.businessId, name: ctx.businessName, ownerName: ctx.ownerName } : null} />
+
+        {/* ── Request Review Modal ── */}
+        {showReviewModal && (
+          <>
+            <div
+              onClick={() => setShowReviewModal(false)}
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 200 }}
+            />
+            <div style={{
+              position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+              width: "min(420px, calc(100vw - 32px))", background: "#fff", borderRadius: 20,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)", zIndex: 210, padding: 28,
+              maxHeight: "90vh", overflowY: "auto",
+              fontFamily: "Inter, sans-serif",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, margin: 0 }}>
+                  Request a Review
+                </h3>
+                <button
+                  onClick={() => setShowReviewModal(false)}
+                  style={{ background: "#F7F8FA", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <X size={16} color="#6B7280" />
+                </button>
+              </div>
+
+              <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 16, lineHeight: 1.5 }}>
+                Share this link with any customer to collect a review — no booking required.
+              </p>
+
+              {/* Editable message */}
+              <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Message</label>
+              <textarea
+                value={reviewMessage}
+                onChange={e => setReviewMessage(e.target.value)}
+                rows={4}
+                style={{
+                  width: "100%", padding: "10px 14px", borderRadius: 10, marginBottom: 16,
+                  border: "1px solid #E5E7EB", fontFamily: "Inter, sans-serif", fontSize: 13,
+                  color: N, outline: "none", resize: "none", boxSizing: "border-box", lineHeight: 1.6,
+                }}
+              />
+
+              {/* Action buttons */}
+              <div style={{ display: "flex", gap: 10, marginBottom: 16 }}>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(reviewUrlRef.current);
+                    setReviewLinkCopied(true);
+                    setTimeout(() => setReviewLinkCopied(false), 2000);
+                  }}
+                  style={{
+                    flex: 1, padding: "11px 8px", borderRadius: 10,
+                    background: reviewLinkCopied ? `${G}15` : "#F7F8FA",
+                    color: reviewLinkCopied ? G : N,
+                    border: `1px solid ${reviewLinkCopied ? G : "#E5E7EB"}`,
+                    fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  {reviewLinkCopied ? "✓ Copied!" : "Copy Link"}
+                </button>
+                <button
+                  onClick={() => setShowQR(q => !q)}
+                  style={{
+                    flex: 1, padding: "11px 8px", borderRadius: 10,
+                    background: showQR ? `${N}10` : "#F7F8FA", color: N,
+                    border: `1px solid ${showQR ? N : "#E5E7EB"}`,
+                    fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                  }}
+                >
+                  {showQR ? "Hide QR" : "Show QR Code"}
+                </button>
+              </div>
+
+              {/* QR Code */}
+              {showQR && (
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
+                  <div style={{ background: "#F7F8FA", borderRadius: 12, padding: 16, border: "1px solid #E5E7EB" }}>
+                    <img
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(reviewUrlRef.current)}`}
+                      alt="QR Code" width={200} height={200}
+                      style={{ display: "block", borderRadius: 6 }}
+                    />
+                  </div>
+                  <p style={{ fontSize: 12, color: "#9CA3AF", margin: "10px 0 0", textAlign: "center" }}>
+                    Show this to the customer to scan
+                  </p>
+                </div>
+              )}
+
+              <button
+                onClick={() => setShowReviewModal(false)}
+                style={{
+                  width: "100%", padding: "13px 16px", borderRadius: 12,
+                  background: G, color: "#fff", border: "none",
+                  fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer",
+                }}
+              >Done</button>
+            </div>
+          </>
+        )}
       </div>
     </BusinessContext.Provider>
   );

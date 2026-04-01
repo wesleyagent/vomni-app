@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Star, Shield, TrendingUp, ArrowRight, X } from "lucide-react";
+import { Star, Shield, TrendingUp, ArrowRight } from "lucide-react";
 import { useBusinessContext } from "./_context";
 import { getOverviewStats, getAllBookings, type DBBooking } from "@/lib/db";
 import { getBenchmark } from "@/lib/benchmarks";
@@ -27,10 +27,8 @@ interface BookingStatData {
   nextAppt: { customer_name: string; service_name: string; appointment_at: string } | null;
 }
 
-function BookingStats({ businessId, bizName, onRequestReview }: {
+function BookingStats({ businessId }: {
   businessId: string;
-  bizName: string;
-  onRequestReview: (customerName: string, reviewUrl: string, bizName: string) => void;
 }) {
   const [stats, setStats] = useState<BookingStatData | null>(null);
 
@@ -127,24 +125,9 @@ function BookingStats({ businessId, bizName, onRequestReview }: {
               </div>
             </div>
           </Link>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            <button
-              onClick={() => {
-                const reviewUrl = `${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/review-invite/${businessId}`;
-                onRequestReview(stats.nextAppt!.customer_name, reviewUrl, bizName);
-              }}
-              style={{
-                padding: "7px 13px", borderRadius: 9999,
-                background: "rgba(255,255,255,0.2)", color: "#fff",
-                border: "1.5px solid rgba(255,255,255,0.5)",
-                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                cursor: "pointer", whiteSpace: "nowrap",
-              }}
-            >⭐ Request Review</button>
-            <Link href="/dashboard/calendar" style={{ textDecoration: "none", display: "flex" }}>
-              <ArrowRight size={20} color="rgba(255,255,255,0.7)" />
-            </Link>
-          </div>
+          <Link href="/dashboard/calendar" style={{ textDecoration: "none", display: "flex", flexShrink: 0 }}>
+            <ArrowRight size={20} color="rgba(255,255,255,0.7)" />
+          </Link>
         </div>
       )}
 
@@ -348,29 +331,6 @@ export default function DashboardOverview() {
     currentRating: number | null;
     initialReviewCount: number | null;
   }>({ initialRating: null, currentRating: null, initialReviewCount: null });
-
-  // Review request modal state
-  const [showReviewModal,   setShowReviewModal]   = useState(false);
-  const [reviewCustomer,    setReviewCustomer]    = useState("");
-  const [reviewMessage,     setReviewMessage]     = useState("");
-  const [reviewUrl,         setReviewUrl]         = useState("");
-  const [reviewLinkCopied,  setReviewLinkCopied]  = useState(false);
-  const [showQR,            setShowQR]            = useState(false);
-
-  function openReviewModal(customerName: string, url: string, bName: string) {
-    setReviewCustomer(customerName);
-    setReviewUrl(url);
-    setReviewMessage(`Hi ${customerName}! Thanks for visiting ${bName}. We'd love your feedback — could you leave us a quick review? 🌟 ${url}`);
-    setReviewLinkCopied(false);
-    setShowQR(false);
-    setShowReviewModal(true);
-  }
-
-  function closeReviewModal() {
-    setShowReviewModal(false);
-    setReviewLinkCopied(false);
-    setShowQR(false);
-  }
 
   const loadData = useCallback(async () => {
     if (!businessId) { setLoading(false); return; }
@@ -695,11 +655,7 @@ export default function DashboardOverview() {
       )}
 
       {/* Booking System Stats */}
-      <BookingStats
-        businessId={businessId}
-        bizName={businessName ?? ""}
-        onRequestReview={openReviewModal}
-      />
+      <BookingStats businessId={businessId} />
 
       {/* Section 2: Review Funnel */}
       <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "24px", marginBottom: 40, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
@@ -852,124 +808,6 @@ export default function DashboardOverview() {
       )}
 
       {/* ── REVIEW REQUEST MODAL ── */}
-      {showReviewModal && (
-        <>
-          <div
-            onClick={closeReviewModal}
-            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 60 }}
-          />
-          <div style={{
-            position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
-            width: "min(400px, calc(100vw - 32px))", background: "#fff", borderRadius: 20,
-            boxShadow: "0 20px 60px rgba(0,0,0,0.25)", zIndex: 70, padding: 28,
-            maxHeight: "90vh", overflowY: "auto",
-          }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, margin: 0 }}>
-                Request a Review
-              </h3>
-              <button
-                onClick={closeReviewModal}
-                style={{ background: "#F7F8FA", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-              >
-                <X size={16} color="#6B7280" />
-              </button>
-            </div>
-
-            <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", marginBottom: 16 }}>
-              For <strong style={{ color: N }}>{reviewCustomer}</strong>
-            </div>
-
-            {/* Editable message */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: "#9CA3AF", display: "block", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>Message</label>
-              <textarea
-                value={reviewMessage}
-                onChange={e => setReviewMessage(e.target.value)}
-                rows={4}
-                style={{
-                  width: "100%", padding: "10px 14px", borderRadius: 10,
-                  border: "1px solid #E5E7EB", fontFamily: "Inter, sans-serif", fontSize: 13,
-                  color: N, outline: "none", resize: "none", boxSizing: "border-box",
-                  lineHeight: 1.6,
-                }}
-              />
-            </div>
-
-            {/* Action buttons */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(reviewUrl);
-                  setReviewLinkCopied(true);
-                  setTimeout(() => setReviewLinkCopied(false), 2000);
-                }}
-                style={{
-                  flex: 1, padding: "10px 8px", borderRadius: 10,
-                  background: reviewLinkCopied ? `${G}15` : "#F7F8FA",
-                  color: reviewLinkCopied ? G : N,
-                  border: `1px solid ${reviewLinkCopied ? G : BORDER}`,
-                  fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                }}
-              >
-                {reviewLinkCopied ? "✓ Copied!" : "📋 Copy Link"}
-              </button>
-              <a
-                href={`https://wa.me/?text=${encodeURIComponent(reviewMessage)}`}
-                target="_blank" rel="noreferrer"
-                style={{
-                  flex: 1, padding: "10px 8px", borderRadius: 10,
-                  background: "#25D36620", color: "#128C7E",
-                  border: "1px solid #25D36640",
-                  fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                  textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center",
-                }}
-              >
-                💬 WhatsApp
-              </a>
-              <button
-                onClick={() => setShowQR(q => !q)}
-                style={{
-                  flex: 1, padding: "10px 8px", borderRadius: 10,
-                  background: showQR ? `${N}10` : "#F7F8FA", color: N,
-                  border: `1px solid ${showQR ? N : BORDER}`,
-                  fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                }}
-              >
-                🔗 QR Code
-              </button>
-            </div>
-
-            {/* QR Code */}
-            {showQR && (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 16 }}>
-                <div style={{ background: "#F7F8FA", borderRadius: 12, padding: 16, border: "1px solid #E5E7EB" }}>
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(reviewUrl)}`}
-                    alt="QR Code"
-                    width={180}
-                    height={180}
-                    style={{ display: "block", borderRadius: 6 }}
-                  />
-                </div>
-                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: "10px 0 0", textAlign: "center" }}>
-                  Show this to the customer to scan
-                </p>
-              </div>
-            )}
-
-            <button
-              onClick={closeReviewModal}
-              style={{
-                width: "100%", padding: "13px 16px", borderRadius: 12,
-                background: G, color: "#fff", border: "none",
-                fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer",
-              }}
-            >Done</button>
-          </div>
-        </>
-      )}
-
     </div>
   );
 }
