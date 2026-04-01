@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { Search, Star, Users, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import { useBusinessContext } from "../_context";
-import { getAllBookings, fmtDate, type DBBooking } from "@/lib/db";
+import { getAllBookings, fmtDate, type DBBooking, db } from "@/lib/db";
 
 const G     = "#00C896";
 const N     = "#0A0F1E";
@@ -160,11 +160,38 @@ function JourneyTrack({ status }: { status: string | null }) {
   );
 }
 
+// ── Types ───────────────────────────────────────────────────────────────────
+
+interface Appointment {
+  id: string;
+  customer_name: string;
+  customer_email: string | null;
+  customer_phone: string | null;
+  service_name: string | null;
+  appointment_at: string | null;
+  status: "confirmed" | "completed" | "no_show" | "cancelled" | "pending";
+  notes: string | null;
+  created_at: string;
+}
+
+// ── Appointment status helpers ───────────────────────────────────────────────
+
+const APPT_BADGE: Record<string, { label: string; icon: React.ReactNode; style: React.CSSProperties }> = {
+  confirmed:  { label: "Confirmed",  icon: <CheckCircle size={12} />, style: { background: "rgba(0,200,150,0.10)", color: "#00A87D", border: "1px solid rgba(0,200,150,0.3)" } },
+  completed:  { label: "Completed",  icon: <CheckCircle size={12} />, style: { background: "#EFF6FF", color: "#3B82F6", border: "1px solid #BFDBFE" } },
+  no_show:    { label: "No-Show",    icon: <XCircle size={12} />,     style: { background: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA" } },
+  cancelled:  { label: "Cancelled",  icon: <XCircle size={12} />,     style: { background: "#F3F4F6", color: "#6B7280", border: "1px solid #E5E7EB" } },
+  pending:    { label: "Pending",    icon: <Clock size={12} />,       style: { background: "#FEF3C7", color: "#B45309", border: "1px solid #FDE68A" } },
+};
+
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function CustomersPage() {
   const { businessId } = useBusinessContext();
 
+  const [activeTab,  setActiveTab]  = useState<"appointments" | "reviews">("appointments");
+
+  // Reviews tab state
   const [bookings,  setBookings]  = useState<DBBooking[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [search,    setSearch]    = useState("");
@@ -172,13 +199,53 @@ export default function CustomersPage() {
   const [dateRange, setDateRange] = useState("all");
   const [page,      setPage]      = useState(1);
 
+  // Appointments tab state
+  const [appointments,   setAppointments]   = useState<Appointment[]>([]);
+  const [apptLoading,    setApptLoading]    = useState(true);
+  const [apptSearch,     setApptSearch]     = useState("");
+  const [apptStatus,     setApptStatus]     = useState("all");
+  const [apptPage,       setApptPage]       = useState(1);
+  const [markingNoShow,  setMarkingNoShow]  = useState<string | null>(null);
+
   useEffect(() => {
-    if (!businessId) { setLoading(false); return; }
+    if (!businessId) { setLoading(false); setApptLoading(false); return; }
+
+    // Load review data
     getAllBookings(businessId).then(data => {
       setBookings(data);
       setLoading(false);
     });
+
+    // Load appointments
+    db.from("bookings")
+      .select("id, customer_name, customer_email, customer_phone, service_name, appointment_at, status, notes, created_at")
+      .eq("business_id", businessId)
+      .order("appointment_at", { ascending: false })
+      .then(({ data }) => {
+        setAppointments((data ?? []) as Appointment[]);
+        setApptLoading(false);
+      });
   }, [businessId]);
+
+  async function markNoShow(bookingId: string) {
+    setMarkingNoShow(bookingId);
+    await db.from("bookings").update({ status: "no_show" }).eq("id", bookingId);
+    setAppointments(prev => prev.map(a => a.id === bookingId ? { ...a, status: "no_show" as const } : a));
+    setMarkingNoShow(null);
+  }
+
+  // Appointment filtering
+  const filteredAppts = useMemo(() => {
+    return appointments.filter(a => {
+      const matchSearch = !apptSearch || [a.customer_name, a.customer_email, a.customer_phone, a.service_name]
+        .some(v => v?.toLowerCase().includes(apptSearch.toLowerCase()));
+      const matchStatus = apptStatus === "all" || a.status === apptStatus;
+      return matchSearch && matchStatus;
+    });
+  }, [appointments, apptSearch, apptStatus]);
+
+  const apptTotalPages = Math.max(1, Math.ceil(filteredAppts.length / PAGE_SIZE));
+  const apptPaged      = filteredAppts.slice((apptPage - 1) * PAGE_SIZE, apptPage * PAGE_SIZE);
 
   const filtered = useMemo(() => {
     const now   = new Date();
@@ -212,29 +279,173 @@ export default function CustomersPage() {
   return (
     <div style={{ padding: "32px 32px", maxWidth: 1300, margin: "0 auto" }}>
       {/* Header */}
-      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div>
-          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: 0 }}>
-            Customers
-          </h1>
-          {bookings.length > 0 ? (
-            <p style={{ marginTop: 6, fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
-              <span style={{ fontWeight: 600, color: N }}>{bookings.length}</span> customer{bookings.length !== 1 ? "s" : ""}
-              {" · "}
-              <span style={{ fontWeight: 600, color: G }}>{bookings.filter(b => b.review_status === "redirected_to_google" || b.review_status === "redirected").length}</span> sent to Google
-              {" · "}
-              <span style={{ fontWeight: 600, color: "#F59E0B" }}>{bookings.filter(b => b.review_status === "private_feedback" || b.review_status === "reviewed_negative").length}</span> negative caught
-            </p>
-          ) : (
-            <p style={{ marginTop: 4, fontSize: 14, color: "#9CA3AF", fontFamily: "Inter, sans-serif" }}>
-              No customers yet
-            </p>
-          )}
+      <div style={{ marginBottom: 24 }}>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: "0 0 20px" }}>
+          Customers
+        </h1>
+
+        {/* Sub-tabs */}
+        <div style={{ display: "flex", gap: 4, borderBottom: "2px solid #F3F4F6" }}>
+          {([
+            { key: "appointments", label: "Appointments", icon: <Calendar size={15} /> },
+            { key: "reviews",      label: "Reviews",      icon: <Star size={15} /> },
+          ] as const).map(tab => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                padding: "9px 18px", border: "none", background: "none", cursor: "pointer",
+                fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600,
+                color: activeTab === tab.key ? G : "#6B7280",
+                borderBottom: `2px solid ${activeTab === tab.key ? G : "transparent"}`,
+                marginBottom: -2, transition: "color 0.15s",
+              }}
+            >
+              {tab.icon}
+              {tab.label}
+              <span style={{
+                background: activeTab === tab.key ? `${G}18` : "#F3F4F6",
+                color: activeTab === tab.key ? G : "#9CA3AF",
+                borderRadius: 99, padding: "1px 8px", fontSize: 11, fontWeight: 700,
+              }}>
+                {tab.key === "appointments" ? appointments.length : bookings.length}
+              </span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Filters */}
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
+      {/* ── APPOINTMENTS TAB ── */}
+      {activeTab === "appointments" && (
+        <>
+          {/* Filters */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
+            <div style={{ position: "relative", flex: "1 1 220px", minWidth: 200 }}>
+              <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <input
+                value={apptSearch}
+                onChange={e => { setApptSearch(e.target.value); setApptPage(1); }}
+                placeholder="Search name, phone, service…"
+                style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 10, paddingBottom: 10, border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+            <select
+              value={apptStatus}
+              onChange={e => { setApptStatus(e.target.value); setApptPage(1); }}
+              style={{ padding: "10px 12px", border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", background: "#fff", minWidth: 160 }}
+            >
+              <option value="all">All statuses</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="completed">Completed</option>
+              <option value="no_show">No-Show</option>
+              <option value="cancelled">Cancelled</option>
+              <option value="pending">Pending</option>
+            </select>
+          </div>
+
+          {apptLoading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: 64 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+            </div>
+          ) : apptPaged.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "64px 24px", background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB" }}>
+              <Calendar size={36} style={{ color: "#D1D5DB", margin: "0 auto 16px" }} />
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 8px" }}>
+                {appointments.length === 0 ? "No appointments yet" : "No results match your filters"}
+              </h3>
+              <p style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
+                {appointments.length === 0 ? "Appointments will appear here when customers book via your booking link." : "Try adjusting your filters."}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+                  <thead>
+                    <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                      {["Customer", "Service", "Date & Time", "Status", "Actions"].map(h => (
+                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {apptPaged.map((a, idx) => {
+                      const badge = APPT_BADGE[a.status] ?? APPT_BADGE.pending;
+                      const isPast = a.appointment_at ? new Date(a.appointment_at) < new Date() : false;
+                      const canMarkNoShow = (a.status === "confirmed" || a.status === "pending") && isPast;
+                      return (
+                        <tr key={a.id} style={{ borderTop: idx > 0 ? "1px solid #F3F4F6" : "none" }}>
+                          <td style={{ padding: "14px 16px" }}>
+                            <p style={{ fontWeight: 600, color: N, fontSize: 14, margin: 0 }}>{a.customer_name ?? "-"}</p>
+                            {a.customer_phone && <p style={{ fontSize: 12, color: "#9CA3AF", margin: "2px 0 0" }}>{a.customer_phone}</p>}
+                            {a.customer_email && <p style={{ fontSize: 12, color: "#9CA3AF", margin: "1px 0 0" }}>{a.customer_email}</p>}
+                          </td>
+                          <td style={{ padding: "14px 16px", fontSize: 14, color: "#374151" }}>{a.service_name ?? "-"}</td>
+                          <td style={{ padding: "14px 16px", fontSize: 13, color: "#6B7280", whiteSpace: "nowrap" }}>
+                            {a.appointment_at ? (
+                              <>
+                                <p style={{ margin: 0, color: N, fontWeight: 500 }}>{new Date(a.appointment_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF" }}>{new Date(a.appointment_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</p>
+                              </>
+                            ) : "-"}
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, borderRadius: 9999, padding: "4px 10px", ...badge.style }}>
+                              {badge.icon}
+                              {badge.label}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            {canMarkNoShow && (
+                              <button
+                                onClick={() => markNoShow(a.id)}
+                                disabled={markingNoShow === a.id}
+                                style={{
+                                  padding: "6px 12px", borderRadius: 8, border: "1px solid #FECACA",
+                                  background: markingNoShow === a.id ? "#F9FAFB" : "#FEF2F2",
+                                  color: "#DC2626", fontFamily: "Inter, sans-serif", fontSize: 12,
+                                  fontWeight: 600, cursor: markingNoShow === a.id ? "not-allowed" : "pointer",
+                                  display: "flex", alignItems: "center", gap: 5,
+                                }}
+                              >
+                                <AlertCircle size={12} />
+                                {markingNoShow === a.id ? "Saving…" : "Mark No-Show"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {apptTotalPages > 1 && (
+                <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <span style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
+                    {(apptPage - 1) * PAGE_SIZE + 1}–{Math.min(apptPage * PAGE_SIZE, filteredAppts.length)} of {filteredAppts.length}
+                  </span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button disabled={apptPage === 1} onClick={() => setApptPage(p => p - 1)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #E5E7EB", background: apptPage === 1 ? "#F9FAFB" : "#fff", color: apptPage === 1 ? "#D1D5DB" : N, cursor: apptPage === 1 ? "not-allowed" : "pointer" }}>
+                      <ChevronLeft size={16} />
+                    </button>
+                    <button disabled={apptPage === apptTotalPages} onClick={() => setApptPage(p => p + 1)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #E5E7EB", background: apptPage === apptTotalPages ? "#F9FAFB" : "#fff", color: apptPage === apptTotalPages ? "#D1D5DB" : N, cursor: apptPage === apptTotalPages ? "not-allowed" : "pointer" }}>
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {/* ── REVIEWS TAB ── */}
+      {activeTab === "reviews" && (
+        <>
+          {/* Filters */}
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
         <div style={{ position: "relative", flex: "1 1 220px", minWidth: 200 }}>
           <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
           <input
@@ -368,6 +579,8 @@ export default function CustomersPage() {
           )}
         </>
       )}
+        </>
+      )} {/* end reviews tab */}
     </div>
   );
 }
