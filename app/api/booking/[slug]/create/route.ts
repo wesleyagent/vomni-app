@@ -301,7 +301,7 @@ export async function POST(
       const messages = tokens.map((t: { token: string }) => ({
         to: t.token,
         title: 'New booking',
-        body: `📅 ${customerName} booked ${service.name} at ${appointmentAt}`,
+        body: `📅 ${customerName}, ${service.name} at ${time}`,
         data: { type: 'new_booking', date: appointmentAt },
       }));
 
