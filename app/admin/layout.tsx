@@ -233,9 +233,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           {/* Demo Requests */}
           <NavLink href="/admin/demo-requests" label="Demo Requests" icon={CalendarCheck} />
 
-          {/* New Business Radar */}
-          <NavLink href="/admin/radar" label="Business Radar" icon={Radar} />
-
           {/* Agent Workspace section */}
           <div style={{ marginTop: 12 }}>
             {/* Section header - clickable to expand/collapse */}
@@ -257,6 +254,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {workspaceOpen && (
               <div style={{ marginTop: 2, display: "flex", flexDirection: "column", gap: 1 }}>
+                <NavLink href="/admin/radar" label="Business Radar" icon={Radar} indent />
                 <NavLink href="/admin/agents/leads" label="Lead Pipeline" icon={Target} indent />
                 <NavLink href="/admin/agents/copy" label="Copy Queue" icon={PenLine} indent />
                 <NavLink href="/admin/agents/conversations" label="Conversations" icon={MessageSquare} indent />

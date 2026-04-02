@@ -52,8 +52,9 @@ function newnessBadge(biz: RadarBusiness) {
       </span>
     );
   }
-  // Google Maps — judge by review count
-  const rc = biz.review_count ?? 0;
+  // Google Maps — judge by review count (null = unknown, don't label as 0)
+  const rc = biz.review_count;
+  if (rc === null || rc === undefined) return <span className="text-xs text-gray-300">—</span>;
   if (rc === 0) return <span style={{ background: "rgba(0,200,150,0.12)", color: "#059669", borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "2px 8px" }}>🆕 0 reviews</span>;
   if (rc <= 10) return <span style={{ background: "rgba(0,200,150,0.08)", color: G, borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "2px 8px" }}>✨ {rc} reviews</span>;
   if (rc <= 50) return <span style={{ background: "#F3F4F6", color: "#6B7280", borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "2px 8px" }}>{rc} reviews</span>;
@@ -100,7 +101,7 @@ export default function RadarPage() {
     const q = search.toLowerCase();
     if (q && !name.includes(q) && !addr.includes(q)) return false;
     if (filterSource !== "all" && b.source !== filterSource) return false;
-    if (filterNewness === "zero" && (b.review_count ?? 0) !== 0 && b.source !== "ica_registry") return false;
+    if (filterNewness === "zero" && b.review_count !== 0 && b.source !== "ica_registry") return false;
     if (filterNewness === "new10" && (b.review_count ?? 999) > 10 && b.source !== "ica_registry") return false;
     if (filterNewness === "new50" && (b.review_count ?? 999) > 50 && b.source !== "ica_registry") return false;
     if (filterNewness === "ica" && b.source !== "ica_registry") return false;
