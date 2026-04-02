@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Lock, LayoutDashboard, ArrowLeft,
-  Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones, CalendarCheck,
+  Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones, CalendarCheck, Radar,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
@@ -232,6 +232,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Demo Requests */}
           <NavLink href="/admin/demo-requests" label="Demo Requests" icon={CalendarCheck} />
+
+          {/* New Business Radar */}
+          <NavLink href="/admin/radar" label="Business Radar" icon={Radar} />
 
           {/* Agent Workspace section */}
           <div style={{ marginTop: 12 }}>
