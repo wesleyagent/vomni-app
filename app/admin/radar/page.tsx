@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { RefreshCw, MapPin, Star, Building2, Instagram, Globe, Phone, Search, Filter } from "lucide-react";
+import { RefreshCw, Globe, Phone, Instagram, Search, ChevronUp, ChevronDown } from "lucide-react";
 
 const G = "#00C896";
 
@@ -22,11 +22,8 @@ interface RadarBusiness {
   alerted: boolean;
 }
 
-function sourceLabel(source: string) {
-  if (source === "google_maps") return "Google Maps";
-  if (source === "ica_registry") return "ICA Registry";
-  return source;
-}
+type SortKey = "review_count" | "rating" | "first_seen_at";
+type SortDir = "asc" | "desc";
 
 function sourceBadge(source: string) {
   if (source === "google_maps") {
@@ -44,7 +41,6 @@ function sourceBadge(source: string) {
 }
 
 function newnessBadge(biz: RadarBusiness) {
-  // ICA = definitively new (recently registered company)
   if (biz.source === "ica_registry") {
     return (
       <span style={{ background: "rgba(0,200,150,0.1)", color: G, borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "2px 8px" }}>
@@ -52,7 +48,6 @@ function newnessBadge(biz: RadarBusiness) {
       </span>
     );
   }
-  // Google Maps — judge by review count (null = unknown, don't label as 0)
   const rc = biz.review_count;
   if (rc === null || rc === undefined) return <span className="text-xs text-gray-300">—</span>;
   if (rc === 0) return <span style={{ background: "rgba(0,200,150,0.12)", color: "#059669", borderRadius: 6, fontSize: 11, fontWeight: 600, padding: "2px 8px" }}>🆕 0 reviews</span>;
@@ -71,12 +66,31 @@ function StarRating({ rating }: { rating: number | null }) {
   );
 }
 
+/** A business is a target if it's new OR in the pain-rating zone */
+function isTarget(b: RadarBusiness): boolean {
+  if (b.source === "ica_registry") return true;
+  const rc = b.review_count;
+  const r = b.rating;
+  const isNew = rc === null || rc <= 50;
+  const isPain = r !== null && r >= 3.5 && r <= 4.3;
+  return isNew || isPain;
+}
+
+function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; sortDir: SortDir }) {
+  if (col !== sortKey) return <span className="ml-1 text-gray-300">↕</span>;
+  return sortDir === "asc"
+    ? <ChevronUp size={12} className="inline ml-1" style={{ color: G }} />
+    : <ChevronDown size={12} className="inline ml-1" style={{ color: G }} />;
+}
+
 export default function RadarPage() {
   const [businesses, setBusinesses] = useState<RadarBusiness[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [filterSource, setFilterSource] = useState("all");
-  const [filterNewness, setFilterNewness] = useState("all");
+  const [filterType, setFilterType] = useState("targets"); // default: targets only
+  const [sortKey, setSortKey] = useState<SortKey>("first_seen_at");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
 
   async function fetchBusinesses() {
     setLoading(true);
@@ -95,25 +109,60 @@ export default function RadarPage() {
 
   useEffect(() => { fetchBusinesses(); }, []);
 
-  const filtered = businesses.filter((b) => {
-    const name = b.name?.toLowerCase() ?? "";
-    const addr = b.address?.toLowerCase() ?? "";
-    const q = search.toLowerCase();
-    if (q && !name.includes(q) && !addr.includes(q)) return false;
-    if (filterSource !== "all" && b.source !== filterSource) return false;
-    if (filterNewness === "zero" && b.review_count !== 0 && b.source !== "ica_registry") return false;
-    if (filterNewness === "new10" && (b.review_count ?? 999) > 10 && b.source !== "ica_registry") return false;
-    if (filterNewness === "new50" && (b.review_count ?? 999) > 50 && b.source !== "ica_registry") return false;
-    if (filterNewness === "ica" && b.source !== "ica_registry") return false;
-    return true;
-  });
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) {
+      setSortDir((d) => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }
+
+  const filtered = businesses
+    .filter((b) => {
+      const name = b.name?.toLowerCase() ?? "";
+      const addr = b.address?.toLowerCase() ?? "";
+      const q = search.toLowerCase();
+      if (q && !name.includes(q) && !addr.includes(q)) return false;
+      if (filterSource !== "all" && b.source !== filterSource) return false;
+      if (filterType === "targets" && !isTarget(b)) return false;
+      if (filterType === "new" && b.source !== "ica_registry" && (b.review_count ?? 999) > 50) return false;
+      if (filterType === "pain" && (b.rating === null || b.rating < 3.5 || b.rating > 4.3)) return false;
+      if (filterType === "ica" && b.source !== "ica_registry") return false;
+      return true;
+    })
+    .sort((a, b) => {
+      let av: number, bv: number;
+      if (sortKey === "review_count") {
+        av = a.review_count ?? -1;
+        bv = b.review_count ?? -1;
+      } else if (sortKey === "rating") {
+        av = a.rating ?? -1;
+        bv = b.rating ?? -1;
+      } else {
+        av = new Date(a.first_seen_at).getTime();
+        bv = new Date(b.first_seen_at).getTime();
+      }
+      return sortDir === "asc" ? av - bv : bv - av;
+    });
 
   const total = businesses.length;
-  const googleCount = businesses.filter((b) => b.source === "google_maps").length;
+  const targetCount = businesses.filter(isTarget).length;
   const icaCount = businesses.filter((b) => b.source === "ica_registry").length;
-  const zeroReviews = businesses.filter((b) => b.source === "google_maps" && (b.review_count ?? 0) === 0).length;
-  const under50 = businesses.filter((b) => b.source === "google_maps" && (b.review_count ?? 999) <= 50).length;
+  const newCount = businesses.filter((b) => b.source === "google_maps" && (b.review_count ?? 999) <= 50).length;
+  const painCount = businesses.filter((b) => b.rating !== null && b.rating >= 3.5 && b.rating <= 4.3).length;
   const hasIg = businesses.filter((b) => b.instagram_handle).length;
+
+  const thStyle = (key?: SortKey): React.CSSProperties => ({
+    padding: "10px 16px",
+    fontSize: 11,
+    fontWeight: 600,
+    color: key && sortKey === key ? G : "#6B7280",
+    whiteSpace: "nowrap" as const,
+    cursor: key ? "pointer" : "default",
+    userSelect: "none",
+    background: "transparent",
+  });
 
   return (
     <div className="min-h-screen" style={{ background: "#F7F8FA" }}>
@@ -126,7 +175,7 @@ export default function RadarPage() {
               Business Radar
             </h1>
             <p className="mt-1 text-sm text-gray-500">
-              New barber & salon businesses detected in Tel Aviv metro — Google Maps + ICA Registry
+              New &amp; struggling barbers/salons in Tel Aviv metro — Google Maps + ICA Registry
             </p>
           </div>
           <button
@@ -143,10 +192,10 @@ export default function RadarPage() {
         {/* Stats */}
         <div className="mb-6 grid grid-cols-5 gap-3">
           {[
-            { label: "Total Detected", value: total, color: "#111827" },
-            { label: "Google Maps", value: googleCount, color: "#3B82F6" },
-            { label: "ICA Registry", value: icaCount, color: "#F59E0B" },
-            { label: "0 Reviews", value: zeroReviews, color: G },
+            { label: "Total in DB", value: total, color: "#111827" },
+            { label: "Targets", value: targetCount, color: G },
+            { label: "New (≤50 reviews)", value: newCount, color: "#3B82F6" },
+            { label: "Pain zone (3.5–4.3★)", value: painCount, color: "#F59E0B" },
             { label: "Has Instagram", value: hasIg, color: "#8B5CF6" },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
@@ -184,15 +233,15 @@ export default function RadarPage() {
           </select>
 
           <select
-            value={filterNewness}
-            onChange={(e) => setFilterNewness(e.target.value)}
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
             className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none"
           >
+            <option value="targets">🎯 Targets only (new OR pain zone)</option>
             <option value="all">All Businesses</option>
-            <option value="ica">ICA Only (New Companies)</option>
-            <option value="zero">0 Reviews</option>
-            <option value="new10">≤ 10 Reviews</option>
-            <option value="new50">≤ 50 Reviews</option>
+            <option value="new">New only (≤50 reviews)</option>
+            <option value="pain">Pain zone only (3.5–4.3★)</option>
+            <option value="ica">ICA Registry only</option>
           </select>
 
           <span className="text-sm text-gray-400">{filtered.length} shown</span>
@@ -204,23 +253,42 @@ export default function RadarPage() {
             <table className="w-full text-left text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/50">
-                  {["Business", "Source", "Newness", "Rating", "Address", "Contact", "Instagram", "Detected"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-xs font-medium text-gray-500 whitespace-nowrap">{h}</th>
-                  ))}
+                  <th style={thStyle()}>Business</th>
+                  <th style={thStyle()}>Source</th>
+                  <th
+                    style={thStyle("review_count")}
+                    onClick={() => toggleSort("review_count")}
+                    title="Sort by review count"
+                  >
+                    Reviews <SortIcon col="review_count" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
+                  <th
+                    style={thStyle("rating")}
+                    onClick={() => toggleSort("rating")}
+                    title="Sort by rating"
+                  >
+                    Rating <SortIcon col="rating" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
+                  <th style={thStyle()}>Address</th>
+                  <th style={thStyle()}>Contact</th>
+                  <th style={thStyle()}>Instagram</th>
+                  <th
+                    style={thStyle("first_seen_at")}
+                    onClick={() => toggleSort("first_seen_at")}
+                    title="Sort by detected date"
+                  >
+                    Detected <SortIcon col="first_seen_at" sortKey={sortKey} sortDir={sortDir} />
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
-                      Loading…
-                    </td>
+                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">Loading…</td>
                   </tr>
                 ) : filtered.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">
-                      No businesses found
-                    </td>
+                    <td colSpan={8} className="px-4 py-12 text-center text-sm text-gray-400">No businesses found</td>
                   </tr>
                 ) : filtered.map((biz) => (
                   <tr key={biz.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
@@ -246,7 +314,7 @@ export default function RadarPage() {
                       )}
                     </td>
 
-                    {/* Newness */}
+                    {/* Reviews */}
                     <td className="px-4 py-3 whitespace-nowrap">
                       {newnessBadge(biz)}
                     </td>
@@ -309,9 +377,8 @@ export default function RadarPage() {
 
         {/* Legend */}
         <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-400">
-          <span>⭐ Rating colours: <span style={{ color: "#10B981" }}>green ≥4.3</span> · <span style={{ color: "#F59E0B" }}>amber 3.5–4.2</span> · <span style={{ color: "#EF4444" }}>red &lt;3.5</span></span>
-          <span>🆕 = 0 reviews or ICA-registered (definitively new)</span>
-          <span>ICA = Israeli company registered in last 90 days</span>
+          <span>🎯 Targets = new businesses (≤50 reviews or ICA) OR pain zone (3.5–4.3★)</span>
+          <span>⭐ Rating: <span style={{ color: "#10B981" }}>green ≥4.3</span> · <span style={{ color: "#F59E0B" }}>amber 3.5–4.2</span> · <span style={{ color: "#EF4444" }}>red &lt;3.5</span></span>
         </div>
       </div>
     </div>
