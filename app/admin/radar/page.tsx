@@ -294,8 +294,8 @@ export default function RadarPage() {
                   <tr key={biz.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
 
                     {/* Business name */}
-                    <td className="px-4 py-3 max-w-[200px]">
-                      <div className="font-medium text-gray-900 truncate" title={biz.name ?? ""}>
+                    <td className="px-4 py-3 max-w-[280px]">
+                      <div className="font-medium text-gray-900" title={biz.name ?? ""}>
                         {biz.name ?? <span className="text-gray-400 italic">Unknown</span>}
                       </div>
                       {biz.website && (
