@@ -35,7 +35,7 @@ export default function Nav() {
         transition: "border-color 0.2s",
         display: "flex", alignItems: "center",
       }}>
-        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", boxSizing: "border-box" }}>
           <a href="https://vomni.io" style={{ textDecoration: "none" }}>
             <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 32, fontWeight: 800, color: N }}>Vomni</span>
           </a>

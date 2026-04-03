@@ -73,7 +73,7 @@ const PLATFORMS = [
 
 export default function MigratePage() {
   return (
-    <div style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
+    <div style={{ width: '100%', maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box' }}>
       <Nav />
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
@@ -100,9 +100,9 @@ export default function MigratePage() {
       </section>
 
       {/* ── SOCIAL PROOF ──────────────────────────────────────────────────── */}
-      <section style={{ background: OW, padding: "64px 0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
+      <section style={{ background: OW, padding: "64px 0", overflowX: "hidden" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", boxSizing: "border-box" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 24 }}>
             {[
               {
                 quote: "I thought moving our 800 clients would take weeks. It took about 20 minutes.",
@@ -132,8 +132,8 @@ export default function MigratePage() {
       </section>
 
       {/* ── FEAR-BUSTING ──────────────────────────────────────────────────── */}
-      <section style={{ background: "#fff", padding: "96px 0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
+      <section style={{ background: "#fff", padding: "96px 0", overflowX: "hidden" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", boxSizing: "border-box" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
             <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(28px, 4.5vw, 48px)", fontWeight: 800, color: N, marginBottom: 16 }}>
               Every concern. A direct answer.
@@ -144,16 +144,16 @@ export default function MigratePage() {
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 24 }}>
             {FEARS.map((f, i) => (
-              <div key={i} style={{ background: OW, borderRadius: 16, padding: "36px", border: `1px solid ${BD}` }}>
-                <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 16 }}>
+              <div key={i} style={{ background: OW, borderRadius: 16, padding: "clamp(20px, 4vw, 36px)", border: `1px solid ${BD}` }}>
+                <div style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 16 }}>
                   <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(0,200,150,0.1)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                     <CheckIcon size={20} />
                   </div>
-                  <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, lineHeight: 1.3 }}>
+                  <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, lineHeight: 1.3, minWidth: 0 }}>
                     &ldquo;{f.q}&rdquo;
                   </h3>
                 </div>
-                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, lineHeight: 1.7, color: TS, paddingLeft: 56 }}>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, lineHeight: 1.7, color: TS, paddingLeft: "clamp(0px, 5vw, 56px)" }}>
                   {f.a}
                 </p>
               </div>
@@ -206,8 +206,8 @@ export default function MigratePage() {
       </section>
 
       {/* ── PLATFORM CARDS ──────────────────────────────────────────────── */}
-      <section style={{ background: "#fff", padding: "96px 0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
+      <section style={{ background: "#fff", padding: "96px 0", overflowX: "hidden" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", boxSizing: "border-box" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
             <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(28px, 4.5vw, 48px)", fontWeight: 800, color: N, marginBottom: 16 }}>
               Which platform are you on?
@@ -216,7 +216,7 @@ export default function MigratePage() {
               Step-by-step guides for the most common switches.
             </p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 24 }}>
             {PLATFORMS.map((p) => (
               <a
                 key={p.slug}
