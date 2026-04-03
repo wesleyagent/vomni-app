@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { parseCSVText } from "@/lib/csv-parser";
 import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
-import { normaliseToE164, fingerprintPhone, maskPhone } from "@/lib/phone";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest) {
     const ownership = await requireBusinessOwnership(auth.email, businessId, supabaseAdmin);
     if (ownership instanceof NextResponse) return ownership;
 
-    // Read file as text — try UTF-8 first, then latin1 for Hebrew Windows-1252
+    // Read file as text — try UTF-8 first, then Windows-1252 for Hebrew exports
     const arrayBuffer = await file.arrayBuffer();
     let text: string;
     try {
@@ -72,9 +71,7 @@ export async function POST(req: NextRequest) {
 
     const importId = importRecord?.id;
 
-    // ── Pre-fetch phones already in customer_profiles ───────────────────────
-    // customer_profiles always has a plaintext phone column (migration 017).
-    // We check this to avoid duplicates without relying on any unique constraint.
+    // ── Pre-fetch phones already in customer_profiles ──────────────────────
     const { data: existingProfileRows } = await supabaseAdmin
       .from("customer_profiles")
       .select("phone")
@@ -85,106 +82,93 @@ export async function POST(req: NextRequest) {
       (existingProfileRows ?? []).map((r: { phone: string }) => r.phone).filter(Boolean)
     );
 
-    // In-memory dedup within this batch
-    const seenFingerprints = new Set<string>();
+    // ── Build rows to insert ───────────────────────────────────────────────
+    // c.phone is already normalised to E.164 (or best-effort) by csv-parser.
+    // We do NOT re-normalise here — that previously caused all rows to error.
+    const seenPhones = new Set<string>();
+    const toInsert: Array<Record<string, unknown>> = [];
+    let skipped = 0;
+
+    for (const c of parsed.clients) {
+      const phone = c.phone;
+
+      // Skip rows without a usable phone number
+      if (!phone || phone.length < 7) { skipped++; continue; }
+
+      // In-batch dedup
+      if (seenPhones.has(phone)) { skipped++; continue; }
+      seenPhones.add(phone);
+
+      // Dedup against existing DB records
+      if (existingPhones.has(phone)) { skipped++; continue; }
+      existingPhones.add(phone); // prevent cross-batch duplication
+
+      toInsert.push({
+        business_id:   businessId,
+        phone,
+        name:          c.name ?? null,
+        last_visit_at: c.last_visit_at ?? null,
+        total_visits:  c.total_visits ?? 0,
+      });
+    }
 
     let imported = 0;
-    let skipped = 0;
     let errorRows = 0;
-    let lastInsertError = "";
+    const insertErrors: string[] = [];
 
-    // Process in batches of 100
-    const BATCH = 100;
-    for (let i = 0; i < parsed.clients.length; i += BATCH) {
-      const batch = parsed.clients.slice(i, i + BATCH);
-      const toInsert: Array<Record<string, unknown>> = [];
-
-      for (const c of batch) {
-        if (!c.phone) { skipped++; continue; }
-
-        let e164: string;
-        try {
-          e164 = normaliseToE164(c.phone);
-        } catch {
-          errorRows++;
-          continue;
-        }
-
-        const fingerprint = fingerprintPhone(e164, businessId);
-        if (seenFingerprints.has(fingerprint)) { skipped++; continue; }
-        seenFingerprints.add(fingerprint);
-
-        if (existingPhones.has(e164)) { skipped++; continue; }
-
-        // Build the row — all columns from migration 017 base schema
-        const row: Record<string, unknown> = {
-          business_id:  businessId,
-          phone:        e164,
-          name:         c.name ?? null,
-          phone_display: maskPhone(e164),
-          updated_at:   new Date().toISOString(),
-        };
-
-        // Include appointment/visit data if present in CSV
-        if (c.last_visit_at)   row.last_visit_at  = c.last_visit_at;
-        if (c.total_visits != null) row.total_visits = c.total_visits;
-
-        // source column (migration 019 — included but won't error if missing)
-        row.source          = "import";
-        row.import_platform = platform;
-
-        toInsert.push(row);
-        existingPhones.add(e164); // prevent cross-batch duplicates
-      }
-
-      if (toInsert.length === 0) continue;
-
-      // Insert into customer_profiles.
-      // Pre-checked existingPhones above so no unique constraint conflicts.
-      const { data: inserted, error: insertErr } = await supabaseAdmin
+    if (toInsert.length > 0) {
+      // ── Attempt 1: batch upsert with ignoreDuplicates ──────────────────
+      // Uses ON CONFLICT (business_id, phone) DO NOTHING — requires the
+      // unique constraint from migration 017. Handles any edge-case duplicates
+      // that slipped past the pre-check.
+      const { data: upserted, error: upsertErr } = await supabaseAdmin
         .from("customer_profiles")
-        .insert(toInsert)
+        .upsert(toInsert, { onConflict: "business_id,phone", ignoreDuplicates: true })
         .select("id");
 
-      if (insertErr) {
-        // Fallback: strip optional columns and retry with guaranteed base schema only
-        console.warn("[import-clients] full insert failed, retrying minimal:", insertErr.message);
-        const minimal = toInsert.map(r => ({
-          business_id:  r.business_id,
-          phone:        r.phone,
-          name:         r.name,
-          last_visit_at: r.last_visit_at ?? null,
-          total_visits:  r.total_visits ?? 0,
-        }));
-        const { data: minInserted, error: minErr } = await supabaseAdmin
-          .from("customer_profiles")
-          .insert(minimal)
-          .select("id");
-
-        if (minErr) {
-          // Last resort: only the 3 columns that definitely exist in migration 017
-          console.warn("[import-clients] minimal failed, retrying bare:", minErr.message);
-          const bare = toInsert.map(r => ({
-            business_id: r.business_id,
-            phone:       r.phone,
-            name:        r.name,
-          }));
-          const { data: bareInserted, error: bareErr } = await supabaseAdmin
-            .from("customer_profiles")
-            .insert(bare)
-            .select("id");
-          if (bareErr) {
-            console.error("[import-clients] bare insert failed:", bareErr.message);
-            lastInsertError = bareErr.message;
-            errorRows += bare.length;
-          } else {
-            imported += bareInserted?.length ?? 0;
-          }
-        } else {
-          imported += minInserted?.length ?? 0;
-        }
+      if (!upsertErr) {
+        imported = upserted?.length ?? 0;
+        skipped += toInsert.length - imported; // remainder were silently skipped duplicates
       } else {
-        imported += inserted?.length ?? 0;
+        // ── Attempt 2: row-by-row insert ───────────────────────────────
+        // Batch upsert failed (constraint may not exist, or a column is missing).
+        // Insert one row at a time so one bad row doesn't kill the rest.
+        console.warn("[import-clients] batch upsert failed, falling back to row-by-row:", upsertErr.message);
+
+        for (const row of toInsert) {
+          // Try with visit fields (migration 017 columns)
+          const { data: rowData, error: rowErr } = await supabaseAdmin
+            .from("customer_profiles")
+            .insert(row)
+            .select("id");
+
+          if (!rowErr) {
+            imported += rowData?.length ?? 0;
+            continue;
+          }
+
+          // Unique violation → already exists, treat as skipped
+          if (rowErr.code === "23505") {
+            skipped++;
+            continue;
+          }
+
+          // Column missing → retry with bare minimum (business_id, phone, name)
+          const { data: bareData, error: bareErr } = await supabaseAdmin
+            .from("customer_profiles")
+            .insert({ business_id: row.business_id, phone: row.phone, name: row.name })
+            .select("id");
+
+          if (!bareErr) {
+            imported += bareData?.length ?? 0;
+          } else if (bareErr.code === "23505") {
+            skipped++;
+          } else {
+            errorRows++;
+            const msg = bareErr.message;
+            if (!insertErrors.includes(msg)) insertErrors.push(msg);
+          }
+        }
       }
     }
 
@@ -204,8 +188,9 @@ export async function POST(req: NextRequest) {
       imported,
       skipped,
       errors: errorRows,
-      ...(lastInsertError ? { insertError: lastInsertError } : {}),
+      ...(insertErrors.length > 0 ? { insertErrors } : {}),
       parseErrors: parsed.errors.slice(0, 10),
+      detectedColumns: parsed.detectedColumns,
     });
   } catch (err) {
     console.error("[import-clients]", err);

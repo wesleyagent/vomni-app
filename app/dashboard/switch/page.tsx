@@ -16,6 +16,7 @@ interface ImportResult {
   imported: number;
   skipped: number;
   errors: number;
+  insertErrors?: string[];
 }
 
 interface PreviewRow {
@@ -103,7 +104,7 @@ export default function SwitchPage() {
       const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await fetch("/api/migration/import-clients", { method: "POST", body: fd, headers: authHeader });
       const data = await res.json();
-      setImportResult({ imported: data.imported ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? 0 });
+      setImportResult({ imported: data.imported ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? 0, insertErrors: data.insertErrors });
       setChecklist(c => ({ ...c, clients: true }));
       setStep(4);
     } catch {
@@ -379,6 +380,11 @@ export default function SwitchPage() {
               {importResult.errors > 0 && `${importResult.errors} errors · `}
               Your client list is ready.
             </p>
+            {importResult.insertErrors && importResult.insertErrors.length > 0 && (
+              <p style={{ fontSize: 12, color: "#EF4444", marginTop: 8, background: "#FEF2F2", padding: "8px 12px", borderRadius: 8 }}>
+                DB error: {importResult.insertErrors[0]}
+              </p>
+            )}
           </div>
 
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 16px" }}>
