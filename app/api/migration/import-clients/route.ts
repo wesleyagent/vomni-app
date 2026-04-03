@@ -83,6 +83,18 @@ export async function POST(req: NextRequest) {
       (existing ?? []).map((r: { phone_display: string | null }) => r.phone_display).filter(Boolean)
     );
 
+    // Pre-fetch all phones already in customer_profiles for this business.
+    // This lets us skip the INSERT for duplicates without relying on DB constraints.
+    const { data: existingProfileRows } = await supabaseAdmin
+      .from("customer_profiles")
+      .select("phone")
+      .eq("business_id", businessId)
+      .not("phone", "is", null);
+
+    const existingProfilePhones = new Set(
+      (existingProfileRows ?? []).map((r: { phone: string }) => r.phone).filter(Boolean)
+    );
+
     // In-memory fingerprint set for dedup within this import batch
     const seenFingerprints = new Set<string>();
 
@@ -96,7 +108,16 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < parsed.clients.length; i += BATCH) {
       const batch = parsed.clients.slice(i, i + BATCH);
       const toInsert: Array<Record<string, unknown>> = [];
-      const toUpsertProfiles: Array<Record<string, unknown>> = [];
+      // Profiles to add to customer_profiles (new phones only)
+      const toInsertProfiles: Array<{
+        business_id: string;
+        phone: string;
+        name: string | null;
+        phone_display?: string;
+        phone_encrypted?: string;
+        source?: string;
+        import_platform?: string;
+      }> = [];
 
       for (const c of batch) {
         if (!c.phone) {
@@ -138,55 +159,44 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        if (existingDisplays.has(display)) {
-          // Already in clients table — skip insert but still upsert into
-          // customer_profiles so that previously-imported clients appear in CRM
-          const encExisting = encryptPhone(e164);
-          toUpsertProfiles.push({
-            business_id: businessId,
-            phone: e164,
-            phone_display: display,
-            phone_encrypted: encExisting,
-            name: c.name,
-            source: "import",
-            import_platform: platform,
-            opted_out: false,
-            updated_at: new Date().toISOString(),
-          });
-          skipped++;
-          continue;
-        }
-
         seenFingerprints.add(fingerprint);
 
-        // Encrypt — raw e164 exists only in this loop, never written to DB
-        const encrypted = encryptPhone(e164);
+        if (existingDisplays.has(display)) {
+          // Already in clients table — skip clients insert
+          skipped++;
+        } else {
+          // Encrypt — raw e164 exists only in this loop, never written to DB
+          const encrypted = encryptPhone(e164);
 
-        toInsert.push({
-          business_id: businessId,
-          name: c.name,
-          email: c.email,
-          phone: null,            // raw phone never stored as plaintext
-          phone_encrypted: encrypted,
-          phone_display: display,
-          normalisation_failed: false,
-          notes: c.notes,
-          source: "import",
-          import_platform: platform,
-        });
+          toInsert.push({
+            business_id: businessId,
+            name: c.name,
+            email: c.email,
+            phone: null,            // raw phone never stored as plaintext
+            phone_encrypted: encrypted,
+            phone_display: display,
+            normalisation_failed: false,
+            notes: c.notes,
+            source: "import",
+            import_platform: platform,
+          });
+        }
 
-        // Also queue for customer_profiles so the CRM tab shows them immediately
-        toUpsertProfiles.push({
-          business_id: businessId,
-          phone: e164,
-          phone_display: display,
-          phone_encrypted: encrypted,
-          name: c.name,
-          source: "import",
-          import_platform: platform,
-          opted_out: false,
-          updated_at: new Date().toISOString(),
-        });
+        // Queue for customer_profiles — only if phone not already there
+        if (!existingProfilePhones.has(e164)) {
+          const encrypted = encryptPhone(e164);
+          toInsertProfiles.push({
+            business_id: businessId,
+            phone: e164,
+            name: c.name ?? null,
+            phone_display: display,
+            phone_encrypted: encrypted,
+            source: "import",
+            import_platform: platform,
+          });
+          // Track immediately so later batches don't re-add the same phone
+          existingProfilePhones.add(e164);
+        }
       }
 
       if (toInsert.length > 0) {
@@ -207,34 +217,34 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // Upsert into customer_profiles so imported clients appear in the CRM immediately
-      if (toUpsertProfiles.length > 0) {
-        const { data: profileData, error: profileErr } = await supabaseAdmin
+      // Insert new profiles into customer_profiles.
+      // We pre-checked against existingProfilePhones so no constraint needed.
+      if (toInsertProfiles.length > 0) {
+        // Try full insert first (requires migration 019 columns to exist)
+        const { data: inserted, error: insertErr } = await supabaseAdmin
           .from("customer_profiles")
-          .upsert(toUpsertProfiles, { onConflict: "business_id,phone" })
+          .insert(toInsertProfiles)
           .select("id");
-        if (profileErr) {
-          console.error("[import-clients] customer_profiles upsert error:", profileErr.message);
-          // Fallback: insert one-by-one ignoring conflicts
-          for (const profile of toUpsertProfiles) {
-            const { error: singleErr } = await supabaseAdmin
-              .from("customer_profiles")
-              .insert(profile);
-            if (!singleErr) profilesAdded++;
-            else if (!singleErr.message?.includes("duplicate") && !singleErr.message?.includes("unique")) {
-              console.error("[import-clients] customer_profiles insert error:", singleErr.message);
-            } else {
-              // Conflict — try update instead
-              const { error: updErr } = await supabaseAdmin
-                .from("customer_profiles")
-                .update({ name: profile.name, phone_display: profile.phone_display, phone_encrypted: profile.phone_encrypted, source: profile.source, import_platform: profile.import_platform, opted_out: profile.opted_out, updated_at: profile.updated_at })
-                .eq("business_id", profile.business_id as string)
-                .eq("phone", profile.phone as string);
-              if (!updErr) profilesAdded++;
-            }
+
+        if (insertErr) {
+          console.error("[import-clients] customer_profiles full insert error:", insertErr.message);
+          // Fallback: insert with only the columns that exist in the base schema
+          const minimalProfiles = toInsertProfiles.map(p => ({
+            business_id: p.business_id,
+            phone: p.phone,
+            name: p.name,
+          }));
+          const { data: minInserted, error: minErr } = await supabaseAdmin
+            .from("customer_profiles")
+            .insert(minimalProfiles)
+            .select("id");
+          if (minErr) {
+            console.error("[import-clients] customer_profiles minimal insert error:", minErr.message);
+          } else {
+            profilesAdded += minInserted?.length ?? 0;
           }
         } else {
-          profilesAdded += (profileData?.length ?? 0);
+          profilesAdded += inserted?.length ?? 0;
         }
       }
     }
