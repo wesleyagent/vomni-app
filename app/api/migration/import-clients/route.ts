@@ -89,6 +89,7 @@ export async function POST(req: NextRequest) {
     let imported = 0;
     let skipped = 0;
     let errorRows = 0;
+    let profilesAdded = 0;
 
     // Insert in batches of 100
     const BATCH = 100;
@@ -172,7 +173,6 @@ export async function POST(req: NextRequest) {
           notes: c.notes,
           source: "import",
           import_platform: platform,
-          opted_out: false,
         });
 
         // Also queue for customer_profiles so the CRM tab shows them immediately
@@ -209,11 +209,32 @@ export async function POST(req: NextRequest) {
 
       // Upsert into customer_profiles so imported clients appear in the CRM immediately
       if (toUpsertProfiles.length > 0) {
-        const { error: profileErr } = await supabaseAdmin
+        const { data: profileData, error: profileErr } = await supabaseAdmin
           .from("customer_profiles")
-          .upsert(toUpsertProfiles, { onConflict: "business_id,phone" });
+          .upsert(toUpsertProfiles, { onConflict: "business_id,phone" })
+          .select("id");
         if (profileErr) {
           console.error("[import-clients] customer_profiles upsert error:", profileErr.message);
+          // Fallback: insert one-by-one ignoring conflicts
+          for (const profile of toUpsertProfiles) {
+            const { error: singleErr } = await supabaseAdmin
+              .from("customer_profiles")
+              .insert(profile);
+            if (!singleErr) profilesAdded++;
+            else if (!singleErr.message?.includes("duplicate") && !singleErr.message?.includes("unique")) {
+              console.error("[import-clients] customer_profiles insert error:", singleErr.message);
+            } else {
+              // Conflict — try update instead
+              const { error: updErr } = await supabaseAdmin
+                .from("customer_profiles")
+                .update({ name: profile.name, phone_display: profile.phone_display, phone_encrypted: profile.phone_encrypted, source: profile.source, import_platform: profile.import_platform, opted_out: profile.opted_out, updated_at: profile.updated_at })
+                .eq("business_id", profile.business_id as string)
+                .eq("phone", profile.phone as string);
+              if (!updErr) profilesAdded++;
+            }
+          }
+        } else {
+          profilesAdded += (profileData?.length ?? 0);
         }
       }
     }
@@ -234,6 +255,7 @@ export async function POST(req: NextRequest) {
       imported,
       skipped,
       errors: errorRows,
+      profilesAdded,
       parseErrors: parsed.errors.slice(0, 10),
     });
   } catch (err) {
