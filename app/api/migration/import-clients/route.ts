@@ -131,10 +131,31 @@ export async function POST(req: NextRequest) {
         const fingerprint = fingerprintPhone(e164, businessId);
         const display     = maskPhone(e164);
 
-        if (seenFingerprints.has(fingerprint) || existingDisplays.has(display)) {
+        if (seenFingerprints.has(fingerprint)) {
+          // Within-batch duplicate — skip entirely
           skipped++;
           continue;
         }
+
+        if (existingDisplays.has(display)) {
+          // Already in clients table — skip insert but still upsert into
+          // customer_profiles so that previously-imported clients appear in CRM
+          const encExisting = encryptPhone(e164);
+          toUpsertProfiles.push({
+            business_id: businessId,
+            phone: e164,
+            phone_display: display,
+            phone_encrypted: encExisting,
+            name: c.name,
+            source: "import",
+            import_platform: platform,
+            opted_out: false,
+            updated_at: new Date().toISOString(),
+          });
+          skipped++;
+          continue;
+        }
+
         seenFingerprints.add(fingerprint);
 
         // Encrypt — raw e164 exists only in this loop, never written to DB
