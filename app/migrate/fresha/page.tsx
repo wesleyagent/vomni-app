@@ -45,7 +45,7 @@ const EXPORT_STEPS = [
 
 export default function FreshaPage() {
   return (
-    <>
+    <div style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
       <Nav />
 
       {/* ── META via title tag (Next.js App Router export) ── */}
@@ -53,7 +53,7 @@ export default function FreshaPage() {
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section style={{ background: "#fff", padding: "96px 0 80px" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", textAlign: "center" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: 9999, padding: "6px 16px", marginBottom: 32 }}>
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#7C3AED" }}>Switching from Fresha</span>
           </div>
@@ -76,7 +76,7 @@ export default function FreshaPage() {
 
       {/* ── WHAT CHANGED ──────────────────────────────────────────────────── */}
       <section style={{ background: N, padding: "80px 0" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: "#fff", marginBottom: 40, textAlign: "center" }}>
             What changed with Fresha
           </h2>
@@ -103,12 +103,12 @@ export default function FreshaPage() {
 
       {/* ── COMPARISON TABLE ─────────────────────────────────────────────── */}
       <section style={{ background: "#fff", padding: "96px 0" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: N, marginBottom: 48, textAlign: "center" }}>
             Fresha vs Vomni
           </h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+          <div style={{ overflowX: "auto", width: "100%" }}>
+            <table style={{ width: "100%", minWidth: "480px", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
               <thead>
                 <tr>
                   <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 13, fontWeight: 600, color: TM, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: `2px solid ${BD}`, background: OW, borderRadius: "12px 0 0 0" }}></th>
@@ -136,7 +136,7 @@ export default function FreshaPage() {
 
       {/* ── EXPORT GUIDE ─────────────────────────────────────────────────── */}
       <section style={{ background: OW, padding: "80px 0" }}>
-        <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 36px)", fontWeight: 800, color: N, marginBottom: 40, textAlign: "center" }}>
             How to export your clients from Fresha
           </h2>
@@ -174,7 +174,7 @@ export default function FreshaPage() {
 
       {/* ── FINAL CTA ────────────────────────────────────────────────────── */}
       <section style={{ background: "#fff", padding: "80px 0", textAlign: "center" }}>
-        <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: N, marginBottom: 16 }}>
             Your clients. Your revenue.<br />Your rules.
           </h2>
@@ -194,6 +194,6 @@ export default function FreshaPage() {
       </section>
 
       <Footer />
-    </>
+    </div>
   );
 }

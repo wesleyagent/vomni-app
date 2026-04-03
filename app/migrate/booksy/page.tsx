@@ -40,12 +40,12 @@ const EXPORT_STEPS = [
 
 export default function BooksyPage() {
   return (
-    <>
+    <div style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
       <Nav />
 
       {/* ── HERO ──────────────────────────────────────────────────────────── */}
       <section style={{ background: "#fff", padding: "96px 0 80px" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", textAlign: "center" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(37,99,235,0.08)", border: "1px solid rgba(37,99,235,0.2)", borderRadius: 9999, padding: "6px 16px", marginBottom: 32 }}>
             <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#2563EB" }}>Switching from Booksy</span>
           </div>
@@ -68,7 +68,7 @@ export default function BooksyPage() {
 
       {/* ── WHAT BOOKSY COSTS ─────────────────────────────────────────────── */}
       <section style={{ background: N, padding: "80px 0" }}>
-        <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: "#fff", marginBottom: 40, textAlign: "center" }}>
             What Booksy actually costs you
           </h2>
@@ -95,12 +95,12 @@ export default function BooksyPage() {
 
       {/* ── COMPARISON TABLE ─────────────────────────────────────────────── */}
       <section style={{ background: "#fff", padding: "96px 0" }}>
-        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 900, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: N, marginBottom: 48, textAlign: "center" }}>
             Booksy vs Vomni
           </h2>
-          <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+          <div style={{ overflowX: "auto", width: "100%" }}>
+            <table style={{ width: "100%", minWidth: "480px", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
               <thead>
                 <tr>
                   <th style={{ padding: "16px 20px", textAlign: "left", fontSize: 13, fontWeight: 600, color: TM, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: `2px solid ${BD}`, background: OW }}></th>
@@ -128,7 +128,7 @@ export default function BooksyPage() {
 
       {/* ── EXPORT GUIDE ─────────────────────────────────────────────────── */}
       <section style={{ background: OW, padding: "80px 0" }}>
-        <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 36px)", fontWeight: 800, color: N, marginBottom: 40, textAlign: "center" }}>
             How to export your clients from Booksy
           </h2>
@@ -166,7 +166,7 @@ export default function BooksyPage() {
 
       {/* ── FINAL CTA ────────────────────────────────────────────────────── */}
       <section style={{ background: "#fff", padding: "80px 0", textAlign: "center" }}>
-        <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 48px" }}>
+        <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: N, marginBottom: 16 }}>
             Keep 100% of every booking.
           </h2>
@@ -186,6 +186,6 @@ export default function BooksyPage() {
       </section>
 
       <Footer />
-    </>
+    </div>
   );
 }

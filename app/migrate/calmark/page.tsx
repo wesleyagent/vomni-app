@@ -151,12 +151,12 @@ export default function CalmarkPage() {
   const dir = isHe ? "rtl" : "ltr";
 
   return (
-    <>
+    <div style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden' }}>
       <Nav />
 
       {/* ── LANGUAGE TOGGLE ───────────────────────────────────────────────── */}
       <div style={{ background: OW, borderBottom: `1px solid ${BD}`, padding: "12px 0" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8 }}>
           <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM }}>Language:</span>
           <button
             onClick={() => setLang("en")}
@@ -189,7 +189,7 @@ export default function CalmarkPage() {
 
         {/* ── HERO ──────────────────────────────────────────────────────────── */}
         <section style={{ background: "#fff", padding: "96px 0 80px" }}>
-          <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
+          <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", textAlign: "center" }}>
             <div style={{ display: "inline-flex", alignItems: "center", gap: 8, background: "rgba(5,150,105,0.08)", border: "1px solid rgba(5,150,105,0.2)", borderRadius: 9999, padding: "6px 16px", marginBottom: 32 }}>
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#059669" }}>
                 {CONTENT.badge[lang]}
@@ -214,8 +214,8 @@ export default function CalmarkPage() {
 
         {/* ── WHAT CALMARK DOES WELL ─────────────────────────────────────────── */}
         <section style={{ background: OW, padding: "64px 0" }}>
-          <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 48px" }}>
-            <div style={{ background: "#fff", borderRadius: 20, padding: "40px 48px", border: `1px solid ${BD}` }}>
+          <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
+            <div style={{ background: "#fff", borderRadius: 20, padding: "clamp(20px, 4vw, 40px) clamp(16px, 4vw, 48px)", border: `1px solid ${BD}` }}>
               <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(22px, 3.5vw, 32px)", fontWeight: 800, color: N, marginBottom: 20 }}>
                 {CONTENT.whatCalmarkDoes.title[lang]}
               </h2>
@@ -228,7 +228,7 @@ export default function CalmarkPage() {
 
         {/* ── WHAT'S MISSING ────────────────────────────────────────────────── */}
         <section style={{ background: N, padding: "80px 0" }}>
-          <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 48px" }}>
+          <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
             <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: "#fff", marginBottom: 40, textAlign: "center" }}>
               {CONTENT.whatsMissing.title[lang]}
             </h2>
@@ -247,12 +247,12 @@ export default function CalmarkPage() {
 
         {/* ── COMPARISON TABLE ─────────────────────────────────────────────── */}
         <section style={{ background: "#fff", padding: "96px 0" }}>
-          <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 48px" }}>
+          <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
             <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: N, marginBottom: 48, textAlign: "center" }}>
               {CONTENT.tableTitle[lang]}
             </h2>
-            <div style={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+            <div style={{ overflowX: "auto", width: "100%" }}>
+              <table style={{ width: "100%", minWidth: "480px", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
                 <thead>
                   <tr>
                     <th style={{ padding: "16px 20px", textAlign: isHe ? "right" : "left", fontSize: 13, fontWeight: 600, color: TM, textTransform: "uppercase", letterSpacing: "0.05em", borderBottom: `2px solid ${BD}`, background: OW }}></th>
@@ -286,7 +286,7 @@ export default function CalmarkPage() {
 
         {/* ── EXPORT GUIDE ─────────────────────────────────────────────────── */}
         <section style={{ background: OW, padding: "80px 0" }}>
-          <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 48px" }}>
+          <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
             <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 36px)", fontWeight: 800, color: N, marginBottom: 40, textAlign: "center" }}>
               {CONTENT.exportGuide.title[lang]}
             </h2>
@@ -324,8 +324,8 @@ export default function CalmarkPage() {
 
         {/* ── WHAT DOESN'T CHANGE ──────────────────────────────────────────── */}
         <section style={{ background: "#fff", padding: "80px 0" }}>
-          <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 48px" }}>
-            <div style={{ background: OW, borderRadius: 20, padding: "48px", border: `1px solid ${BD}`, textAlign: "center" }}>
+          <div style={{ maxWidth: 860, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
+            <div style={{ background: OW, borderRadius: 20, padding: "clamp(20px, 4vw, 48px)", border: `1px solid ${BD}`, textAlign: "center" }}>
               <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(22px, 3.5vw, 32px)", fontWeight: 800, color: N, marginBottom: 20 }}>
                 {CONTENT.clientsSection.title[lang]}
               </h2>
@@ -338,9 +338,9 @@ export default function CalmarkPage() {
 
         {/* ── TESTIMONIAL PLACEHOLDER ──────────────────────────────────────── */}
         <section style={{ background: OW, padding: "64px 0" }}>
-          <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 48px", textAlign: "center" }}>
+          <div style={{ maxWidth: 700, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)", textAlign: "center" }}>
             {/* Replace with real Calmark user testimonial */}
-            <div style={{ background: "#fff", borderRadius: 20, padding: "40px 48px", border: `1px solid ${BD}` }}>
+            <div style={{ background: "#fff", borderRadius: 20, padding: "clamp(20px, 4vw, 40px) clamp(16px, 4vw, 48px)", border: `1px solid ${BD}` }}>
               <div style={{ display: "flex", justifyContent: "center", gap: 3, marginBottom: 20 }}>
                 {[0,1,2,3,4].map(s => (
                   <svg key={s} width={20} height={20} viewBox="0 0 20 20" fill={G}>
@@ -363,7 +363,7 @@ export default function CalmarkPage() {
 
         {/* ── FINAL CTA ────────────────────────────────────────────────────── */}
         <section style={{ background: "#fff", padding: "80px 0", textAlign: "center" }}>
-          <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 48px" }}>
+          <div style={{ maxWidth: 560, margin: "0 auto", padding: "0 clamp(16px, 5vw, 48px)" }}>
             <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, color: N, marginBottom: 16 }}>
               {CONTENT.finalCta.title[lang]}
             </h2>
@@ -387,6 +387,6 @@ export default function CalmarkPage() {
       </div>
 
       <Footer />
-    </>
+    </div>
   );
 }
