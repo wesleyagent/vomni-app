@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { parseCSVText } from "@/lib/csv-parser";
+import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
+import { normaliseToE164, encryptPhone, maskPhone, fingerprintPhone } from "@/lib/phone";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
@@ -16,6 +21,9 @@ export async function POST(req: NextRequest) {
     if (!file || !businessId) {
       return NextResponse.json({ error: "Missing file or business_id" }, { status: 400 });
     }
+
+    const ownership = await requireBusinessOwnership(auth.email, businessId, supabaseAdmin);
+    if (ownership instanceof NextResponse) return ownership;
 
     // Read file as text — try UTF-8 first, then latin1 for Hebrew Windows-1252
     const arrayBuffer = await file.arrayBuffer();
@@ -64,14 +72,19 @@ export async function POST(req: NextRequest) {
 
     const importId = importRecord?.id;
 
-    // Get existing phones to deduplicate
+    // Get existing phone_display values to assist dedup (non-raw)
     const { data: existing } = await supabaseAdmin
       .from("clients")
-      .select("phone")
+      .select("phone_display")
       .eq("business_id", businessId)
-      .not("phone", "is", null);
+      .not("phone_display", "is", null);
 
-    const existingPhones = new Set((existing ?? []).map((r: { phone: string | null }) => r.phone).filter(Boolean));
+    const existingDisplays = new Set(
+      (existing ?? []).map((r: { phone_display: string | null }) => r.phone_display).filter(Boolean)
+    );
+
+    // In-memory fingerprint set for dedup within this import batch
+    const seenFingerprints = new Set<string>();
 
     let imported = 0;
     let skipped = 0;
@@ -81,19 +94,65 @@ export async function POST(req: NextRequest) {
     const BATCH = 100;
     for (let i = 0; i < parsed.clients.length; i += BATCH) {
       const batch = parsed.clients.slice(i, i + BATCH);
-      const toInsert = batch
-        .filter(c => {
-          if (c.phone && existingPhones.has(c.phone)) { skipped++; return false; }
-          return true;
-        })
-        .map(c => ({
+      const toInsert: Array<Record<string, unknown>> = [];
+
+      for (const c of batch) {
+        if (!c.phone) {
+          skipped++;
+          continue;
+        }
+
+        // Normalise phone — skip row on failure (log index + reason, never the number)
+        let e164: string;
+        try {
+          e164 = normaliseToE164(c.phone);
+        } catch (err) {
+          const reason = err instanceof Error ? err.message : "unknown";
+          console.warn(`[import-clients] row ${i} normalisation failed: ${reason}`);
+          // Insert with normalisation_failed flag so it's visible in the UI
+          toInsert.push({
+            business_id: businessId,
+            name: c.name,
+            email: c.email,
+            phone: null,
+            phone_encrypted: null,
+            phone_display: null,
+            normalisation_failed: true,
+            notes: c.notes,
+            source: "import",
+            import_platform: platform,
+          });
+          errorRows++;
+          continue;
+        }
+
+        // Dedup: fingerprint within batch + against existing phone_display
+        const fingerprint = fingerprintPhone(e164, businessId);
+        const display     = maskPhone(e164);
+
+        if (seenFingerprints.has(fingerprint) || existingDisplays.has(display)) {
+          skipped++;
+          continue;
+        }
+        seenFingerprints.add(fingerprint);
+
+        // Encrypt — raw e164 exists only in this loop, never written to DB
+        const encrypted = encryptPhone(e164);
+
+        toInsert.push({
           business_id: businessId,
           name: c.name,
           email: c.email,
-          phone: c.phone,
+          phone: null,            // raw phone never stored as plaintext
+          phone_encrypted: encrypted,
+          phone_display: display,
+          normalisation_failed: false,
           notes: c.notes,
-          source: platform,
-        }));
+          source: "import",
+          import_platform: platform,
+          opted_out: false,
+        });
+      }
 
       if (toInsert.length > 0) {
         const { error, data } = await supabaseAdmin
@@ -106,8 +165,10 @@ export async function POST(req: NextRequest) {
           errorRows += toInsert.length;
         } else {
           imported += (data?.length ?? 0);
-          // Track new phones
-          toInsert.forEach(c => { if (c.phone) existingPhones.add(c.phone); });
+          // Track newly imported displays for cross-batch dedup
+          toInsert.forEach(c => {
+            if (c.phone_display) existingDisplays.add(c.phone_display as string);
+          });
         }
       }
     }
@@ -137,8 +198,14 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   const businessId = req.nextUrl.searchParams.get("business_id");
   if (!businessId) return NextResponse.json({ error: "Missing business_id" }, { status: 400 });
+
+  const ownership = await requireBusinessOwnership(auth.email, businessId, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   const { data } = await supabaseAdmin
     .from("migration_imports")

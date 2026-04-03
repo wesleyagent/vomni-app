@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
-import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
+import { useEffect, useState, useMemo, useCallback } from "react";
+import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare } from "lucide-react";
 import { useBusinessContext } from "../_context";
 import { getAllBookings, fmtDate, type DBBooking, db } from "@/lib/db";
 
@@ -160,6 +160,26 @@ function JourneyTrack({ status }: { status: string | null }) {
   );
 }
 
+// ── CRM Types ────────────────────────────────────────────────────────────────
+
+interface CrmCustomer {
+  id: string;
+  display_name: string;
+  phone_display: string;
+  source: "booking" | "import";
+  last_visit_at: string | null;
+  last_service: string | null;
+  total_visits: number;
+  status: "active" | "at_risk" | "lapsed" | "opted_out";
+  next_appointment: { appointment_at: string; service_name: string | null } | null;
+  last_outreach: { type: string; sent_at: string } | null;
+  nudged_recently: boolean;
+  opted_out: boolean;
+  opted_out_at: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
 // ── Types ───────────────────────────────────────────────────────────────────
 
 interface Appointment {
@@ -189,7 +209,7 @@ const APPT_BADGE: Record<string, { label: string; icon: React.ReactNode; style: 
 export default function CustomersPage() {
   const { businessId } = useBusinessContext();
 
-  const [activeTab,  setActiveTab]  = useState<"appointments" | "reviews">("appointments");
+  const [activeTab,  setActiveTab]  = useState<"appointments" | "reviews" | "crm">("appointments");
 
   // Reviews tab state
   const [bookings,  setBookings]  = useState<DBBooking[]>([]);
@@ -198,6 +218,18 @@ export default function CustomersPage() {
   const [status,    setStatus]    = useState("all");
   const [dateRange, setDateRange] = useState("all");
   const [page,      setPage]      = useState(1);
+
+  // CRM tab state
+  const [crmFilter,    setCrmFilter]    = useState<"all"|"active"|"at_risk"|"lapsed"|"opted_out"|"imported">("all");
+  const [crmPage,      setCrmPage]      = useState(1);
+  const [crmLoading,   setCrmLoading]   = useState(false);
+  const [crmCustomers, setCrmCustomers] = useState<CrmCustomer[]>([]);
+  const [crmStats,     setCrmStats]     = useState({ total: 0, active: 0, at_risk: 0, lapsed: 0 });
+  const [crmExpanded,  setCrmExpanded]  = useState<string | null>(null);
+  const [crmNotes,     setCrmNotes]     = useState<Record<string, string>>({});
+  const [savingNotes,  setSavingNotes]  = useState<string | null>(null);
+  const [sendingNudge, setSendingNudge] = useState<string | null>(null);
+  const CRM_PER_PAGE = 20;
 
   // Appointments tab state
   const [appointments,   setAppointments]   = useState<Appointment[]>([]);
@@ -226,6 +258,63 @@ export default function CustomersPage() {
         setApptLoading(false);
       });
   }, [businessId]);
+
+  // ── CRM fetch ────────────────────────────────────────────────────────────
+  const fetchCrm = useCallback(async () => {
+    if (!businessId) return;
+    setCrmLoading(true);
+    try {
+      const res = await fetch(
+        `/api/crm/customers?business_id=${businessId}&filter=${crmFilter}&page=${crmPage}&per_page=${CRM_PER_PAGE}`
+      );
+      if (res.ok) {
+        const json = await res.json();
+        setCrmCustomers(json.customers ?? []);
+        setCrmStats(json.stats ?? { total: 0, active: 0, at_risk: 0, lapsed: 0 });
+        // Pre-populate notes state
+        const notesMap: Record<string, string> = {};
+        for (const c of json.customers ?? []) {
+          notesMap[c.id] = c.notes ?? "";
+        }
+        setCrmNotes(prev => ({ ...prev, ...notesMap }));
+      }
+    } finally {
+      setCrmLoading(false);
+    }
+  }, [businessId, crmFilter, crmPage]);
+
+  useEffect(() => {
+    if (activeTab === "crm") fetchCrm();
+  }, [activeTab, fetchCrm]);
+
+  async function saveNotes(profileId: string) {
+    if (!businessId) return;
+    setSavingNotes(profileId);
+    try {
+      await fetch("/api/crm/customers", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: businessId, profile_id: profileId, notes: crmNotes[profileId] ?? "" }),
+      });
+    } finally {
+      setSavingNotes(null);
+    }
+  }
+
+  async function sendNudge(profileId: string, phone: string) {
+    if (!businessId) return;
+    setSendingNudge(profileId);
+    try {
+      await fetch("/api/crm/nudge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: businessId, customer_phone: phone, nudge_type: "lapsed" }),
+      });
+      await fetchCrm();
+    } finally {
+      setSendingNudge(null);
+    }
+  }
 
   async function markNoShow(bookingId: string) {
     setMarkingNoShow(bookingId);
@@ -289,6 +378,7 @@ export default function CustomersPage() {
           {([
             { key: "appointments", label: "Appointments", icon: <Calendar size={15} /> },
             { key: "reviews",      label: "Reviews",      icon: <Star size={15} /> },
+            { key: "crm",          label: "CRM",          icon: <UserCheck size={15} /> },
           ] as const).map(tab => (
             <button
               key={tab.key}
@@ -309,7 +399,7 @@ export default function CustomersPage() {
                 color: activeTab === tab.key ? G : "#9CA3AF",
                 borderRadius: 99, padding: "1px 8px", fontSize: 11, fontWeight: 700,
               }}>
-                {tab.key === "appointments" ? appointments.length : bookings.length}
+                {tab.key === "appointments" ? appointments.length : tab.key === "reviews" ? bookings.length : crmStats.total}
               </span>
             </button>
           ))}
@@ -581,6 +671,262 @@ export default function CustomersPage() {
       )}
         </>
       )} {/* end reviews tab */}
+
+      {/* ── CRM TAB ── */}
+      {activeTab === "crm" && (
+        <>
+          {/* Stat cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 24 }}>
+            {[
+              { label: "Total",   value: crmStats.total,   color: N },
+              { label: "Active",  value: crmStats.active,  color: G },
+              { label: "At-risk", value: crmStats.at_risk, color: "#F59E0B" },
+              { label: "Lapsed",  value: crmStats.lapsed,  color: "#EF4444" },
+            ].map(card => (
+              <div key={card.label} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "20px 22px" }}>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 6px" }}>{card.label}</p>
+                <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: card.color, margin: 0 }}>{card.value}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Filter pills */}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+            {([
+              { key: "all",       label: "All" },
+              { key: "active",    label: "Active" },
+              { key: "at_risk",   label: "At-risk" },
+              { key: "lapsed",    label: "Lapsed" },
+              { key: "opted_out", label: "Opted out" },
+              { key: "imported",  label: "Imported" },
+            ] as const).map(f => (
+              <button
+                key={f.key}
+                onClick={() => { setCrmFilter(f.key); setCrmPage(1); }}
+                style={{
+                  padding: "6px 16px", border: `1px solid ${crmFilter === f.key ? G : "#E5E7EB"}`,
+                  borderRadius: 9999, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                  background: crmFilter === f.key ? `${G}12` : "#fff",
+                  color: crmFilter === f.key ? G : "#6B7280", cursor: "pointer", transition: "all 0.15s",
+                }}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Table */}
+          {crmLoading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: 64 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+            </div>
+          ) : crmCustomers.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "64px 24px", background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB" }}>
+              <Users size={36} style={{ color: "#D1D5DB", margin: "0 auto 16px" }} />
+              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 8px" }}>
+                {crmStats.total === 0 ? "No customers yet" : "No customers match this filter"}
+              </h3>
+              <p style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif", maxWidth: 420, margin: "0 auto", lineHeight: 1.6 }}>
+                {crmStats.total === 0
+                  ? "Customers appear here after their first completed appointment or import. Your CRM builds itself."
+                  : "Try a different filter."}
+              </p>
+            </div>
+          ) : (
+            <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+                <thead>
+                  <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                    {["Customer", "Source", "Last visit", "Visits", "Status", "Next appt", "Outreach", "Action"].map(h => (
+                      <th key={h} style={{ padding: "12px 14px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {crmCustomers.map((c, idx) => {
+                    const isExpanded = crmExpanded === c.id;
+                    const statusBadge = {
+                      active:    { label: "Active",    bg: "rgba(0,200,150,0.1)",  color: "#00A87D" },
+                      at_risk:   { label: "At-risk",   bg: "#FEF3C7",              color: "#B45309" },
+                      lapsed:    { label: "Lapsed",    bg: "#FEE2E2",              color: "#DC2626" },
+                      opted_out: { label: "Opted out", bg: "#F3F4F6",              color: "#6B7280" },
+                    }[c.status];
+
+                    return (
+                      <>
+                        <tr
+                          key={c.id}
+                          onClick={() => setCrmExpanded(isExpanded ? null : c.id)}
+                          style={{ borderTop: idx > 0 ? "1px solid #F3F4F6" : "none", cursor: "pointer", background: isExpanded ? "#FAFAFA" : "#fff", transition: "background 0.1s" }}
+                        >
+                          {/* Customer */}
+                          <td style={{ padding: "14px 14px" }}>
+                            <p style={{ fontWeight: 600, color: N, fontSize: 14, margin: 0 }}>{c.display_name || "—"}</p>
+                            <p style={{ fontSize: 12, color: "#9CA3AF", margin: "2px 0 0" }}>{c.phone_display}</p>
+                          </td>
+                          {/* Source */}
+                          <td style={{ padding: "14px 14px" }}>
+                            <span style={{
+                              fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: "3px 10px",
+                              background: c.source === "import" ? "#EFF6FF" : "rgba(0,200,150,0.08)",
+                              color: c.source === "import" ? "#3B82F6" : G,
+                            }}>
+                              {c.source === "import" ? "Imported" : "Booking"}
+                            </span>
+                          </td>
+                          {/* Last visit */}
+                          <td style={{ padding: "14px 14px" }}>
+                            {c.last_visit_at ? (
+                              <>
+                                <p style={{ fontSize: 13, color: N, margin: 0 }}>{new Date(c.last_visit_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
+                                {c.last_service && <p style={{ fontSize: 12, color: "#9CA3AF", margin: "2px 0 0" }}>{c.last_service}</p>}
+                              </>
+                            ) : c.source === "import" ? (
+                              <span style={{ fontSize: 12, color: "#9CA3AF" }}>Imported {new Date(c.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</span>
+                            ) : "—"}
+                          </td>
+                          {/* Total visits */}
+                          <td style={{ padding: "14px 14px", fontSize: 14, color: N }}>
+                            {c.total_visits > 0 ? c.total_visits : <span style={{ color: "#9CA3AF", fontSize: 12 }}>0{c.source === "import" ? " (imported)" : ""}</span>}
+                          </td>
+                          {/* Status */}
+                          <td style={{ padding: "14px 14px" }}>
+                            <span style={{ fontSize: 12, fontWeight: 600, borderRadius: 9999, padding: "4px 10px", background: statusBadge.bg, color: statusBadge.color }}>
+                              {statusBadge.label}
+                            </span>
+                          </td>
+                          {/* Next appointment */}
+                          <td style={{ padding: "14px 14px", fontSize: 13, color: "#6B7280", whiteSpace: "nowrap" }}>
+                            {c.next_appointment ? (
+                              <>
+                                <p style={{ margin: 0, color: N, fontWeight: 500 }}>{new Date(c.next_appointment.appointment_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</p>
+                                {c.next_appointment.service_name && <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF" }}>{c.next_appointment.service_name}</p>}
+                              </>
+                            ) : <span style={{ color: "#D1D5DB" }}>—</span>}
+                          </td>
+                          {/* Outreach */}
+                          <td style={{ padding: "14px 14px", fontSize: 12, color: "#6B7280", whiteSpace: "nowrap" }}>
+                            {c.last_outreach ? (
+                              <span>
+                                {c.last_outreach.type === "review_request" ? "Review sent" : `Nudged`}{" "}
+                                {new Date(c.last_outreach.sent_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                              </span>
+                            ) : <span style={{ color: "#D1D5DB" }}>—</span>}
+                          </td>
+                          {/* Action */}
+                          <td style={{ padding: "14px 14px" }} onClick={e => e.stopPropagation()}>
+                            {c.opted_out ? (
+                              <span style={{ fontSize: 12, color: "#9CA3AF" }}>Opted out</span>
+                            ) : c.nudged_recently ? (
+                              <span title="Nudged within the last 14 days" style={{ fontSize: 12, color: "#D1D5DB", cursor: "default" }}>Nudged recently</span>
+                            ) : (
+                              <button
+                                onClick={() => sendNudge(c.id, c.phone_display)}
+                                disabled={sendingNudge === c.id}
+                                style={{
+                                  padding: "6px 12px", borderRadius: 8, border: `1px solid ${G}30`,
+                                  background: sendingNudge === c.id ? "#F9FAFB" : `${G}0a`,
+                                  color: G, fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+                                  cursor: sendingNudge === c.id ? "not-allowed" : "pointer",
+                                  display: "inline-flex", alignItems: "center", gap: 5,
+                                }}
+                              >
+                                <MessageSquare size={12} />
+                                {sendingNudge === c.id ? "Sending…" : "Send nudge"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+
+                        {/* Expanded row */}
+                        {isExpanded && (
+                          <tr key={`${c.id}-expanded`}>
+                            <td colSpan={8} style={{ padding: "0 14px 20px", background: "#FAFAFA", borderTop: "none" }}>
+                              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, paddingTop: 16 }}>
+                                {/* Opt-out status */}
+                                {c.opted_out && (
+                                  <div style={{ gridColumn: "1 / -1", background: "#FEE2E2", borderRadius: 10, padding: "12px 16px", display: "flex", gap: 10, alignItems: "center" }}>
+                                    <XCircle size={16} style={{ color: "#DC2626", flexShrink: 0 }} />
+                                    <span style={{ fontSize: 13, color: "#DC2626", fontFamily: "Inter, sans-serif" }}>
+                                      Opted out{c.opted_out_at ? ` on ${new Date(c.opted_out_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}` : ""}
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Notes */}
+                                <div>
+                                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#6B7280", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Notes</p>
+                                  <textarea
+                                    value={crmNotes[c.id] ?? ""}
+                                    onChange={e => setCrmNotes(prev => ({ ...prev, [c.id]: e.target.value }))}
+                                    onBlur={() => saveNotes(c.id)}
+                                    placeholder="Add notes about this customer…"
+                                    rows={3}
+                                    style={{
+                                      width: "100%", padding: "10px 12px", border: "1px solid #E5E7EB",
+                                      borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 13, resize: "vertical",
+                                      outline: "none", boxSizing: "border-box",
+                                      color: N, background: "#fff",
+                                    }}
+                                  />
+                                  {savingNotes === c.id && <p style={{ fontSize: 11, color: "#9CA3AF", margin: "4px 0 0" }}>Saving…</p>}
+                                </div>
+
+                                {/* Summary stats */}
+                                <div>
+                                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#6B7280", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>Summary</p>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontFamily: "Inter, sans-serif" }}>
+                                      <span style={{ color: "#6B7280" }}>Source</span>
+                                      <span style={{ fontWeight: 600, color: N }}>{c.source === "import" ? "Imported" : "Vomni booking"}</span>
+                                    </div>
+                                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontFamily: "Inter, sans-serif" }}>
+                                      <span style={{ color: "#6B7280" }}>Total visits</span>
+                                      <span style={{ fontWeight: 600, color: N }}>{c.total_visits}</span>
+                                    </div>
+                                    {c.last_visit_at && (
+                                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontFamily: "Inter, sans-serif" }}>
+                                        <span style={{ color: "#6B7280" }}>Last visit</span>
+                                        <span style={{ fontWeight: 600, color: N }}>{new Date(c.last_visit_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                                      </div>
+                                    )}
+                                    {c.last_outreach && (
+                                      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontFamily: "Inter, sans-serif" }}>
+                                        <span style={{ color: "#6B7280" }}>Last outreach</span>
+                                        <span style={{ fontWeight: 600, color: N }}>{new Date(c.last_outreach.sent_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Pagination */}
+              <div style={{ padding: "16px 14px", borderTop: "1px solid #F3F4F6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span style={{ fontSize: 13, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
+                  {(crmPage - 1) * CRM_PER_PAGE + 1}–{(crmPage - 1) * CRM_PER_PAGE + crmCustomers.length} customers
+                </span>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button disabled={crmPage === 1} onClick={() => setCrmPage(p => p - 1)} style={{ padding: "7px 11px", borderRadius: 8, border: "1px solid #E5E7EB", background: crmPage === 1 ? "#F9FAFB" : "#fff", color: crmPage === 1 ? "#D1D5DB" : N, cursor: crmPage === 1 ? "not-allowed" : "pointer" }}>
+                    <ChevronLeft size={15} />
+                  </button>
+                  <button disabled={crmCustomers.length < CRM_PER_PAGE} onClick={() => setCrmPage(p => p + 1)} style={{ padding: "7px 11px", borderRadius: 8, border: "1px solid #E5E7EB", background: crmCustomers.length < CRM_PER_PAGE ? "#F9FAFB" : "#fff", color: crmCustomers.length < CRM_PER_PAGE ? "#D1D5DB" : N, cursor: crmCustomers.length < CRM_PER_PAGE ? "not-allowed" : "pointer" }}>
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )} {/* end crm tab */}
+
     </div>
   );
 }

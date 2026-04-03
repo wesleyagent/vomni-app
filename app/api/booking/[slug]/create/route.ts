@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generateCancellationToken, computeAvailableSlots } from "@/lib/booking-utils";
 import { sendBookingMessage } from "@/lib/twilio";
+import { sendAppointmentConfirmation } from "@/lib/whatsapp";
 import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
 import { sendEmail, buildOwnerNotifyHtml, buildCustomerConfirmHtml } from "@/lib/email";
+import { sendBusinessPushNotification } from "@/lib/push";
+import { normaliseToE164, encryptPhone, maskPhone, fingerprintPhone } from "@/lib/phone";
 import type { BusinessHours, StaffHours } from "@/types/booking";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
@@ -32,6 +35,7 @@ export async function POST(
     email?: string;
     notes?: string;
     send_reminder?: boolean;
+    whatsapp_opt_in?: boolean;
   };
 
   try {
@@ -40,7 +44,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { service_id, staff_id, date, time, first_name, last_name, phone, email, notes } = body;
+  const { service_id, staff_id, date, time, first_name, last_name, phone, email, notes, whatsapp_opt_in } = body;
 
   // Basic input validation
   if (!service_id || !date || !time || !first_name || !last_name || !phone) {
@@ -49,8 +53,7 @@ export async function POST(
 
   // Sanitise inputs
   const safeFirst = first_name.trim().slice(0, 100);
-  const safeLast = last_name.trim().slice(0, 100);
-  const safePhone = phone.replace(/[^\d+\-() ]/g, "").trim().slice(0, 20);
+  const safeLast  = last_name.trim().slice(0, 100);
   const safeNotes = notes?.trim().slice(0, 500) ?? null;
 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -60,10 +63,27 @@ export async function POST(
     return NextResponse.json({ error: "Invalid time format" }, { status: 400 });
   }
 
-  // Rate limit by phone too (prevent abuse)
-  if (!checkRateLimit(`booking:phone:${safePhone}`, 3, 60 * 60 * 1000)) {
+  // Normalise phone to E.164 — reject if not normalisable
+  let phoneE164: string;
+  let phoneEncrypted: string;
+  let phoneDisplay: string;
+  let phoneFingerprint: string; // filled after we know businessId
+
+  try {
+    phoneE164 = normaliseToE164(phone);
+    phoneEncrypted = encryptPhone(phoneE164);
+    phoneDisplay   = maskPhone(phoneE164);
+  } catch {
+    return NextResponse.json({ error: "Invalid phone number format" }, { status: 400 });
+  }
+
+  // Rate limit by phone fingerprint (prevent abuse) — use display for key
+  if (!checkRateLimit(`booking:phone:${phoneDisplay}`, 3, 60 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many bookings for this phone number" }, { status: 429 });
   }
+
+  // safePhone alias — used only in-memory for Twilio/email; never written to DB as plaintext
+  const safePhone = phoneE164;
 
   // Fetch business
   const { data: business } = await supabaseAdmin
@@ -75,6 +95,9 @@ export async function POST(
   if (!business || !business.booking_enabled) {
     return NextResponse.json({ error: "Business not found or booking disabled" }, { status: 404 });
   }
+
+  // Now that we have the businessId, compute the dedup fingerprint
+  phoneFingerprint = fingerprintPhone(phoneE164, business.id);
 
   // Fetch service
   const { data: service } = await supabaseAdmin
@@ -153,7 +176,7 @@ export async function POST(
       p_duration_minutes: service.duration_minutes,
       p_buffer_minutes: bufferMinutes,
       p_customer_name: customerName,
-      p_customer_phone: safePhone,
+      p_customer_phone: phoneDisplay,  // masked — RPC stores display, we overwrite with encrypted below
       p_customer_email: email || null,
       p_notes: safeNotes,
       p_cancellation_token: cancellationToken,
@@ -171,6 +194,14 @@ export async function POST(
       return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
     }
     bookingId = result.booking_id!;
+
+    // Immediately overwrite customer_phone with display value and set encrypted columns
+    // (the RPC stored the raw phone — we replace it now)
+    await supabaseAdmin.from("bookings").update({
+      customer_phone: phoneDisplay,
+      customer_phone_encrypted: phoneEncrypted,
+      phone_display: phoneDisplay,
+    }).eq("id", bookingId);
   } else {
     // No staff — direct insert
     const { data: booking, error: insertErr } = await supabaseAdmin
@@ -179,7 +210,9 @@ export async function POST(
         business_id: business.id,
         service_id: service.id,
         customer_name: customerName,
-        customer_phone: safePhone,
+        customer_phone: phoneDisplay,            // masked — not raw
+        customer_phone_encrypted: phoneEncrypted,
+        phone_display: phoneDisplay,
         customer_email: email || null,
         service: service.name,
         service_name: service.name,
@@ -191,6 +224,8 @@ export async function POST(
         sms_status: "pending",
         notes: safeNotes,
         cancellation_token: cancellationToken,
+        whatsapp_opt_in: whatsapp_opt_in !== false,
+        whatsapp_status: "pending",
         reminder_sent: false,
         confirmation_sent: false,
         created_at: new Date().toISOString(),
@@ -219,14 +254,39 @@ export async function POST(
     hour: "2-digit", minute: "2-digit",
   });
 
-  // Send confirmation SMS
-  const smsBody = staffName
-    ? `Hi ${safeFirst}! ✅ Your ${service.name} appointment at ${business.name} is confirmed for ${date} at ${time} with ${staffName}. Cancel: ${cancelUrl}`
-    : `Hi ${safeFirst}! ✅ Your ${service.name} appointment at ${business.name} is confirmed for ${date} at ${time}. Cancel: ${cancelUrl}`;
+  // Send WhatsApp confirmation (primary) or SMS fallback
+  const waOptIn = whatsapp_opt_in !== false;
+  if (waOptIn) {
+    const waResult = await sendAppointmentConfirmation(
+      { id: bookingId, business_id: business.id, customer_name: customerName, customer_phone: safePhone, appointment_at: appointmentAt, service_name: service.name, cancellation_token: cancellationToken, whatsapp_opt_in: true },
+      { id: business.id, name: business.name, booking_slug: business.booking_slug }
+    );
+    await supabaseAdmin.from("bookings").update({
+      confirmation_sent: waResult.success,
+      whatsapp_status: waResult.success ? "sent" : "failed",
+      whatsapp_opt_in: true,
+    }).eq("id", bookingId);
 
-  const smsResult = await sendBookingMessage(safePhone, smsBody, business.whatsapp_enabled ?? false);
-  if (smsResult.success) {
-    await supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId);
+    // If WhatsApp failed, fall back to SMS
+    if (!waResult.success) {
+      const smsBody = staffName
+        ? `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time} with ${staffName}. Cancel: ${cancelUrl}`
+        : `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time}. Cancel: ${cancelUrl}`;
+      const smsResult = await sendBookingMessage(safePhone, smsBody, false);
+      if (smsResult.success) {
+        await supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId);
+      }
+    }
+  } else {
+    // Customer opted out of WhatsApp — send SMS
+    await supabaseAdmin.from("bookings").update({ whatsapp_opt_in: false, whatsapp_status: "opted_out" }).eq("id", bookingId);
+    const smsBody = staffName
+      ? `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time} with ${staffName}. Cancel: ${cancelUrl}`
+      : `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time}. Cancel: ${cancelUrl}`;
+    const smsResult = await sendBookingMessage(safePhone, smsBody, false);
+    if (smsResult.success) {
+      await supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId);
+    }
   }
 
   const biz = business as typeof business & {
@@ -245,7 +305,7 @@ export async function POST(
       bookingId,
       html: buildOwnerNotifyHtml({
         customerName,
-        phone:       safePhone,
+        phone:       phoneDisplay,
         service:     service.name,
         duration:    service.duration_minutes,
         price:       service.price ?? null,
@@ -291,30 +351,11 @@ export async function POST(
   });
 
   // Send push notification to business (non-blocking)
-  try {
-    const { data: tokens } = await supabaseAdmin
-      .from('device_tokens')
-      .select('token')
-      .eq('business_id', business.id);
-
-    if (tokens && tokens.length > 0) {
-      const messages = tokens.map((t: { token: string }) => ({
-        to: t.token,
-        title: 'New booking',
-        body: `📅 ${customerName}, ${service.name} at ${time}`,
-        data: { type: 'new_booking', date: appointmentAt },
-      }));
-
-      await fetch('https://exp.host/--/api/v2/push/send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(messages),
-      });
-    }
-  } catch (e) {
-    // Non-blocking - don't fail the booking
-    console.error('Push notification failed:', e);
-  }
+  Promise.resolve().then(() => sendBusinessPushNotification(business.id, {
+    title: "New booking 📅",
+    body: `${customerName} booked ${service.name} at ${time}`,
+    data: { type: "new_booking", id: bookingId },
+  })).catch(e => console.error("[booking/create] push failed:", e));
 
   // Audit log
   await supabaseAdmin.from("booking_audit_log").insert({
@@ -323,6 +364,22 @@ export async function POST(
     actor: "customer",
     details: { ip, service: service.name, date, time },
   });
+
+  // CRM nudge conversion tracking (non-blocking)
+  Promise.resolve().then(async () => {
+    const { data: nudge } = await supabaseAdmin
+      .from("crm_nudges")
+      .select("id")
+      .eq("customer_phone", phoneDisplay)
+      .eq("converted", false)
+      .gte("sent_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (nudge) {
+      await supabaseAdmin.from("crm_nudges").update({ converted: true, converted_booking_id: bookingId }).eq("id", nudge.id);
+    }
+  }).catch(e => console.error("[booking/create] nudge tracking failed:", e));
 
   // Push to Google Calendar (non-blocking)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
