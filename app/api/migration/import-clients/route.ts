@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
       text = new TextDecoder("windows-1252").decode(arrayBuffer);
     }
 
-    // Strip BOM if present (UTF-16 / UTF-8 with BOM)
+    // Strip BOM if present
     if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
 
     const parsed = parseCSVText(text);
@@ -71,39 +71,52 @@ export async function POST(req: NextRequest) {
 
     const importId = importRecord?.id;
 
-    // ── Pre-fetch phones already in customer_profiles ──────────────────────
-    const { data: existingProfileRows } = await supabaseAdmin
+    // ── Dedup — collect phones already in customer_profiles ───────────────
+    // Only used to count skipped in the stats; upsert handles the actual dedup.
+    const { data: existingRows } = await supabaseAdmin
       .from("customer_profiles")
       .select("phone")
       .eq("business_id", businessId)
       .not("phone", "is", null);
 
     const existingPhones = new Set(
-      (existingProfileRows ?? []).map((r: { phone: string }) => r.phone).filter(Boolean)
+      (existingRows ?? []).map((r: { phone: string }) => r.phone).filter(Boolean)
     );
 
-    // ── Build rows to insert ───────────────────────────────────────────────
-    // c.phone is already normalised to E.164 (or best-effort) by csv-parser.
-    // We do NOT re-normalise here — that previously caused all rows to error.
+    // ── Build rows ────────────────────────────────────────────────────────
+    // c.phone is already normalised to E.164 by csv-parser.
     const seenPhones = new Set<string>();
-    const toInsert: Array<Record<string, unknown>> = [];
+    // Full row attempts to set source + visit data (requires migration 019/020 columns)
+    const fullRows: Array<Record<string, unknown>> = [];
+    // Base rows use only migration 017 columns (always safe)
+    const baseRows: Array<Record<string, unknown>> = [];
+
     let skipped = 0;
 
     for (const c of parsed.clients) {
       const phone = c.phone;
-
-      // Skip rows without a usable phone number
       if (!phone || phone.length < 7) { skipped++; continue; }
 
-      // In-batch dedup
       if (seenPhones.has(phone)) { skipped++; continue; }
       seenPhones.add(phone);
 
-      // Dedup against existing DB records
-      if (existingPhones.has(phone)) { skipped++; continue; }
-      existingPhones.add(phone); // prevent cross-batch duplication
+      // Count pre-existing phones as skipped for stats, but still upsert
+      // (upsert will UPDATE their last_visit_at / total_visits)
+      if (existingPhones.has(phone)) skipped++;
 
-      toInsert.push({
+      // Full row: source + visit data (may fail if migration 019/020 not run)
+      fullRows.push({
+        business_id:    businessId,
+        phone,
+        name:           c.name ?? null,
+        last_visit_at:  c.last_visit_at ?? null,
+        total_visits:   c.total_visits ?? 0,
+        source:         "import",
+        import_platform: platform,
+      });
+
+      // Base row: only guaranteed migration 017 columns
+      baseRows.push({
         business_id:   businessId,
         phone,
         name:          c.name ?? null,
@@ -116,63 +129,76 @@ export async function POST(req: NextRequest) {
     let errorRows = 0;
     const insertErrors: string[] = [];
 
-    if (toInsert.length > 0) {
-      // ── Attempt 1: batch upsert with ignoreDuplicates ──────────────────
-      // Uses ON CONFLICT (business_id, phone) DO NOTHING — requires the
-      // unique constraint from migration 017. Handles any edge-case duplicates
-      // that slipped past the pre-check.
-      const { data: upserted, error: upsertErr } = await supabaseAdmin
+    if (fullRows.length > 0) {
+      // ── Attempt 1: upsert full rows (UPDATE on conflict) ────────────────
+      // Uses ON CONFLICT (business_id, phone) DO UPDATE — updates last_visit_at
+      // and total_visits even if the phone was already imported previously.
+      // Requires unique constraint from migration 017.
+      const { data: up1, error: err1 } = await supabaseAdmin
         .from("customer_profiles")
-        .upsert(toInsert, { onConflict: "business_id,phone", ignoreDuplicates: true })
+        .upsert(fullRows, { onConflict: "business_id,phone" })
         .select("id");
 
-      if (!upsertErr) {
-        imported = upserted?.length ?? 0;
-        skipped += toInsert.length - imported; // remainder were silently skipped duplicates
+      if (!err1) {
+        imported = up1?.length ?? 0;
       } else {
-        // ── Attempt 2: row-by-row insert ───────────────────────────────
-        // Batch upsert failed (constraint may not exist, or a column is missing).
-        // Insert one row at a time so one bad row doesn't kill the rest.
-        console.warn("[import-clients] batch upsert failed, falling back to row-by-row:", upsertErr.message);
+        // ── Attempt 2: upsert base rows only (no source/import_platform) ──
+        // Falls here when source / import_platform columns don't exist yet.
+        console.warn("[import-clients] full upsert failed, trying base rows:", err1.message);
 
-        for (const row of toInsert) {
-          // Try with visit fields (migration 017 columns)
-          const { data: rowData, error: rowErr } = await supabaseAdmin
-            .from("customer_profiles")
-            .insert(row)
-            .select("id");
+        const { data: up2, error: err2 } = await supabaseAdmin
+          .from("customer_profiles")
+          .upsert(baseRows, { onConflict: "business_id,phone" })
+          .select("id");
 
-          if (!rowErr) {
-            imported += rowData?.length ?? 0;
-            continue;
+        if (!up2 || err2) {
+          // ── Attempt 3: row-by-row insert ────────────────────────────────
+          // Fallback when unique constraint doesn't exist (no onConflict target).
+          console.warn("[import-clients] base upsert failed, going row-by-row:", err2?.message);
+
+          for (const row of baseRows) {
+            // Insert with visit data
+            const { data: rd, error: re } = await supabaseAdmin
+              .from("customer_profiles")
+              .insert(row)
+              .select("id");
+
+            if (!re) { imported += rd?.length ?? 0; continue; }
+
+            if (re.code === "23505") {
+              // Row exists — try to update last_visit_at / total_visits
+              await supabaseAdmin
+                .from("customer_profiles")
+                .update({ last_visit_at: row.last_visit_at, total_visits: row.total_visits })
+                .eq("business_id", row.business_id as string)
+                .eq("phone", row.phone as string);
+              imported++;
+              continue;
+            }
+
+            // Column missing → bare 3-column insert
+            const { data: bd, error: be } = await supabaseAdmin
+              .from("customer_profiles")
+              .insert({ business_id: row.business_id, phone: row.phone, name: row.name })
+              .select("id");
+
+            if (!be) {
+              imported += bd?.length ?? 0;
+            } else if (be.code === "23505") {
+              // Already exists, nothing to do
+            } else {
+              errorRows++;
+              const msg = be.message;
+              if (!insertErrors.includes(msg)) insertErrors.push(msg);
+            }
           }
-
-          // Unique violation → already exists, treat as skipped
-          if (rowErr.code === "23505") {
-            skipped++;
-            continue;
-          }
-
-          // Column missing → retry with bare minimum (business_id, phone, name)
-          const { data: bareData, error: bareErr } = await supabaseAdmin
-            .from("customer_profiles")
-            .insert({ business_id: row.business_id, phone: row.phone, name: row.name })
-            .select("id");
-
-          if (!bareErr) {
-            imported += bareData?.length ?? 0;
-          } else if (bareErr.code === "23505") {
-            skipped++;
-          } else {
-            errorRows++;
-            const msg = bareErr.message;
-            if (!insertErrors.includes(msg)) insertErrors.push(msg);
-          }
+        } else {
+          imported = up2?.length ?? 0;
         }
       }
     }
 
-    // Update import record
+    // ── Update import record ──────────────────────────────────────────────
     if (importId) {
       await supabaseAdmin.from("migration_imports").update({
         imported_rows: imported,
