@@ -10,9 +10,8 @@ const BD  = "#E5E7EB";
 
 const NAV_LINKS = [
   { label: "How it Works", href: "https://vomni.io/#how-it-works" },
-  { label: "Compare",      href: "/migrate" },
   { label: "Pricing",      href: "https://vomni.io/#pricing" },
-  { label: "Migrate",      href: "/migrate" },
+  { label: "Switch to Vomni", href: "/migrate" },
   { label: "Book a Demo",  href: "https://vomni.io/#book-demo", green: true },
   { label: "Login",        href: "https://vomni.io/login" },
 ];
