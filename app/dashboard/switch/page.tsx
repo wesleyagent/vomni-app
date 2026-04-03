@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { useBusinessContext } from "../_context";
+import { db } from "@/lib/db";
 import { PLATFORMS, type PlatformConfig } from "@/lib/platform-comparison";
 import { Upload, CheckCircle, ArrowRight, ArrowLeft, Copy, AlertCircle, MessageCircle } from "lucide-react";
 
@@ -68,7 +69,9 @@ export default function SwitchPage() {
     fd.append("preview", "true");
 
     try {
-      const res = await fetch("/api/migration/import-clients", { method: "POST", body: fd });
+      const { data: { session } } = await db.auth.getSession();
+      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const res = await fetch("/api/migration/import-clients", { method: "POST", body: fd, headers: authHeader });
       const data = await res.json();
       if (data.preview) {
         setPreview(data.preview);
@@ -96,7 +99,9 @@ export default function SwitchPage() {
     fd.append("platform", selectedPlatform?.id ?? "csv");
 
     try {
-      const res = await fetch("/api/migration/import-clients", { method: "POST", body: fd });
+      const { data: { session } } = await db.auth.getSession();
+      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const res = await fetch("/api/migration/import-clients", { method: "POST", body: fd, headers: authHeader });
       const data = await res.json();
       setImportResult({ imported: data.imported ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? 0 });
       setChecklist(c => ({ ...c, clients: true }));

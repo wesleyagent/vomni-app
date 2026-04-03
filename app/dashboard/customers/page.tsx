@@ -264,8 +264,11 @@ export default function CustomersPage() {
     if (!businessId) return;
     setCrmLoading(true);
     try {
+      const { data: { session } } = await db.auth.getSession();
+      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
       const res = await fetch(
-        `/api/crm/customers?business_id=${businessId}&filter=${crmFilter}&page=${crmPage}&per_page=${CRM_PER_PAGE}`
+        `/api/crm/customers?business_id=${businessId}&filter=${crmFilter}&page=${crmPage}&per_page=${CRM_PER_PAGE}`,
+        { headers: authHeader }
       );
       if (res.ok) {
         const json = await res.json();
@@ -291,9 +294,11 @@ export default function CustomersPage() {
     if (!businessId) return;
     setSavingNotes(profileId);
     try {
+      const { data: { session } } = await db.auth.getSession();
+      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
       await fetch("/api/crm/customers", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeader,
         body: JSON.stringify({ business_id: businessId, profile_id: profileId, notes: crmNotes[profileId] ?? "" }),
       });
     } finally {
@@ -305,9 +310,11 @@ export default function CustomersPage() {
     if (!businessId) return;
     setSendingNudge(profileId);
     try {
+      const { data: { session } } = await db.auth.getSession();
+      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
       await fetch("/api/crm/nudge", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: authHeader,
         body: JSON.stringify({ business_id: businessId, customer_phone: phone, nudge_type: "lapsed" }),
       });
       await fetchCrm();
