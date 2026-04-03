@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
 
 // POST /api/blocked-times — create a blocked time slot
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -14,6 +18,9 @@ export async function POST(req: NextRequest) {
   if (!business_id || !start_time || !end_time) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+
+  const ownership = await requireBusinessOwnership(auth.email, business_id as string, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   const { data, error } = await supabaseAdmin
     .from("blocked_times")
@@ -31,10 +38,27 @@ export async function POST(req: NextRequest) {
 
 // DELETE /api/blocked-times?id=xxx
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   const id = req.nextUrl.searchParams.get("id");
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
+
+  // Look up blocked time to verify ownership
+  const { data: blocked } = await supabaseAdmin
+    .from("blocked_times")
+    .select("business_id")
+    .eq("id", id)
+    .single();
+
+  if (!blocked) {
+    return NextResponse.json({ error: "Blocked time not found" }, { status: 404 });
+  }
+
+  const ownership = await requireBusinessOwnership(auth.email, blocked.business_id, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   const { error } = await supabaseAdmin
     .from("blocked_times")

@@ -4,7 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 const TRIAL_DAYS = 14;
 
 // GET /api/trial-status?business_id=xxx
-// Returns { isTrial, daysRemaining, trialExpired } calculated server-side
+// Returns { isTrial, daysRemaining, trialExpired } calculated server-side.
+// Read-only — does NOT modify any data. Downgrade logic lives in cron/downgrade-expired-trials.
 export async function GET(req: NextRequest) {
   const businessId = req.nextUrl.searchParams.get("business_id");
   if (!businessId) {
@@ -31,14 +32,6 @@ export async function GET(req: NextRequest) {
   const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
   const daysRemaining = Math.max(0, TRIAL_DAYS - elapsedDays);
   const trialExpired = daysRemaining === 0;
-
-  // If trial expired and they're still on "pro" without a subscription, downgrade
-  if (trialExpired && biz.plan === "pro" && !biz.lemon_subscription_id) {
-    await supabaseAdmin
-      .from("businesses")
-      .update({ plan: "trial_expired" })
-      .eq("id", businessId);
-  }
 
   return NextResponse.json({ isTrial: true, daysRemaining, trialExpired });
 }

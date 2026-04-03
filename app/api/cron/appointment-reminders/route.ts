@@ -1,10 +1,15 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendEmail } from "@/lib/email";
+import { sendAppointmentReminder } from "@/lib/whatsapp";
 
 // GET /api/cron/appointment-reminders
 // Runs hourly via Vercel cron. Finds bookings 23-25h away and sends reminder email.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const now = new Date();
 
   // Window: appointments between 23 and 25 hours from now
@@ -13,7 +18,7 @@ export async function GET() {
 
   const { data: bookings, error } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_name, customer_email, appointment_at, service_name, staff_id, business_id, cancellation_token")
+    .select("id, customer_name, customer_email, customer_phone, appointment_at, service_name, staff_id, business_id, cancellation_token, whatsapp_opt_in")
     .eq("status", "confirmed")
     .eq("reminder_sent", false)
     .gte("appointment_at", min.toISOString())
@@ -54,6 +59,19 @@ export async function GET() {
     const cancelUrl = booking.cancellation_token
       ? `${process.env.NEXT_PUBLIC_APP_URL}/cancel/${booking.cancellation_token}`
       : null;
+
+    // Send WhatsApp reminder if opted in
+    const waBooking = booking as typeof booking & { whatsapp_opt_in?: boolean };
+    if (waBooking.whatsapp_opt_in !== false && biz) {
+      try {
+        await sendAppointmentReminder(
+          { id: booking.id, business_id: booking.business_id, customer_name: booking.customer_name, customer_phone: booking.customer_phone ?? "", appointment_at: booking.appointment_at ?? "", whatsapp_opt_in: true },
+          { id: booking.business_id, name: biz.name }
+        );
+      } catch (e) {
+        console.error(`[cron/reminders] WhatsApp reminder failed for ${booking.id}:`, e);
+      }
+    }
 
     // Mark reminder_sent regardless of email presence to avoid retry loops
     if (!booking.customer_email) {

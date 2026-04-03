@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac } from "crypto";
+import bcrypt from "bcryptjs";
+import { checkRateLimitAsync, getClientIP } from "@/lib/rate-limit";
 
 // ── TOTP (RFC 6238) — native implementation, no external deps ──────────────
 
@@ -50,13 +52,33 @@ function verifyTOTP(token: string, secret: string): boolean {
 // ── Route handlers ─────────────────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  // Rate limit: 5 attempts per 15 minutes per IP
+  const ip = getClientIP(req);
+  const rl = await checkRateLimitAsync(`admin:${ip}`, "adminLogin");
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many login attempts. Try again in 15 minutes." }, { status: 429 });
+  }
+
   const { password, totp } = await req.json().catch(() => ({}));
 
   if (!password || !totp) {
     return NextResponse.json({ error: "Missing fields" }, { status: 400 });
   }
 
-  if (password !== process.env.ADMIN_PASSWORD) {
+  // Support both hashed (ADMIN_PASSWORD_HASH) and legacy plaintext (ADMIN_PASSWORD)
+  const hash = process.env.ADMIN_PASSWORD_HASH;
+  const legacyPlain = process.env.ADMIN_PASSWORD;
+
+  let passwordValid = false;
+  if (hash) {
+    passwordValid = await bcrypt.compare(password, hash);
+  } else if (legacyPlain) {
+    // Fallback for migration period — log a warning
+    console.warn("[admin/auth] Using plaintext ADMIN_PASSWORD — migrate to ADMIN_PASSWORD_HASH");
+    passwordValid = password === legacyPlain;
+  }
+
+  if (!passwordValid) {
     return NextResponse.json({ error: "Invalid password" }, { status: 401 });
   }
 

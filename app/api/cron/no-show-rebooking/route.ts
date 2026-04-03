@@ -1,12 +1,16 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendBookingMessage } from "@/lib/twilio";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
 // GET /api/cron/no-show-rebooking
-// Runs every 30 minutes. Finds no-show bookings from 2h ago and sends re-booking SMS.
-export async function GET() {
+// Runs daily at 10am. Finds no-show bookings from 2h ago and sends re-booking SMS.
+export async function GET(req: NextRequest) {
+  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const now = new Date();
 
   // Look for no-shows that happened 90–150 minutes ago (2h window centre)

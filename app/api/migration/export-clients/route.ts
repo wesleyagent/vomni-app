@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
 
 export async function GET(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   const businessId = req.nextUrl.searchParams.get("business_id");
   if (!businessId) return NextResponse.json({ error: "Missing business_id" }, { status: 400 });
+
+  const ownership = await requireBusinessOwnership(auth.email, businessId, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   const { data } = await supabaseAdmin
     .from("clients")

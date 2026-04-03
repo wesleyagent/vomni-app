@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { sendBusinessPushNotification } from "@/lib/push";
 
 // ── Supabase Database Webhook ────────────────────────────────────────────
 // Fires on INSERT into the `feedback` table.
@@ -11,12 +12,14 @@ const WEBHOOK_SECRET = process.env.SUPABASE_WEBHOOK_SECRET ?? "";
 
 export async function POST(req: NextRequest) {
   try {
-    // ── 1. Verify webhook secret ───────────────────────────────────────
-    if (WEBHOOK_SECRET) {
-      const authHeader = req.headers.get("authorization");
-      if (authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+    // ── 1. Verify webhook secret (mandatory) ────────────────────────────
+    if (!WEBHOOK_SECRET) {
+      console.error("[webhooks/feedback] WEBHOOK_SECRET not configured — refusing to process request");
+      return NextResponse.json({ error: "Webhook secret not configured" }, { status: 500 });
+    }
+    const authHeader = req.headers.get("authorization");
+    if (authHeader !== `Bearer ${WEBHOOK_SECRET}`) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // ── 2. Parse the Supabase webhook payload ──────────────────────────
@@ -159,29 +162,11 @@ export async function POST(req: NextRequest) {
     );
 
     // Send push notification to business (non-blocking)
-    try {
-      const { data: tokens } = await supabaseAdmin
-        .from('device_tokens')
-        .select('token')
-        .eq('business_id', business_id);
-
-      if (tokens && tokens.length > 0) {
-        const messages = tokens.map((t: { token: string }) => ({
-          to: t.token,
-          title: 'New review',
-          body: `⭐ ${customerName} left you a ${rating}-star review`,
-          data: { type: 'new_review' },
-        }));
-
-        await fetch('https://exp.host/--/api/v2/push/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(messages),
-        });
-      }
-    } catch (e) {
-      console.error('Push notification failed:', e);
-    }
+    Promise.resolve().then(() => sendBusinessPushNotification(business_id, {
+      title: "New review ⭐",
+      body: `${rating}/5 stars from ${customerName}`,
+      data: { type: "new_review", id: feedback.id ?? "" },
+    })).catch(e => console.error("[webhooks/feedback] push failed:", e));
 
     return NextResponse.json({ success: true, emailSentTo: business.owner_email });
   } catch (err) {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
 
 // PATCH /api/business-settings
 // Body: { business_id: string, [field]: value, ... }
@@ -24,6 +25,9 @@ const ALLOWED_FIELDS = new Set([
 ]);
 
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -35,6 +39,9 @@ export async function PATCH(req: NextRequest) {
   if (!business_id || typeof business_id !== "string") {
     return NextResponse.json({ error: "Missing business_id" }, { status: 400 });
   }
+
+  const ownership = await requireBusinessOwnership(auth.email, business_id, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   // Filter to only allowed fields
   const patch: Record<string, unknown> = {};

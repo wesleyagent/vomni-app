@@ -1,11 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendEmail }     from "@/lib/email";
+import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
 // POST /api/staff/invite — Send a staff invite email
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   let body: { business_id: string; staff_id?: string; email: string; invited_by_name?: string };
   try { body = await req.json(); }
   catch { return NextResponse.json({ error: "Invalid body" }, { status: 400 }); }
@@ -14,6 +18,9 @@ export async function POST(req: NextRequest) {
   if (!business_id || !email) {
     return NextResponse.json({ error: "Missing business_id or email" }, { status: 400 });
   }
+
+  const ownership = await requireBusinessOwnership(auth.email, business_id, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   // Look up the business
   const { data: biz } = await supabaseAdmin
@@ -69,7 +76,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ success: true, token: invite.token });
 }
 
-// GET /api/staff/invite?token=XXX — Validate an invite token
+// GET /api/staff/invite?token=XXX — Validate an invite token (public, no auth needed)
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get("token");
   if (!token) return NextResponse.json({ error: "Missing token" }, { status: 400 });

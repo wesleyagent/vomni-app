@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
 
 // POST /api/services — create a new service
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -14,6 +18,9 @@ export async function POST(req: NextRequest) {
   if (!business_id || !name || !duration_minutes) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
+
+  const ownership = await requireBusinessOwnership(auth.email, business_id as string, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   const { data, error } = await supabaseAdmin
     .from("services")
@@ -40,6 +47,9 @@ export async function POST(req: NextRequest) {
 
 // PATCH /api/services — update a service
 export async function PATCH(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
@@ -51,6 +61,20 @@ export async function PATCH(req: NextRequest) {
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
+
+  // Look up the service to verify ownership
+  const { data: service } = await supabaseAdmin
+    .from("services")
+    .select("business_id")
+    .eq("id", id)
+    .single();
+
+  if (!service) {
+    return NextResponse.json({ error: "Service not found" }, { status: 404 });
+  }
+
+  const ownership = await requireBusinessOwnership(auth.email, service.business_id, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   const { error } = await supabaseAdmin
     .from("services")
@@ -67,10 +91,27 @@ export async function PATCH(req: NextRequest) {
 
 // DELETE /api/services?id=xxx — soft-delete (set is_active=false)
 export async function DELETE(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   const id = req.nextUrl.searchParams.get("id");
   if (!id) {
     return NextResponse.json({ error: "Missing id" }, { status: 400 });
   }
+
+  // Look up the service to verify ownership
+  const { data: service } = await supabaseAdmin
+    .from("services")
+    .select("business_id")
+    .eq("id", id)
+    .single();
+
+  if (!service) {
+    return NextResponse.json({ error: "Service not found" }, { status: 404 });
+  }
+
+  const ownership = await requireBusinessOwnership(auth.email, service.business_id, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   const { error } = await supabaseAdmin
     .from("services")

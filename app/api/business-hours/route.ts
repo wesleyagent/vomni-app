@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
 
 interface HourPayload {
   day_of_week: number;
@@ -12,6 +13,9 @@ interface HourPayload {
 // Body: { business_id: string, hours: HourPayload[] }
 // Uses supabaseAdmin to bypass RLS for dashboard writes.
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
+
   let body: { business_id: string; hours: HourPayload[] };
   try {
     body = await req.json();
@@ -24,16 +28,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing business_id or hours" }, { status: 400 });
   }
 
-  // Verify business exists
-  const { data: biz, error: bizErr } = await supabaseAdmin
-    .from("businesses")
-    .select("id")
-    .eq("id", business_id)
-    .single();
-
-  if (bizErr || !biz) {
-    return NextResponse.json({ error: "Business not found" }, { status: 404 });
-  }
+  const ownership = await requireBusinessOwnership(auth.email, business_id, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   // Delete existing hours then insert new ones
   const { error: delErr } = await supabaseAdmin

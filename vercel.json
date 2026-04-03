@@ -1,24 +1,52 @@
 {
   "crons": [
     {
-      "path": "/api/cron/weekly-report",
-      "schedule": "0 9 * * 1"
+      "path": "/api/cron/appointment-reminders",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/review-requests",
+      "schedule": "0 * * * *"
     },
     {
       "path": "/api/cron/cleanup-data",
       "schedule": "0 2 * * *"
     },
     {
+      "path": "/api/cron/cleanup-pii",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/downgrade-expired-trials",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/sync-customer-profiles",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/waitlist-check",
+      "schedule": "0 9 * * *"
+    },
+    {
+      "path": "/api/cron/no-show-rebooking",
+      "schedule": "0 10 * * *"
+    },
+    {
+      "path": "/api/cron/crm-nudges",
+      "schedule": "0 10 * * *"
+    },
+    {
       "path": "/api/cron/reset-sms-counters",
       "schedule": "0 0 * * *"
     },
     {
-      "path": "/api/cron/update-velocity",
-      "schedule": "0 0 * * 1"
+      "path": "/api/cron/weekly-report",
+      "schedule": "0 9 * * 1"
     },
     {
-      "path": "/api/cron/cleanup-pii",
-      "schedule": "0 3 * * *"
+      "path": "/api/cron/update-velocity",
+      "schedule": "0 0 * * 1"
     }
   ]
 }

@@ -1,19 +1,28 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase-admin";
+import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
 
 export async function POST(req: NextRequest) {
-  const { business_id } = await req.json();
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
 
-  if (!business_id) {
-    return NextResponse.json({ ok: false }, { status: 400 });
+  let body: { business_id?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ ok: false, error: "Invalid body" }, { status: 400 });
   }
 
-  const url     = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "";
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
-  const supabase = createClient(url, anonKey);
+  const { business_id } = body;
+  if (!business_id) {
+    return NextResponse.json({ ok: false, error: "Missing business_id" }, { status: 400 });
+  }
+
+  const ownership = await requireBusinessOwnership(auth.email, business_id, supabaseAdmin);
+  if (ownership instanceof NextResponse) return ownership;
 
   try {
-    await supabase
+    await supabaseAdmin
       .from("notifications")
       .update({ read: true })
       .eq("business_id", business_id)
@@ -21,6 +30,6 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ ok: false });
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }

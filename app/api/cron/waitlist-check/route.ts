@@ -1,14 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendBookingMessage } from "@/lib/twilio";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
 // GET /api/cron/waitlist-check
-// Runs every 15 minutes. Finds upcoming waitlist entries whose date is today or tomorrow
+// Runs daily at 9am. Finds upcoming waitlist entries whose date is today or tomorrow
 // and checks if a slot opened. Sends SMS to only the FIRST customer on the waitlist
 // per slot (grouped by business_id + date + staff_id) to avoid notifying everyone at once.
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const today = new Date().toISOString().substring(0, 10);
   const tomorrow = new Date(Date.now() + 86400000).toISOString().substring(0, 10);
 
