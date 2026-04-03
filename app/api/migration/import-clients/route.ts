@@ -72,19 +72,30 @@ export async function POST(req: NextRequest) {
 
     const importId = importRecord?.id;
 
-    // Get existing phone_display values to assist dedup (non-raw)
-    const { data: existing } = await supabaseAdmin
+    // ── Dedup: collect phones already in clients table ──────────────────────
+    // Try phone_display first (migration 019+), fall back to plaintext phone
+    const existingDisplays = new Set<string>();
+    const existingPhones = new Set<string>();
+
+    const { data: existByDisplay } = await supabaseAdmin
       .from("clients")
       .select("phone_display")
       .eq("business_id", businessId)
       .not("phone_display", "is", null);
+    (existByDisplay ?? []).forEach((r: { phone_display: string }) => {
+      if (r.phone_display) existingDisplays.add(r.phone_display);
+    });
 
-    const existingDisplays = new Set(
-      (existing ?? []).map((r: { phone_display: string | null }) => r.phone_display).filter(Boolean)
-    );
+    const { data: existByPhone } = await supabaseAdmin
+      .from("clients")
+      .select("phone")
+      .eq("business_id", businessId)
+      .not("phone", "is", null);
+    (existByPhone ?? []).forEach((r: { phone: string }) => {
+      if (r.phone) existingPhones.add(r.phone);
+    });
 
-    // Pre-fetch all phones already in customer_profiles for this business.
-    // This lets us skip the INSERT for duplicates without relying on DB constraints.
+    // ── Pre-fetch customer_profiles phones to avoid duplicate CRM inserts ───
     const { data: existingProfileRows } = await supabaseAdmin
       .from("customer_profiles")
       .select("phone")
@@ -107,16 +118,15 @@ export async function POST(req: NextRequest) {
     const BATCH = 100;
     for (let i = 0; i < parsed.clients.length; i += BATCH) {
       const batch = parsed.clients.slice(i, i + BATCH);
-      const toInsert: Array<Record<string, unknown>> = [];
-      // Profiles to add to customer_profiles (new phones only)
+
+      // Full rows (migration 019+ schema with encryption)
+      const toInsertFull: Array<Record<string, unknown>> = [];
+      // Minimal rows (base migration 014 schema, plaintext phone as fallback)
+      const toInsertMinimal: Array<Record<string, unknown>> = [];
+      // Profiles to add to customer_profiles
       const toInsertProfiles: Array<{
-        business_id: string;
-        phone: string;
-        name: string | null;
-        phone_display?: string;
-        phone_encrypted?: string;
-        source?: string;
-        import_platform?: string;
+        business_id: string; phone: string; name: string | null;
+        phone_display?: string; phone_encrypted?: string; source?: string;
       }> = [];
 
       for (const c of batch) {
@@ -125,54 +135,38 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        // Normalise phone — skip row on failure (log index + reason, never the number)
+        // Normalise phone
         let e164: string;
         try {
           e164 = normaliseToE164(c.phone);
         } catch (err) {
           const reason = err instanceof Error ? err.message : "unknown";
           console.warn(`[import-clients] row ${i} normalisation failed: ${reason}`);
-          // Insert with normalisation_failed flag so it's visible in the UI
-          toInsert.push({
-            business_id: businessId,
-            name: c.name,
-            email: c.email,
-            phone: null,
-            phone_encrypted: null,
-            phone_display: null,
-            normalisation_failed: true,
-            notes: c.notes,
-            source: "import",
-            import_platform: platform,
-          });
           errorRows++;
           continue;
         }
 
-        // Dedup: fingerprint within batch + against existing phone_display
         const fingerprint = fingerprintPhone(e164, businessId);
         const display     = maskPhone(e164);
 
         if (seenFingerprints.has(fingerprint)) {
-          // Within-batch duplicate — skip entirely
           skipped++;
           continue;
         }
-
         seenFingerprints.add(fingerprint);
 
-        if (existingDisplays.has(display)) {
-          // Already in clients table — skip clients insert
+        // Dedup against existing clients (by display mask OR plaintext phone)
+        if (existingDisplays.has(display) || existingPhones.has(e164)) {
           skipped++;
         } else {
-          // Encrypt — raw e164 exists only in this loop, never written to DB
           const encrypted = encryptPhone(e164);
 
-          toInsert.push({
+          // Full row (preferred — needs migration 019)
+          toInsertFull.push({
             business_id: businessId,
             name: c.name,
             email: c.email,
-            phone: null,            // raw phone never stored as plaintext
+            phone: null,
             phone_encrypted: encrypted,
             phone_display: display,
             normalisation_failed: false,
@@ -180,9 +174,19 @@ export async function POST(req: NextRequest) {
             source: "import",
             import_platform: platform,
           });
+
+          // Minimal row (fallback — works with base migration 014)
+          toInsertMinimal.push({
+            business_id: businessId,
+            name: c.name,
+            email: c.email,
+            phone: e164,           // plaintext stored as fallback
+            notes: c.notes,
+            source: "import",
+          });
         }
 
-        // Queue for customer_profiles — only if phone not already there
+        // Queue for customer_profiles if not already there
         if (!existingProfilePhones.has(e164)) {
           const encrypted = encryptPhone(e164);
           toInsertProfiles.push({
@@ -192,35 +196,50 @@ export async function POST(req: NextRequest) {
             phone_display: display,
             phone_encrypted: encrypted,
             source: "import",
-            import_platform: platform,
           });
-          // Track immediately so later batches don't re-add the same phone
           existingProfilePhones.add(e164);
         }
       }
 
-      if (toInsert.length > 0) {
-        const { error, data } = await supabaseAdmin
+      // ── Insert into clients ─────────────────────────────────────────────
+      if (toInsertFull.length > 0) {
+        const { data, error } = await supabaseAdmin
           .from("clients")
-          .insert(toInsert)
+          .insert(toInsertFull)
           .select("id");
 
         if (error) {
-          console.error("[import-clients] insert error:", error.message);
-          errorRows += toInsert.length;
+          // Full insert failed (likely migration 019 columns missing) — try minimal
+          console.warn("[import-clients] full insert failed, trying minimal:", error.message);
+          const { data: minData, error: minErr } = await supabaseAdmin
+            .from("clients")
+            .insert(toInsertMinimal)
+            .select("id");
+
+          if (minErr) {
+            console.error("[import-clients] minimal insert also failed:", minErr.message);
+            errorRows += toInsertMinimal.length;
+          } else {
+            imported += minData?.length ?? 0;
+            // Track for dedup (both display and plaintext)
+            toInsertFull.forEach((r, idx) => {
+              if (r.phone_display) existingDisplays.add(r.phone_display as string);
+            });
+            toInsertMinimal.forEach(r => {
+              if (r.phone) existingPhones.add(r.phone as string);
+            });
+          }
         } else {
-          imported += (data?.length ?? 0);
-          // Track newly imported displays for cross-batch dedup
-          toInsert.forEach(c => {
-            if (c.phone_display) existingDisplays.add(c.phone_display as string);
+          imported += data?.length ?? 0;
+          toInsertFull.forEach(r => {
+            if (r.phone_display) existingDisplays.add(r.phone_display as string);
           });
         }
       }
 
-      // Insert new profiles into customer_profiles.
-      // We pre-checked against existingProfilePhones so no constraint needed.
+      // ── Insert into customer_profiles ────────────────────────────────────
       if (toInsertProfiles.length > 0) {
-        // Try full insert first (requires migration 019 columns to exist)
+        // Try with extended fields first
         const { data: inserted, error: insertErr } = await supabaseAdmin
           .from("customer_profiles")
           .insert(toInsertProfiles)
@@ -228,15 +247,15 @@ export async function POST(req: NextRequest) {
 
         if (insertErr) {
           console.error("[import-clients] customer_profiles full insert error:", insertErr.message);
-          // Fallback: insert with only the columns that exist in the base schema
-          const minimalProfiles = toInsertProfiles.map(p => ({
+          // Fallback: only base schema columns
+          const minimal = toInsertProfiles.map(p => ({
             business_id: p.business_id,
             phone: p.phone,
             name: p.name,
           }));
           const { data: minInserted, error: minErr } = await supabaseAdmin
             .from("customer_profiles")
-            .insert(minimalProfiles)
+            .insert(minimal)
             .select("id");
           if (minErr) {
             console.error("[import-clients] customer_profiles minimal insert error:", minErr.message);
