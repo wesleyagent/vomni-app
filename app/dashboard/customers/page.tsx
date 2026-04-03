@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare } from "lucide-react";
 import { useBusinessContext } from "../_context";
-import { getAllBookings, fmtDate, type DBBooking, getAuthToken } from "@/lib/db";
+import { getAllBookings, fmtDate, type DBBooking, db, getAuthToken } from "@/lib/db";
 
 const G     = "#00C896";
 const N     = "#0A0F1E";
