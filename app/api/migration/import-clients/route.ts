@@ -95,6 +95,7 @@ export async function POST(req: NextRequest) {
     for (let i = 0; i < parsed.clients.length; i += BATCH) {
       const batch = parsed.clients.slice(i, i + BATCH);
       const toInsert: Array<Record<string, unknown>> = [];
+      const toUpsertProfiles: Array<Record<string, unknown>> = [];
 
       for (const c of batch) {
         if (!c.phone) {
@@ -152,6 +153,19 @@ export async function POST(req: NextRequest) {
           import_platform: platform,
           opted_out: false,
         });
+
+        // Also queue for customer_profiles so the CRM tab shows them immediately
+        toUpsertProfiles.push({
+          business_id: businessId,
+          phone: e164,
+          phone_display: display,
+          phone_encrypted: encrypted,
+          name: c.name,
+          source: "import",
+          import_platform: platform,
+          opted_out: false,
+          updated_at: new Date().toISOString(),
+        });
       }
 
       if (toInsert.length > 0) {
@@ -169,6 +183,16 @@ export async function POST(req: NextRequest) {
           toInsert.forEach(c => {
             if (c.phone_display) existingDisplays.add(c.phone_display as string);
           });
+        }
+      }
+
+      // Upsert into customer_profiles so imported clients appear in the CRM immediately
+      if (toUpsertProfiles.length > 0) {
+        const { error: profileErr } = await supabaseAdmin
+          .from("customer_profiles")
+          .upsert(toUpsertProfiles, { onConflict: "business_id,phone" });
+        if (profileErr) {
+          console.error("[import-clients] customer_profiles upsert error:", profileErr.message);
         }
       }
     }
