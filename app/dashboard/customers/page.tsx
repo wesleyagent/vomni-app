@@ -3,7 +3,7 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare } from "lucide-react";
 import { useBusinessContext } from "../_context";
-import { getAllBookings, fmtDate, type DBBooking, db } from "@/lib/db";
+import { getAllBookings, fmtDate, type DBBooking, getAuthToken } from "@/lib/db";
 
 const G     = "#00C896";
 const N     = "#0A0F1E";
@@ -264,8 +264,8 @@ export default function CustomersPage() {
     if (!businessId) return;
     setCrmLoading(true);
     try {
-      const { data: { session } } = await db.auth.getSession();
-      const authHeader: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const token = await getAuthToken();
+      const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const res = await fetch(
         `/api/crm/customers?business_id=${businessId}&filter=${crmFilter}&page=${crmPage}&per_page=${CRM_PER_PAGE}`,
         { headers: authHeader }
@@ -294,8 +294,8 @@ export default function CustomersPage() {
     if (!businessId) return;
     setSavingNotes(profileId);
     try {
-      const { data: { session } } = await db.auth.getSession();
-      const authHeader: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+      const token = await getAuthToken();
+      const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
       await fetch("/api/crm/customers", {
         method: "PATCH",
         headers: authHeader,
@@ -310,8 +310,8 @@ export default function CustomersPage() {
     if (!businessId) return;
     setSendingNudge(profileId);
     try {
-      const { data: { session } } = await db.auth.getSession();
-      const authHeader: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+      const token = await getAuthToken();
+      const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
       await fetch("/api/crm/nudge", {
         method: "POST",
         headers: authHeader,

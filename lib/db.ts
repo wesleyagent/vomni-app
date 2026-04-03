@@ -94,6 +94,29 @@ export async function getCurrentUser() {
   return user;
 }
 
+/**
+ * Reliably returns the current access token for use in fetch Authorization headers.
+ * Tries db.auth.getSession() first; falls back to reading the Supabase localStorage key
+ * directly, which handles cases where the GoTrueClient instance hasn't hydrated yet.
+ */
+export async function getAuthToken(): Promise<string | null> {
+  try {
+    const { data: { session } } = await db.auth.getSession();
+    if (session?.access_token) return session.access_token;
+  } catch { /* fall through */ }
+  // Fallback: read directly from localStorage (client-side only)
+  if (typeof window !== "undefined") {
+    try {
+      const key = Object.keys(localStorage).find(k => k.endsWith("-auth-token"));
+      if (key) {
+        const parsed = JSON.parse(localStorage.getItem(key) ?? "{}");
+        return parsed?.access_token ?? null;
+      }
+    } catch { /* ignore */ }
+  }
+  return null;
+}
+
 /** Gets the business row where owner_email matches the logged-in user. */
 export async function getMyBusiness(email: string): Promise<DBBusiness | null> {
   const { data, error } = await db
