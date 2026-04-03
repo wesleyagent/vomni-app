@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { parseCSVText } from "@/lib/csv-parser";
 import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
-import { normaliseToE164, fingerprintPhone } from "@/lib/phone";
+import { normaliseToE164, fingerprintPhone, maskPhone } from "@/lib/phone";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
     const BATCH = 100;
     for (let i = 0; i < parsed.clients.length; i += BATCH) {
       const batch = parsed.clients.slice(i, i + BATCH);
-      const toInsert: Array<{ business_id: string; phone: string; name: string | null }> = [];
+      const toInsert: Array<Record<string, unknown>> = [];
 
       for (const c of batch) {
         if (!c.phone) { skipped++; continue; }
@@ -116,28 +116,73 @@ export async function POST(req: NextRequest) {
 
         if (existingPhones.has(e164)) { skipped++; continue; }
 
-        toInsert.push({
-          business_id: businessId,
-          phone: e164,          // customer_profiles.phone is always plaintext
-          name: c.name ?? null,
-        });
+        // Build the row — all columns from migration 017 base schema
+        const row: Record<string, unknown> = {
+          business_id:  businessId,
+          phone:        e164,
+          name:         c.name ?? null,
+          phone_display: maskPhone(e164),
+          updated_at:   new Date().toISOString(),
+        };
+
+        // Include appointment/visit data if present in CSV
+        if (c.last_visit_at)   row.last_visit_at  = c.last_visit_at;
+        if (c.total_visits != null) row.total_visits = c.total_visits;
+
+        // source column (migration 019 — included but won't error if missing)
+        row.source          = "import";
+        row.import_platform = platform;
+
+        toInsert.push(row);
         existingPhones.add(e164); // prevent cross-batch duplicates
       }
 
       if (toInsert.length === 0) continue;
 
-      // Insert directly into customer_profiles.
-      // This uses only the 3 columns that exist in the base migration 017 schema
-      // and requires no unique constraint (we pre-checked existingPhones above).
+      // Insert into customer_profiles.
+      // Pre-checked existingPhones above so no unique constraint conflicts.
       const { data: inserted, error: insertErr } = await supabaseAdmin
         .from("customer_profiles")
         .insert(toInsert)
         .select("id");
 
       if (insertErr) {
-        console.error("[import-clients] customer_profiles insert error:", insertErr.message);
-        lastInsertError = insertErr.message;
-        errorRows += toInsert.length;
+        // Fallback: strip optional columns and retry with guaranteed base schema only
+        console.warn("[import-clients] full insert failed, retrying minimal:", insertErr.message);
+        const minimal = toInsert.map(r => ({
+          business_id:  r.business_id,
+          phone:        r.phone,
+          name:         r.name,
+          last_visit_at: r.last_visit_at ?? null,
+          total_visits:  r.total_visits ?? 0,
+        }));
+        const { data: minInserted, error: minErr } = await supabaseAdmin
+          .from("customer_profiles")
+          .insert(minimal)
+          .select("id");
+
+        if (minErr) {
+          // Last resort: only the 3 columns that definitely exist in migration 017
+          console.warn("[import-clients] minimal failed, retrying bare:", minErr.message);
+          const bare = toInsert.map(r => ({
+            business_id: r.business_id,
+            phone:       r.phone,
+            name:        r.name,
+          }));
+          const { data: bareInserted, error: bareErr } = await supabaseAdmin
+            .from("customer_profiles")
+            .insert(bare)
+            .select("id");
+          if (bareErr) {
+            console.error("[import-clients] bare insert failed:", bareErr.message);
+            lastInsertError = bareErr.message;
+            errorRows += bare.length;
+          } else {
+            imported += bareInserted?.length ?? 0;
+          }
+        } else {
+          imported += minInserted?.length ?? 0;
+        }
       } else {
         imported += inserted?.length ?? 0;
       }
