@@ -229,6 +229,8 @@ export default function CustomersPage() {
   const [crmNotes,     setCrmNotes]     = useState<Record<string, string>>({});
   const [savingNotes,  setSavingNotes]  = useState<string | null>(null);
   const [sendingNudge, setSendingNudge] = useState<string | null>(null);
+  const [syncing,      setSyncing]      = useState(false);
+  const [syncResult,   setSyncResult]   = useState<{ synced: number } | null>(null);
   const CRM_PER_PAGE = 20;
 
   // Appointments tab state
@@ -320,6 +322,28 @@ export default function CustomersPage() {
       await fetchCrm();
     } finally {
       setSendingNudge(null);
+    }
+  }
+
+  async function syncClients() {
+    if (!businessId) return;
+    setSyncing(true);
+    setSyncResult(null);
+    try {
+      const token = await getAuthToken();
+      const authHeader: Record<string, string> = token
+        ? { Authorization: `Bearer ${token}`, "Content-Type": "application/json" }
+        : { "Content-Type": "application/json" };
+      const res = await fetch("/api/crm/sync-clients", {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify({ business_id: businessId }),
+      });
+      const json = await res.json();
+      setSyncResult({ synced: json.synced ?? 0 });
+      await fetchCrm();
+    } finally {
+      setSyncing(false);
     }
   }
 
@@ -696,6 +720,37 @@ export default function CustomersPage() {
               </div>
             ))}
           </div>
+
+          {/* Sync imported clients banner — shown when CRM is empty */}
+          {crmStats.total === 0 && !crmLoading && (
+            <div style={{ background: "#EFF6FF", border: "1px solid #BFDBFE", borderRadius: 12, padding: "14px 18px", marginBottom: 20, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <div>
+                <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700, color: "#1E40AF", margin: "0 0 2px" }}>
+                  Have you imported clients?
+                </p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#3B82F6", margin: 0 }}>
+                  {syncResult
+                    ? syncResult.synced > 0
+                      ? `✓ Synced ${syncResult.synced} clients — refreshing…`
+                      : "No new clients to sync. Your clients table may be empty."
+                    : "Click Sync to pull your imported clients into the CRM."}
+                </p>
+              </div>
+              <button
+                onClick={syncClients}
+                disabled={syncing}
+                style={{
+                  padding: "9px 20px", borderRadius: 10, border: "none",
+                  background: syncing ? "#93C5FD" : "#3B82F6", color: "#fff",
+                  fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600,
+                  cursor: syncing ? "not-allowed" : "pointer", whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                {syncing ? "Syncing…" : "Sync imported clients"}
+              </button>
+            </div>
+          )}
 
           {/* Filter pills */}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
