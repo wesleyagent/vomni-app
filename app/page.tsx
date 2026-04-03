@@ -558,6 +558,7 @@ export default function LandingPage() {
               </a>
             ))}
             <a href="/migrate" style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}>Switch to Vomni</a>
+            <a href="/blog" style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}>Blog</a>
             <a href="/contact" style={{ fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 500, color: TS, textDecoration: "none", cursor: "pointer" }}>Contact</a>
             <button
               onClick={scrollToBookDemo}
@@ -614,6 +615,7 @@ export default function LandingPage() {
             { label: "See Demo",     action: () => { setMenuOpen(false); document.querySelector("#demo")?.scrollIntoView({ behavior: "smooth" }); } },
             { label: "Pricing",      action: () => { setMenuOpen(false); document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" }); } },
             { label: "Switch to Vomni", action: () => { setMenuOpen(false); window.location.href = "/migrate"; } },
+            { label: "Blog",         action: () => { setMenuOpen(false); window.location.href = "/blog"; } },
             { label: "Contact",      action: () => { setMenuOpen(false); window.location.href = "/contact"; } },
             { label: "Book a Demo",  action: () => { setMenuOpen(false); scrollToBookDemo(); }, green: true },
             { label: "Login",        action: () => { setMenuOpen(false); window.location.href = "/login"; } },
