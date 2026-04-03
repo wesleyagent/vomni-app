@@ -5,6 +5,7 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
  * Server-side user auth guard for dashboard API routes.
  * Verifies the Supabase Bearer token from the Authorization header.
  * Returns { userId, email } on success, or a 401 NextResponse on failure.
+ * Exports: requireAuth, requireBusinessOwnership
  */
 export async function requireAuth(
   req: NextRequest
