@@ -88,6 +88,9 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
+    // Type guard — ensures phone is string (not null) for the rest of this iteration
+    if (!phone) { skipped++; continue; }
+
     if (existingPhones.has(phone)) {
       skipped++;
       continue;
