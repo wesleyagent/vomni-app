@@ -265,7 +265,7 @@ export default function CustomersPage() {
     setCrmLoading(true);
     try {
       const { data: { session } } = await db.auth.getSession();
-      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const authHeader: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
       const res = await fetch(
         `/api/crm/customers?business_id=${businessId}&filter=${crmFilter}&page=${crmPage}&per_page=${CRM_PER_PAGE}`,
         { headers: authHeader }
@@ -295,7 +295,7 @@ export default function CustomersPage() {
     setSavingNotes(profileId);
     try {
       const { data: { session } } = await db.auth.getSession();
-      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+      const authHeader: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
       await fetch("/api/crm/customers", {
         method: "PATCH",
         headers: authHeader,
@@ -311,7 +311,7 @@ export default function CustomersPage() {
     setSendingNudge(profileId);
     try {
       const { data: { session } } = await db.auth.getSession();
-      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
+      const authHeader: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" } : { "Content-Type": "application/json" };
       await fetch("/api/crm/nudge", {
         method: "POST",
         headers: authHeader,

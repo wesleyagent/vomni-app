@@ -70,7 +70,7 @@ export default function SwitchPage() {
 
     try {
       const { data: { session } } = await db.auth.getSession();
-      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const authHeader: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
       const res = await fetch("/api/migration/import-clients", { method: "POST", body: fd, headers: authHeader });
       const data = await res.json();
       if (data.preview) {
@@ -100,7 +100,7 @@ export default function SwitchPage() {
 
     try {
       const { data: { session } } = await db.auth.getSession();
-      const authHeader = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
+      const authHeader: Record<string, string> = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {};
       const res = await fetch("/api/migration/import-clients", { method: "POST", body: fd, headers: authHeader });
       const data = await res.json();
       setImportResult({ imported: data.imported ?? 0, skipped: data.skipped ?? 0, errors: data.errors ?? 0 });
