@@ -10,7 +10,7 @@ interface PushNotification {
   title: string;
   body: string;
   data: {
-    type: "new_booking" | "cancellation" | "new_review" | "no_show" | "chat_message";
+    type: "new_booking" | "cancellation" | "new_review" | "no_show" | "chat_message" | "nudge_converted" | "complaint";
     id: string;
   };
 }
