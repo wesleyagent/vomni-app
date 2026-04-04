@@ -83,8 +83,8 @@ function BookingStats({ businessId, timezone }: {
   if (!stats || stats.month === 0) return null;
 
   const fmtTime = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleString("en-GB", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: timezone });
+    const d = new Date(iso.substring(0, 10) + "T00:00:00Z");
+    return d.toLocaleDateString("en-GB", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" }) + ", " + iso.substring(11, 16);
   };
 
   const cards = [

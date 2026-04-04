@@ -513,8 +513,8 @@ export default function CustomersPage() {
                           <td style={{ padding: "14px 16px", fontSize: 13, color: "#6B7280", whiteSpace: "nowrap" }}>
                             {a.appointment_at ? (
                               <>
-                                <p style={{ margin: 0, color: N, fontWeight: 500 }}>{new Date(a.appointment_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: timezone })}</p>
-                                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF" }}>{new Date(a.appointment_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: timezone })}</p>
+                                <p style={{ margin: 0, color: N, fontWeight: 500 }}>{new Date(a.appointment_at.substring(0, 10) + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</p>
+                                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF" }}>{a.appointment_at.substring(11, 16)}</p>
                               </>
                             ) : "-"}
                           </td>
