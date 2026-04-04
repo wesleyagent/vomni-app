@@ -71,6 +71,9 @@ export async function GET(req: NextRequest) {
   };
 
   // ── Customer list query ──────────────────────────────────────────────────
+  // marketing_consent was added in migration 022 — omit it from the SELECT
+  // so the query works even if that migration hasn't been applied yet.
+  // We default to false in the assembled response below.
   let query = supabaseAdmin
     .from("customer_profiles")
     .select(`
@@ -83,7 +86,6 @@ export async function GET(req: NextRequest) {
       total_visits,
       opted_out,
       opted_out_at,
-      marketing_consent,
       nudge_sent_at,
       notes,
       created_at
@@ -110,7 +112,7 @@ export async function GET(req: NextRequest) {
 
   if (profilesErr) {
     console.error("[crm/customers] profiles query error:", profilesErr.message);
-    return NextResponse.json({ error: "Database error" }, { status: 500 });
+    return NextResponse.json({ error: "Database error", detail: profilesErr.message }, { status: 500 });
   }
 
   if (!profiles || profiles.length === 0) {
@@ -221,7 +223,7 @@ export async function GET(req: NextRequest) {
       nudged_recently: nudgedRecently,
       opted_out:         p.opted_out ?? false,
       opted_out_at:      p.opted_out_at ?? null,
-      marketing_consent: p.marketing_consent ?? false,
+      marketing_consent: (p as typeof p & { marketing_consent?: boolean }).marketing_consent ?? false,
       notes:             p.notes ?? null,
       created_at:     p.created_at,
     };
