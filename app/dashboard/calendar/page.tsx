@@ -491,16 +491,14 @@ export default function CalendarPage() {
                     const status = (b.status ?? "confirmed") as BookingStatus;
                     const label = BOOKING_STATUS_LABELS[status] ?? BOOKING_STATUS_LABELS.confirmed;
                     const staffColor = getStaffColor(b.staff_id);
-                    const tz = ctx?.timezone ?? "UTC";
-                    const apptDate = b.appointment_at ? new Date(b.appointment_at) : null;
-                    const time = apptDate
-                      ? apptDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz })
-                      : "";
+                    const time = b.appointment_at ? b.appointment_at.substring(11, 16) : "";
                     const dur = b.service_duration_minutes ?? 30;
-                    const endDate = apptDate ? new Date(apptDate.getTime() + dur * 60_000) : null;
-                    const endTime = endDate
-                      ? endDate.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz })
-                      : "";
+                    const endTime = (() => {
+                      if (!b.appointment_at) return "";
+                      const [h, m] = b.appointment_at.substring(11, 16).split(":").map(Number);
+                      const totalMin = h * 60 + m + dur;
+                      return `${String(Math.floor(totalMin / 60) % 24).padStart(2, "0")}:${String(totalMin % 60).padStart(2, "0")}`;
+                    })();
 
                     return (
                       <button
@@ -609,9 +607,7 @@ export default function CalendarPage() {
                             }}
                           >
                             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: N }}>
-                              {b.appointment_at
-                                ? new Date(b.appointment_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: ctx?.timezone ?? "UTC" })
-                                : ""}
+                              {b.appointment_at ? b.appointment_at.substring(11, 16) : ""}
                             </div>
                             <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: SECONDARY, marginTop: 1 }}>
                               {b.customer_name}
@@ -781,9 +777,9 @@ export default function CalendarPage() {
                 </div>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: SECONDARY }}>
                   📅 {selectedBooking.appointment_at
-                    ? new Date(selectedBooking.appointment_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: ctx?.timezone ?? "UTC" })
+                    ? new Date(selectedBooking.appointment_at.substring(0, 10) + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
                     : "—"} at {selectedBooking.appointment_at
-                    ? new Date(selectedBooking.appointment_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: ctx?.timezone ?? "UTC" })
+                    ? selectedBooking.appointment_at.substring(11, 16)
                     : "—"}
                 </div>
                 {selectedBooking.service_duration_minutes && (
