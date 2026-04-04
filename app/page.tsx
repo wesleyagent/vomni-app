@@ -145,14 +145,14 @@ function OverviewTab() {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
           <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
             <p style={{ fontSize: 10, fontWeight: 600, color: N, marginBottom: 10 }}>Review pipeline</p>
-            <div style={{ display: "flex", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
               {funnel.map((s, i) => (
                 <div key={i} style={{ display: "flex", alignItems: "center", flex: 1 }}>
-                  <div style={{ flex: 1, textAlign: "center" as const }}>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: i === 3 ? G : N }}>{s.v}</div>
-                    <div style={{ fontSize: 9, color: TM, marginTop: 2 }}>{s.l}</div>
+                  <div style={{ flex: 1, textAlign: "center" as const, background: i === 3 ? "rgba(0,200,150,0.08)" : "#F7F8FA", border: `1.5px solid ${i === 3 ? G : "#D1D5DB"}`, borderRadius: 8, padding: "8px 4px" }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: i === 3 ? G : N, lineHeight: 1 }}>{s.v}</div>
+                    <div style={{ fontSize: 9, color: TM, marginTop: 3 }}>{s.l}</div>
                   </div>
-                  {i < 3 && <span style={{ color: "#D1D5DB", fontSize: 11 }}>›</span>}
+                  {i < 3 && <div style={{ color: "#9CA3AF", fontSize: 14, padding: "0 4px", flexShrink: 0 }}>→</div>}
                 </div>
               ))}
             </div>
