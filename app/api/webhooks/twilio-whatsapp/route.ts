@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
       .update({
         opted_out: true,
         opted_out_at: new Date().toISOString(),
+        opted_out_type: "all",
       })
       .eq("phone", e164);
 

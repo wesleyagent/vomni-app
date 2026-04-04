@@ -18,10 +18,11 @@ export async function GET(req: NextRequest) {
   // haven't been nudged recently, and are not lapsed.
   const { data: patternCustomers } = await supabaseAdmin
     .from("customer_profiles")
-    .select("id, business_id, phone, name, predicted_next_visit_at, last_visit_at, nudge_count, nudge_sent_at")
+    .select("id, business_id, phone, name, predicted_next_visit_at, last_visit_at, nudge_count, nudge_sent_at, marketing_consent")
     .lt("predicted_next_visit_at", new Date().toISOString())
     .gt("predicted_next_visit_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
     .eq("whatsapp_opt_in", true)
+    .eq("marketing_consent", true)
     .eq("is_lapsed", false)
     .lt("nudge_count", 3)
     .or(`nudge_sent_at.is.null,nudge_sent_at.lt.${new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()}`);
@@ -76,11 +77,12 @@ export async function GET(req: NextRequest) {
   // and have never been nudged.
   const { data: lapsedCustomers } = await supabaseAdmin
     .from("customer_profiles")
-    .select("id, business_id, phone, name, last_visit_at")
+    .select("id, business_id, phone, name, last_visit_at, marketing_consent")
     .eq("is_lapsed", true)
     .is("avg_days_between_visits", null)
     .is("nudge_sent_at", null)
-    .eq("whatsapp_opt_in", true);
+    .eq("whatsapp_opt_in", true)
+    .eq("marketing_consent", true);
 
   if (lapsedCustomers && lapsedCustomers.length > 0) {
     for (const cp of lapsedCustomers) {

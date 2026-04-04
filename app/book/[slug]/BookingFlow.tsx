@@ -89,6 +89,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
   const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [sendReminder, setSendReminder] = useState(true);
+  const [marketingConsent, setMarketingConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   // Confirmation
@@ -215,6 +216,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
           email: email || undefined,
           notes: notes || undefined,
           send_reminder: sendReminder,
+          marketing_consent: marketingConsent,
         }),
       });
       if (res.ok) {
@@ -904,6 +906,23 @@ export default function BookingFlow({ slug }: { slug: string }) {
                   />
                 </div>
               </div>
+
+              {/* Marketing consent */}
+              <label style={{
+                display: "flex", alignItems: "flex-start", gap: 10, cursor: "pointer",
+                fontFamily: "Inter, sans-serif", fontSize: 14, color: SECONDARY,
+              }}>
+                <input
+                  type="checkbox" checked={marketingConsent}
+                  onChange={e => setMarketingConsent(e.target.checked)}
+                  style={{ width: 18, height: 18, accentColor: G, marginTop: 2, flexShrink: 0 }}
+                />
+                <span>
+                  Send me reminders when it&apos;s time to rebook
+                  <br />
+                  <span style={{ direction: "rtl", display: "block", marginTop: 2 }}>שלחו לי תזכורת כשהגיע הזמן לקבוע תור חדש</span>
+                </span>
+              </label>
 
               {/* Email */}
               <div>

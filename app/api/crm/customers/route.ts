@@ -83,6 +83,7 @@ export async function GET(req: NextRequest) {
       total_visits,
       opted_out,
       opted_out_at,
+      marketing_consent,
       nudge_sent_at,
       notes,
       created_at
@@ -218,9 +219,10 @@ export async function GET(req: NextRequest) {
       next_appointment: nextAppt ?? null,
       last_outreach:  nudge ?? null,
       nudged_recently: nudgedRecently,
-      opted_out:      p.opted_out ?? false,
-      opted_out_at:   p.opted_out_at ?? null,
-      notes:          p.notes ?? null,
+      opted_out:         p.opted_out ?? false,
+      opted_out_at:      p.opted_out_at ?? null,
+      marketing_consent: p.marketing_consent ?? false,
+      notes:             p.notes ?? null,
       created_at:     p.created_at,
     };
   });

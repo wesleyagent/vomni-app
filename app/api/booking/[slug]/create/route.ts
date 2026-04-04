@@ -36,6 +36,7 @@ export async function POST(
     notes?: string;
     send_reminder?: boolean;
     whatsapp_opt_in?: boolean;
+    marketing_consent?: boolean;
   };
 
   try {
@@ -44,7 +45,7 @@ export async function POST(
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  const { service_id, staff_id, date, time, first_name, last_name, phone, email, notes, whatsapp_opt_in } = body;
+  const { service_id, staff_id, date, time, first_name, last_name, phone, email, notes, whatsapp_opt_in, marketing_consent } = body;
 
   // Basic input validation
   if (!service_id || !date || !time || !first_name || !last_name || !phone) {
@@ -225,6 +226,7 @@ export async function POST(
         notes: safeNotes,
         cancellation_token: cancellationToken,
         whatsapp_opt_in: whatsapp_opt_in !== false,
+        marketing_consent: marketing_consent === true,
         whatsapp_status: "pending",
         reminder_sent: false,
         confirmation_sent: false,

@@ -211,6 +211,30 @@ function formatTime(isoDate: string, timezone?: string): string {
 }
 
 // ── Public functions ────────────────────────────────────────────────────────
+//
+// All customer-facing templates must be bilingual (English + Hebrew).
+// Template content lives in the Twilio console under the Content API.
+// Variable mappings are documented per function below.
+//
+// TEMPLATE: appointment_confirmation (TWILIO_TEMPLATE_CONFIRMATION_SID)
+//   EN: "Hi {{1}}! ✅ Your appointment at {{2}} is confirmed for {{3}} at {{4}}. Cancel: {{5}}"
+//   HE: "היי {{1}}! ✅ הפגישה שלך ב-{{2}} אושרה ל-{{3}} בשעה {{4}}. לביטול: {{5}}"
+//
+// TEMPLATE: appointment_reminder (TWILIO_TEMPLATE_REMINDER_SID)
+//   EN: "Hi {{1}}! 📅 Reminder: you have an appointment at {{2}} today at {{3}}."
+//   HE: "היי {{1}}! 📅 תזכורת: יש לך פגישה ב-{{2}} היום בשעה {{3}}."
+//
+// TEMPLATE: review_request (TWILIO_TEMPLATE_REVIEW_SID)
+//   EN: "Hi {{1}}! Hope your visit at {{2}} was great 😊 Would you mind leaving a quick review? {{3}}"
+//   HE: "היי {{1}}! מקווים שנהנית מהביקור ב-{{2}} 😊 תוכל/י להשאיר חוות דעת קצרה? {{3}}"
+//
+// TEMPLATE: nudge_pattern (TWILIO_TEMPLATE_NUDGE_PATTERN_SID)
+//   EN: "Hi {{1}}! It's been a while since your last visit at {{2}}. Ready to book again? {{3}}"
+//   HE: "היי {{1}}! עבר זמן מאז הביקור האחרון שלך ב-{{2}}. מוכן/ה לקבוע תור? {{3}}"
+//
+// TEMPLATE: nudge_lapsed (TWILIO_TEMPLATE_NUDGE_LAPSED_SID)
+//   EN: "Hi {{1}}! It's been {{3}} weeks since you visited {{2}}. We'd love to see you again! {{4}}"
+//   HE: "היי {{1}}! עברו {{3}} שבועות מאז שביקרת ב-{{2}}. נשמח לראות אותך שוב! {{4}}"
 
 export async function sendAppointmentConfirmation(
   booking: BookingLike,
@@ -274,6 +298,21 @@ export async function sendReviewRequest(
     businessId: booking.business_id,
     bookingId: booking.id,
     templateName: "review_request",
+  });
+}
+
+export async function sendManualReviewRequest(
+  customer: { name: string; phone: string },
+  business: { id: string; name: string }
+): Promise<WhatsAppResult> {
+  const reviewUrl = `${APP_URL}/review-invite/${business.id}`;
+  return sendTemplate(customer.phone, TEMPLATE_REVIEW, {
+    "1": customer.name.trim().split(/\s+/)[0] ?? "there",
+    "2": business.name,
+    "3": reviewUrl,
+  }, {
+    businessId: business.id,
+    templateName: "review_request_manual",
   });
 }
 

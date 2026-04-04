@@ -95,12 +95,6 @@ function BookingStats({ businessId }: {
       value: stats.monthRevenue > 0 ? `£${stats.monthRevenue.toLocaleString()}` : "—",
       color: G, small: stats.monthRevenue > 9999,
     },
-    {
-      label: "No-Show Rate (week)",
-      value: `${stats.noShowRate}%`,
-      color: stats.noShowRate > 15 ? "#EF4444" : G,
-    },
-    { label: "Top Service", value: stats.topService, color: N, small: true },
   ];
 
   return (
@@ -450,7 +444,7 @@ export default function DashboardOverview() {
       {/* Page header with last updated */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
-          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 800, color: N, margin: 0 }}>Your Reputation, Right Now</h1>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 800, color: N, margin: 0 }}>Your Business, Right Now</h1>
         </div>
       </div>
 
@@ -483,15 +477,15 @@ export default function DashboardOverview() {
 
         {/* Card 1: Google Reviews */}
         <HeroCard
-          label="Google Reviews Generated"
+          label="Google Reviews"
           value={total === 0 ? <span style={{ color: "#D1D5DB" }}>-</span> : redirected}
-          sub={total === 0 ? <span style={{ color: "#D1D5DB", fontSize: 12 }}>no bookings yet</span> : "reviews sent to Google so far"}
+          sub={total === 0 ? <span style={{ color: "#D1D5DB", fontSize: 12 }}>no bookings yet</span> : "collected this month"}
         />
 
         {/* Card 2: Private Feedback */}
         <div className="hero-card" style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "28px 28px 22px", transition: "box-shadow 0.2s ease, transform 0.2s ease", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", margin: "0 0 12px" }}>
-            Private Feedback
+            Direct Feedback
           </p>
           <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 56, fontWeight: 800, color: negativeCaught > 0 ? N : "#D1D5DB", lineHeight: 1, margin: "0 0 8px" }}>
             {negativeCaught > 0 ? negativeCaught : "-"}
@@ -540,7 +534,7 @@ export default function DashboardOverview() {
             {total === 0 ? "-" : `${s.completionRate}%`}
           </div>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: total === 0 ? "#9CA3AF" : "#6B7280", margin: "0 0 8px" }}>
-            {total === 0 ? "no requests sent yet" : "of customers complete their review request"}
+            {total === 0 ? "no requests sent yet" : "of customers respond after their visit"}
           </p>
           {total > 0 && (
             <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: 0 }}>
@@ -661,7 +655,7 @@ export default function DashboardOverview() {
       <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "24px", marginBottom: 40, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: 0 }}>
-            Review Funnel
+            Customer Follow-up Funnel
           </h2>
         </div>
         {total === 0 ? (
@@ -699,10 +693,10 @@ export default function DashboardOverview() {
           </div>
           <div style={{ flex: 1 }}>
             <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 700, color: N, margin: "0 0 6px" }}>
-              Private feedback inbox
+              Feedback inbox
             </h3>
             <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: 0, lineHeight: 1.6 }}>
-              When customers share feedback, Vomni helps you resolve issues privately before they escalate. Your feedback inbox is empty — you&apos;re delivering great service.
+              When customers share feedback directly with you, it appears here so you can respond personally. Your feedback inbox is empty — you&apos;re delivering great service.
             </p>
           </div>
           <span style={{ flexShrink: 0, padding: "5px 14px", borderRadius: 9999, background: "rgba(0,200,150,0.1)", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: G }}>
@@ -747,10 +741,10 @@ export default function DashboardOverview() {
         <div style={{ marginBottom: 24 }}>
           <div style={{ marginBottom: 16 }}>
             <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 4px" }}>
-              How you compare to other {bizType ?? "service businesses"}
+              How you compare
             </h2>
             <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", margin: 0 }}>
-              Based on industry research across UK service businesses
+              Based on industry research across UK service businesses.
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
@@ -762,7 +756,7 @@ export default function DashboardOverview() {
                 avg: `${benchmark.avgRating} ★`,
                 top: `${benchmark.topPerformerRating} ★`,
                 color: s.avgRating === 0 ? "#D1D5DB" : s.avgRating >= benchmark.topPerformerRating * 0.9 ? G : s.avgRating >= benchmark.avgRating ? AM : RD,
-                label: s.avgRating === 0 ? "No data yet" : s.avgRating >= benchmark.topPerformerRating * 0.9 ? "You're above average" : s.avgRating >= benchmark.avgRating ? "You're at average" : "You're below average",
+                label: s.avgRating === 0 ? "No data yet" : s.avgRating >= benchmark.topPerformerRating * 0.9 ? "You're above average" : s.avgRating >= benchmark.avgRating ? "You're at average" : "",
               },
               {
                 title: "Review Count",
@@ -771,7 +765,7 @@ export default function DashboardOverview() {
                 avg: String(benchmark.avgReviewCount),
                 top: String(benchmark.topPerformerReviews),
                 color: redirected === 0 ? "#D1D5DB" : redirected >= benchmark.topPerformerReviews * 0.9 ? G : redirected >= benchmark.avgReviewCount ? AM : RD,
-                label: redirected === 0 ? "No data yet" : redirected >= benchmark.topPerformerReviews * 0.9 ? "You're above average" : redirected >= benchmark.avgReviewCount ? "You're at average" : "You're below average",
+                label: redirected === 0 ? "No data yet" : redirected >= benchmark.topPerformerReviews * 0.9 ? "You're above average" : redirected >= benchmark.avgReviewCount ? "You're at average" : "",
               },
               {
                 title: "Completion Rate",
@@ -780,7 +774,7 @@ export default function DashboardOverview() {
                 avg: `${benchmark.avgCompletionRate}%`,
                 top: "40%",
                 color: total === 0 ? "#D1D5DB" : s.completionRate >= 40 ? G : s.completionRate >= benchmark.avgCompletionRate ? AM : RD,
-                label: total === 0 ? "No data yet" : s.completionRate >= 40 ? "You're above average" : s.completionRate >= benchmark.avgCompletionRate ? "You're at average" : "You're below average",
+                label: total === 0 ? "No data yet" : s.completionRate >= 40 ? "You're above average" : s.completionRate >= benchmark.avgCompletionRate ? "You're at average" : "",
               },
             ].map(card => (
               <div key={card.title} style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "20px 24px", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>

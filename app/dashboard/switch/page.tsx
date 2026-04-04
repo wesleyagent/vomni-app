@@ -345,6 +345,16 @@ export default function SwitchPage() {
             </div>
           )}
 
+          {/* Transparency notice */}
+          <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
+            <p style={{ fontSize: 13, color: "#92400E", margin: "0 0 4px", lineHeight: 1.5 }}>
+              By importing, you confirm that these clients have consented to receive WhatsApp messages from your business.
+            </p>
+            <p style={{ fontSize: 13, color: "#92400E", margin: 0, lineHeight: 1.5, direction: "rtl", textAlign: "right" }}>
+              בלחיצה על ייבוא, אתה מאשר שהלקוחות הסכימו לקבל הודעות WhatsApp מהעסק שלך.
+            </p>
+          </div>
+
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <button
               onClick={handleImport}

@@ -31,12 +31,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  const twoYearsAgo = new Date(Date.now() - 2 * 365.25 * 24 * 60 * 60 * 1000).toISOString();
+
   // Fetch bookings where SMS was sent but PII has not yet been cleaned
   const { data: bookings, error: fetchError } = await supabase
     .from("bookings")
     .select("id, business_id, customer_name, customer_phone, customer_email")
     .not("sms_sent_at", "is", null)
-    .not("customer_phone", "is", null);
+    .not("customer_phone", "is", null)
+    .lt("created_at", twoYearsAgo)
+    .eq("opted_out", true);
 
   if (fetchError) {
     return NextResponse.json({ error: fetchError.message }, { status: 500 });

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useContext, useRef } from "react";
 import { BusinessContext } from "../_context";
-import { db } from "@/lib/db";
+import { db, getAuthToken } from "@/lib/db";
 import { BOOKING_STATUS_LABELS, type BookingStatus, DAY_NAMES_SHORT_EN } from "@/types/booking";
 import { Plus, X, Phone, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -84,6 +84,10 @@ export default function CalendarPage() {
   const [reviewMessage, setReviewMessage] = useState("");
   const [showQR, setShowQR] = useState(false);
   const [businessName, setBusinessName] = useState("");
+  const [manualName, setManualName] = useState("");
+  const [manualPhone, setManualPhone] = useState("");
+  const [manualSending, setManualSending] = useState(false);
+  const [manualSent, setManualSent] = useState(false);
 
   // Google Calendar events
   interface GCalEvent { id: string; title: string; start: string; end: string; allDay: boolean; }
@@ -892,7 +896,7 @@ export default function CalendarPage() {
       {showReviewModal && reviewModalBooking && (
         <>
           <div
-            onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); }}
+            onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); setManualName(""); setManualPhone(""); setManualSent(false); }}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 60 }}
           />
           <div style={{
@@ -906,7 +910,7 @@ export default function CalendarPage() {
                 Request a Review
               </h3>
               <button
-                onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); }}
+                onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); setManualName(""); setManualPhone(""); setManualSent(false); }}
                 style={{ background: GREY, border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
               >
                 <X size={16} color={SECONDARY} />
@@ -999,8 +1003,64 @@ export default function CalendarPage() {
               </div>
             )}
 
+            {/* Send to a customer directly */}
+            <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: 16, marginBottom: 16 }}>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: MUTED, margin: "0 0 10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                Send to a customer directly
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Customer name"
+                  value={manualName}
+                  onChange={e => setManualName(e.target.value)}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 13, color: N, outline: "none", boxSizing: "border-box", width: "100%" }}
+                />
+                <input
+                  type="tel"
+                  placeholder="Phone number"
+                  value={manualPhone}
+                  onChange={e => setManualPhone(e.target.value)}
+                  style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 13, color: N, outline: "none", boxSizing: "border-box", width: "100%" }}
+                />
+              </div>
+              <button
+                disabled={!manualName.trim() || !manualPhone.trim() || manualSending || manualSent}
+                onClick={async () => {
+                  if (!ctx?.businessId || !manualName.trim() || !manualPhone.trim()) return;
+                  setManualSending(true);
+                  try {
+                    const token = await getAuthToken();
+                    await fetch("/api/crm/send-review-request", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                      body: JSON.stringify({ business_id: ctx.businessId, name: manualName.trim(), phone: manualPhone.trim() }),
+                    });
+                    setManualSent(true);
+                    setManualName("");
+                    setManualPhone("");
+                    setTimeout(() => setManualSent(false), 3000);
+                  } catch {
+                    // ignore
+                  } finally {
+                    setManualSending(false);
+                  }
+                }}
+                style={{
+                  width: "100%", padding: "10px 16px", borderRadius: 10,
+                  background: manualSent ? `${G}15` : (!manualName.trim() || !manualPhone.trim() || manualSending) ? "#F3F4F6" : `${G}15`,
+                  color: manualSent ? G : (!manualName.trim() || !manualPhone.trim() || manualSending) ? MUTED : G,
+                  border: `1px solid ${manualSent ? G : BORDER}`,
+                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                  cursor: (!manualName.trim() || !manualPhone.trim() || manualSending || manualSent) ? "not-allowed" : "pointer",
+                }}
+              >
+                {manualSent ? "✓ Sent!" : manualSending ? "Sending…" : "Send"}
+              </button>
+            </div>
+
             <button
-              onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); }}
+              onClick={() => { setShowReviewModal(false); setReviewLinkCopied(false); setShowQR(false); setManualName(""); setManualPhone(""); setManualSent(false); }}
               style={{
                 width: "100%", padding: "13px 16px", borderRadius: 12,
                 background: G, color: "#fff", border: "none",
