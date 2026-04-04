@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     .gt("predicted_next_visit_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
     .eq("whatsapp_opt_in", true)
     .eq("marketing_consent", true)
+    .eq("opted_out", false)
     .eq("is_lapsed", false)
     .lt("nudge_count", 3)
     .or(`nudge_sent_at.is.null,nudge_sent_at.lt.${new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString()}`);
@@ -82,7 +83,8 @@ export async function GET(req: NextRequest) {
     .is("avg_days_between_visits", null)
     .is("nudge_sent_at", null)
     .eq("whatsapp_opt_in", true)
-    .eq("marketing_consent", true);
+    .eq("marketing_consent", true)
+    .eq("opted_out", false);
 
   if (lapsedCustomers && lapsedCustomers.length > 0) {
     for (const cp of lapsedCustomers) {

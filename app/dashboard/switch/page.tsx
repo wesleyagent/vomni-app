@@ -345,6 +345,12 @@ export default function SwitchPage() {
             </div>
           )}
 
+          {/* Opt-out notice */}
+          <p style={{ fontSize: 13, color: "#6B7280", margin: "0 0 10px", lineHeight: 1.6 }}>
+            Customers who reply STOP will be automatically unsubscribed.<br />
+            <span style={{ direction: "rtl", display: "block", textAlign: "right" }}>לקוחות שישלחו STOP יוסרו אוטומטית מרשימת ההודעות.</span>
+          </p>
+
           {/* Transparency notice */}
           <div style={{ background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 10, padding: "12px 16px", marginBottom: 16 }}>
             <p style={{ fontSize: 13, color: "#92400E", margin: "0 0 4px", lineHeight: 1.5 }}>

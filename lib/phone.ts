@@ -83,6 +83,8 @@ export function encryptPhone(e164: string): string {
   const cipher  = createCipheriv(ALG, key, iv);
   const enc     = Buffer.concat([cipher.update(e164, "utf8"), cipher.final()]);
   const tag     = cipher.getAuthTag();
+  // Format: iv(12) | ciphertext | authTag(16) — IV randomly generated per call,
+  // never hardcoded, stored prepended to every encrypted phone value.
   return Buffer.concat([iv, enc, tag]).toString("base64");
 }
 

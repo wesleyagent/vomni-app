@@ -19,6 +19,7 @@ interface CustomerProfile {
   nudge_count: number;
   is_lapsed: boolean;
   whatsapp_opt_in: boolean;
+  opted_out: boolean;
 }
 
 interface CrmNudge {
@@ -203,7 +204,12 @@ export default function CRMPage() {
                 const recentlyNudged = p.nudge_sent_at && daysSince(p.nudge_sent_at) !== null && (daysSince(p.nudge_sent_at) ?? 999) < 7;
                 return (
                   <tr key={p.id}>
-                    <td style={td}>{p.name ?? "Unknown"}</td>
+                    <td style={td}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {p.name ?? "Unknown"}
+                        {p.opted_out && <span style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", background: "#F3F4F6", borderRadius: 9999, padding: "2px 8px" }}>Unsubscribed</span>}
+                      </span>
+                    </td>
                     <td style={td}>{p.phone}</td>
                     <td style={td}>{formatDate(p.last_visit_at)}</td>
                     <td style={td}>{p.avg_days_between_visits ? `${p.avg_days_between_visits}d` : "—"}</td>
@@ -249,7 +255,12 @@ export default function CRMPage() {
                 const recentlyNudged = p.nudge_sent_at && daysSince(p.nudge_sent_at) !== null && (daysSince(p.nudge_sent_at) ?? 999) < 7;
                 return (
                   <tr key={p.id}>
-                    <td style={td}>{p.name ?? "Unknown"}</td>
+                    <td style={td}>
+                      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        {p.name ?? "Unknown"}
+                        {p.opted_out && <span style={{ fontSize: 11, fontWeight: 600, color: "#6B7280", background: "#F3F4F6", borderRadius: 9999, padding: "2px 8px" }}>Unsubscribed</span>}
+                      </span>
+                    </td>
                     <td style={td}>{p.phone}</td>
                     <td style={td}>{formatDate(p.last_visit_at)}</td>
                     <td style={td}>{weeks}w</td>

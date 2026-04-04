@@ -37,7 +37,8 @@ export function encrypt(plaintext: string): string {
   ]);
   const tag = cipher.getAuthTag();
 
-  // Pack: iv | ciphertext | tag
+  // Pack: iv(12) | ciphertext | authTag(16) — IV is randomly generated per call,
+  // never hardcoded, and stored alongside the ciphertext in every encrypted value.
   const packed = Buffer.concat([iv, encrypted, tag]);
   return packed.toString("base64");
 }
