@@ -885,7 +885,7 @@ export default function LandingPage() {
               <div
                 key={i}
                 className="testimonial-card"
-                style={{ background: "#fff", borderRadius: 24, padding: 44, boxShadow: "0 2px 24px rgba(0,0,0,0.06)", transition: "transform 0.25s, box-shadow 0.25s", cursor: "default" }}
+                style={{ background: "#fff", borderRadius: 24, padding: 44, boxShadow: "0 2px 24px rgba(0,0,0,0.06)", transition: "transform 0.25s, box-shadow 0.25s", cursor: "default", display: "flex", flexDirection: "column" }}
                 onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-6px)"; e.currentTarget.style.boxShadow = "0 12px 40px rgba(0,0,0,0.10)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = "0 2px 24px rgba(0,0,0,0.06)"; }}
               >
@@ -893,7 +893,7 @@ export default function LandingPage() {
                 <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, color: N, fontStyle: "italic", lineHeight: 1.5, marginTop: 24 }}>
                   {t.quote}
                 </p>
-                <hr style={{ border: "none", borderTop: `1px solid ${BD}`, margin: "28px 0" }} />
+                <hr style={{ border: "none", borderTop: `1px solid ${BD}`, marginTop: "auto", marginBottom: 28 }} />
                 <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={t.avatar} alt={t.name} width={40} height={40} style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
