@@ -207,8 +207,10 @@ export default function ManageClient({ token, booking, business }: Props) {
   const today = todayStr(business.timezone);
   const totalDays   = daysInMonth(calYear, calMonth);
   const startOffset = firstDayOfMonth(calYear, calMonth);
-  const calDays = Array.from({ length: startOffset }, () => null)
-    .concat(Array.from({ length: totalDays }, (_, i) => i + 1));
+  const calDays: (number | null)[] = [
+    ...Array.from({ length: startOffset }, (): null => null),
+    ...Array.from({ length: totalDays }, (_, i) => i + 1),
+  ];
 
   function prevMonth() {
     if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
