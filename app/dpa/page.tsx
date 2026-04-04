@@ -77,7 +77,7 @@ export default function DpaPage() {
         <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 40, fontWeight: 800, color: N, marginBottom: 16 }}>
           Data Processing Agreement
         </h1>
-        <P>This agreement is between Vomni Ltd (&ldquo;Vomni&rdquo;, the data processor) and your business (the data controller). It applies for the duration of your Vomni subscription.</P>
+        <P>This agreement is between Vomni (&ldquo;Vomni&rdquo;, the data processor) and your business (the data controller). It applies for the duration of your Vomni subscription.</P>
 
         <Section title="1. What this covers">
           <P>Vomni processes personal data — specifically customer names and phone numbers — on your behalf, solely for the purpose of operating the Vomni platform on your instructions.</P>
