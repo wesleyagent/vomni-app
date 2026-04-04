@@ -155,6 +155,7 @@ export default function CalendarPage() {
       .from("bookings")
       .select("id, customer_name, customer_phone, customer_email, service_name, service_duration_minutes, service_price, appointment_at, status, notes, internal_notes, staff_id, booking_source, is_recurring, recurring_group_id")
       .eq("business_id", bizId)
+      .neq("status", "cancelled")
       .gte("appointment_at", startDate)
       .lte("appointment_at", endDate)
       .order("appointment_at", { ascending: true });
