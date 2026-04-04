@@ -111,6 +111,7 @@ export default function CustomersPage() {
   const [syncing,      setSyncing]      = useState(false);
   const [syncResult,   setSyncResult]   = useState<{ synced: number } | null>(null);
   const [crmSearch,    setCrmSearch]    = useState("");
+  const [crmError,     setCrmError]     = useState<string | null>(null);
   const CRM_PER_PAGE = 20;
 
 
@@ -144,24 +145,38 @@ export default function CustomersPage() {
   const fetchCrm = useCallback(async () => {
     if (!businessId) return;
     setCrmLoading(true);
+    setCrmError(null);
     try {
-      const token = await getAuthToken();
-      const authHeader: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      // Retry token fetch once — session may not be hydrated on first mount
+      let token = await getAuthToken();
+      if (!token) {
+        await new Promise(r => setTimeout(r, 600));
+        token = await getAuthToken();
+      }
+      if (!token) {
+        setCrmError("auth");
+        return;
+      }
       const res = await fetch(
         `/api/crm/customers?business_id=${businessId}&filter=${crmFilter}&page=${crmPage}&per_page=${CRM_PER_PAGE}`,
-        { headers: authHeader }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       if (res.ok) {
+        setCrmError(null);
         const json = await res.json();
         setCrmCustomers(json.customers ?? []);
         setCrmStats(json.stats ?? { total: 0, active: 0, at_risk: 0, lapsed: 0 });
-        // Pre-populate notes state
         const notesMap: Record<string, string> = {};
         for (const c of json.customers ?? []) {
           notesMap[c.id] = c.notes ?? "";
         }
         setCrmNotes(prev => ({ ...prev, ...notesMap }));
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setCrmError(`${res.status}: ${body.error ?? "Unknown error"}`);
       }
+    } catch (e) {
+      setCrmError(`Network error: ${e instanceof Error ? e.message : "unknown"}`);
     } finally {
       setCrmLoading(false);
     }
@@ -531,6 +546,23 @@ export default function CustomersPage() {
               </button>
             ))}
           </div>
+
+          {/* Error banner */}
+          {crmError && !crmLoading && (
+            <div style={{ background: "#FEE2E2", border: "1px solid #FECACA", borderRadius: 12, padding: "14px 18px", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#DC2626", margin: 0 }}>
+                {crmError === "auth"
+                  ? "Session not ready — please wait a moment and retry."
+                  : `Failed to load clients: ${crmError}`}
+              </p>
+              <button
+                onClick={() => fetchCrm()}
+                style={{ padding: "7px 16px", borderRadius: 8, border: "1px solid #FECACA", background: "#fff", color: "#DC2626", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                Retry
+              </button>
+            </div>
+          )}
 
           {/* Table */}
           {crmLoading ? (
