@@ -347,6 +347,7 @@ export async function POST(
         icalUrl,
         cancelUrl,
         address:      biz.address ?? null,
+        manageUrl:    `${APP_URL}/manage/${cancellationToken}`,
       }),
     }).catch(err => console.error("[booking/create] customer email failed:", err));
   }
@@ -388,6 +389,34 @@ export async function POST(
       .maybeSingle();
     if (nudge) {
       await supabaseAdmin.from("crm_nudges").update({ converted: true, converted_booking_id: bookingId }).eq("id", nudge.id);
+
+      // Trigger 3: nudge_converted notification (non-blocking within this block)
+      try {
+        const notifBody = `${customerName} booked after receiving a re-engagement message.`;
+        const { data: existingNotif } = await supabaseAdmin
+          .from("notifications")
+          .select("id")
+          .eq("business_id", business.id)
+          .eq("type", "nudge_converted")
+          .ilike("body", `${customerName}%`)
+          .maybeSingle();
+        if (!existingNotif) {
+          void supabaseAdmin.from("notifications").insert({
+            business_id: business.id,
+            type: "nudge_converted",
+            title: "Re-engagement worked",
+            body: notifBody,
+            read: false,
+          });
+          sendBusinessPushNotification(business.id, {
+            title: "Re-engagement worked",
+            body: notifBody,
+            data: { type: "nudge_converted", id: bookingId },
+          }).catch(e => console.error("[booking/create] nudge_converted push failed:", e));
+        }
+      } catch (e) {
+        console.error("[booking/create] nudge_converted notification failed:", e);
+      }
     }
   }).catch(e => console.error("[booking/create] nudge tracking failed:", e));
 

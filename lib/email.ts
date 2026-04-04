@@ -204,6 +204,7 @@ export function buildCustomerConfirmHtml(opts: {
   icalUrl:       string;
   cancelUrl:     string;
   address?:      string | null;
+  manageUrl?:    string | null;
 }) {
   const rows: [string, string | null | undefined][] = [
     ["Service",  opts.service],
@@ -211,6 +212,9 @@ export function buildCustomerConfirmHtml(opts: {
     ["With",     opts.staffName],
     ["Where",    opts.address],
   ];
+
+  // Prefer the manage URL (change/cancel) over the legacy cancel-only URL
+  const manageOrCancelUrl = opts.manageUrl ?? opts.cancelUrl;
 
   return wrap(`
     <tr><td style="padding:28px 32px;">
@@ -228,11 +232,16 @@ export function buildCustomerConfirmHtml(opts: {
         <a href="${escHtml(opts.icalUrl)}" style="display:inline-block;padding:12px 24px;background:#0A0F1E;color:#fff;text-decoration:none;border-radius:9999px;font-size:13px;font-weight:700;font-family:'Bricolage Grotesque',sans-serif;">
           📅 Add to Calendar
         </a>
+        <a href="${escHtml(manageOrCancelUrl)}" style="display:inline-block;padding:12px 24px;background:#F7F8FA;color:#0A0F1E;border:1.5px solid #E5E7EB;text-decoration:none;border-radius:9999px;font-size:13px;font-weight:700;font-family:'Bricolage Grotesque',sans-serif;">
+          Manage appointment
+        </a>
       </div>
-      <div style="text-align:center;">
-        <a href="${escHtml(opts.cancelUrl)}" style="font-family:Inter,sans-serif;font-size:12px;color:#9CA3AF;text-decoration:none;">Need to cancel? Click here</a>
+      <div style="text-align:center;margin-bottom:8px;">
+        <a href="${escHtml(manageOrCancelUrl)}" style="font-family:Inter,sans-serif;font-size:12px;color:#9CA3AF;text-decoration:none;">
+          Change date / time · Cancel · לניהול התור
+        </a>
       </div>
-      <div style="margin-top:24px;padding:16px;background:#FEF3C7;border-radius:10px;font-family:Inter,sans-serif;font-size:13px;color:#92400E;">
+      <div style="margin-top:16px;padding:16px;background:#FEF3C7;border-radius:10px;font-family:Inter,sans-serif;font-size:13px;color:#92400E;">
         ⏰ Please arrive a few minutes early. If you need to cancel, do so at least 24 hours in advance.
       </div>
     </td></tr>

@@ -220,6 +220,15 @@ function formatTime(isoDate: string, timezone?: string): string {
 //   EN: "Hi {{1}}! ✅ Your appointment at {{2}} is confirmed for {{3}} at {{4}}. Cancel: {{5}}"
 //   HE: "היי {{1}}! ✅ הפגישה שלך ב-{{2}} אושרה ל-{{3}} בשעה {{4}}. לביטול: {{5}}"
 //
+// ⚠️  TWILIO TEMPLATE UPDATE REQUIRED: variable {{6}} = manage link.
+//     Submit the following updated template body to Twilio Content API:
+//       Hi {{1}}! ✅ Your appointment at {{2}} is confirmed for {{3}} at {{4}}.
+//       שלום {{1}}, התור שלך ב-{{2}} מאושר ל-{{3}} בשעה {{4}}.
+//       To manage your appointment: {{6}}
+//       לניהול התור שלך: {{6}}
+//       Reply STOP to unsubscribe | להסרה השב STOP
+//     Until the template is updated in Twilio, {{6}} is silently ignored.
+//
 // TEMPLATE: appointment_reminder (TWILIO_TEMPLATE_REMINDER_SID)
 //   EN: "Hi {{1}}! 📅 Reminder: you have an appointment at {{2}} today at {{3}}."
 //   HE: "היי {{1}}! 📅 תזכורת: יש לך פגישה ב-{{2}} היום בשעה {{3}}."
@@ -248,12 +257,19 @@ export async function sendAppointmentConfirmation(
     ? `${APP_URL}/cancel/${booking.cancellation_token}`
     : "";
 
+  // Variable {{6}}: manage link (view, reschedule or cancel).
+  // Requires the Twilio template to be updated — see note above.
+  const manageUrl = booking.cancellation_token
+    ? `${APP_URL}/manage/${booking.cancellation_token}`
+    : "";
+
   return sendTemplate(booking.customer_phone, TEMPLATE_CONFIRMATION, {
     "1": booking.customer_name?.split(" ")[0] ?? "there",
     "2": business.name,
     "3": formatDate(booking.appointment_at),
     "4": formatTime(booking.appointment_at),
     "5": cancelUrl,
+    "6": manageUrl,
   }, {
     businessId: booking.business_id,
     bookingId: booking.id,
