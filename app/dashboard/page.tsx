@@ -27,8 +27,9 @@ interface BookingStatData {
   nextAppt: { customer_name: string; service_name: string; appointment_at: string } | null;
 }
 
-function BookingStats({ businessId }: {
+function BookingStats({ businessId, timezone }: {
   businessId: string;
+  timezone: string;
 }) {
   const [stats, setStats] = useState<BookingStatData | null>(null);
 
@@ -83,7 +84,7 @@ function BookingStats({ businessId }: {
 
   const fmtTime = (iso: string) => {
     const d = new Date(iso);
-    return d.toLocaleString("en-GB", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return d.toLocaleString("en-GB", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: timezone });
   };
 
   const cards = [
@@ -310,7 +311,7 @@ function BenchmarkBar({ label, yours, avg, top, unit = "" }: { label: string; yo
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function DashboardOverview() {
-  const { businessId, businessName } = useBusinessContext();
+  const { businessId, businessName, timezone } = useBusinessContext();
 
   const [stats,        setStats]        = useState<Awaited<ReturnType<typeof getOverviewStats>> | null>(null);
   const [allBookings,  setAllBookings]  = useState<DBBooking[]>([]);
@@ -649,7 +650,7 @@ export default function DashboardOverview() {
       )}
 
       {/* Booking System Stats */}
-      <BookingStats businessId={businessId} />
+      <BookingStats businessId={businessId} timezone={timezone} />
 
       {/* Section 2: Review Funnel */}
       <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: "24px", marginBottom: 40, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>

@@ -6,6 +6,7 @@ export interface BusinessCtx {
   businessName: string;
   ownerName: string;
   email: string;
+  timezone: string;  // IANA timezone from businesses.booking_timezone, e.g. "Asia/Jerusalem"
 }
 
 export const BusinessContext = createContext<BusinessCtx | null>(null);

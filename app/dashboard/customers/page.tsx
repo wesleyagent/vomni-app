@@ -208,7 +208,7 @@ const APPT_BADGE: Record<string, { label: string; icon: React.ReactNode; style: 
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function CustomersPage() {
-  const { businessId } = useBusinessContext();
+  const { businessId, timezone } = useBusinessContext();
 
   const [activeTab,  setActiveTab]  = useState<"appointments" | "reviews" | "crm">("appointments");
 
@@ -513,8 +513,8 @@ export default function CustomersPage() {
                           <td style={{ padding: "14px 16px", fontSize: 13, color: "#6B7280", whiteSpace: "nowrap" }}>
                             {a.appointment_at ? (
                               <>
-                                <p style={{ margin: 0, color: N, fontWeight: 500 }}>{new Date(a.appointment_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</p>
-                                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF" }}>{new Date(a.appointment_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</p>
+                                <p style={{ margin: 0, color: N, fontWeight: 500 }}>{new Date(a.appointment_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: timezone })}</p>
+                                <p style={{ margin: "2px 0 0", fontSize: 12, color: "#9CA3AF" }}>{new Date(a.appointment_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: timezone })}</p>
                               </>
                             ) : "-"}
                           </td>

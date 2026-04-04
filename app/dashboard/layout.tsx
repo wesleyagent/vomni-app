@@ -36,7 +36,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router   = useRouter();
 
-  const [ctx,           setCtx]           = useState<{ businessId: string; businessName: string; ownerName: string; email: string } | null>(null);
+  const [ctx,           setCtx]           = useState<{ businessId: string; businessName: string; ownerName: string; email: string; timezone: string } | null>(null);
   const [bizPlan,       setBizPlan]       = useState<string | null>(null);
   const [smsUsed,       setSmsUsed]       = useState<number>(0);
   const [smsLimit,      setSmsLimit]      = useState<number | null>(null);
@@ -78,7 +78,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (biz) {
         const step = biz.onboarding_step ?? 5;
         if (step < 5) { router.replace("/onboarding"); return; }
-        setCtx({ businessId: biz.id, businessName: biz.name ?? "My Business", ownerName: biz.owner_name ?? "", email: user.email });
+        const tz = (biz as typeof biz & { booking_timezone?: string | null }).booking_timezone ?? "Asia/Jerusalem";
+        setCtx({ businessId: biz.id, businessName: biz.name ?? "My Business", ownerName: biz.owner_name ?? "", email: user.email, timezone: tz });
         const plan = (biz as typeof biz & { plan?: string }).plan ?? null;
         setBizPlan(plan);
         // Credit-based SMS limits removed — usage tracking deprecated
@@ -88,7 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         loadNotifications(biz.id);
         loadTrialStatus(biz.id);
       } else {
-        setCtx({ businessId: user.id, businessName: "My Business", ownerName: "", email: user.email });
+        setCtx({ businessId: user.id, businessName: "My Business", ownerName: "", email: user.email, timezone: "Asia/Jerusalem" });
       }
       setLoading(false);
     })();
@@ -176,7 +177,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <BusinessContext.Provider value={ctx ?? { businessId: "", businessName: "My Business", ownerName: "", email: "" }}>
+    <BusinessContext.Provider value={ctx ?? { businessId: "", businessName: "My Business", ownerName: "", email: "", timezone: "Asia/Jerusalem" }}>
       <div style={{ minHeight: "100vh", background: "#F7F8FA", display: "flex", flexDirection: "column" }}>
         <style>{`
           @keyframes spin { to { transform: rotate(360deg); } }

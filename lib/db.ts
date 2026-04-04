@@ -43,6 +43,7 @@ export interface DBBusiness {
   subscription_status?: string | null;   // active | cancelled | paused | past_due | expired
   subscription_period?: string | null;   // monthly | yearly
   trial_start_date?: string | null;      // ISO timestamp — set when user signs up via free trial
+  booking_timezone?: string | null;      // IANA timezone, e.g. "Asia/Jerusalem"
 }
 
 export interface DBBooking {
