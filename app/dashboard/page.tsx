@@ -597,20 +597,20 @@ export default function DashboardOverview() {
               </div>
 
               {/* Horizontal funnel */}
-              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
                 {funnelSteps.map((step, i) => (
                   <div key={step.label} style={{ display: "flex", alignItems: "center", flex: 1 }}>
                     <div style={{
                       flex: 1, textAlign: "center",
-                      background: i === 3 ? "rgba(0,200,150,0.08)" : "#F9FAFB",
-                      border: `1px solid ${i === 3 ? "rgba(0,200,150,0.25)" : "#E5E7EB"}`,
-                      borderRadius: 10,
-                      padding: "12px 8px",
+                      background: i === 3 ? "rgba(0,200,150,0.08)" : "#F7F8FA",
+                      border: `1.5px solid ${i === 3 ? G : "#D1D5DB"}`,
+                      borderRadius: 12,
+                      padding: "14px 6px",
                     }}>
-                      <div style={{ fontSize: 28, fontWeight: 700, color: i === 3 ? G : TEXT, lineHeight: 1 }}>
+                      <div style={{ fontSize: 30, fontWeight: 700, color: i === 3 ? G : TEXT, lineHeight: 1 }}>
                         {step.count}
                       </div>
-                      <div style={{ fontSize: 11, color: MUTED, marginTop: 5, lineHeight: 1.3 }}>
+                      <div style={{ fontSize: 11, color: MUTED, marginTop: 6 }}>
                         {step.label}
                       </div>
                       {step.pctBase !== null && (
@@ -620,7 +620,7 @@ export default function DashboardOverview() {
                       )}
                     </div>
                     {i < funnelSteps.length - 1 && (
-                      <div style={{ color: "#C0C7D0", fontSize: 20, fontWeight: 300, padding: "0 1px", flexShrink: 0, lineHeight: 1 }}>→</div>
+                      <div style={{ color: "#9CA3AF", fontSize: 18, padding: "0 6px", flexShrink: 0, userSelect: "none" }}>→</div>
                     )}
                   </div>
                 ))}
