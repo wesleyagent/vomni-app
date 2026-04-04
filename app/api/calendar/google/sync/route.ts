@@ -45,8 +45,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
 
-  const startAt = new Date(booking.appointment_at);
-  const endAt = new Date(startAt.getTime() + (booking.service_duration_minutes ?? 60) * 60_000);
+  // Get business timezone
+  const { data: business } = await supabaseAdmin
+    .from("businesses")
+    .select("booking_timezone")
+    .eq("id", business_id)
+    .single();
+
+  const timezone = business?.booking_timezone ?? "UTC";
+
+  // appointment_at is stored as a local datetime in UTC clothing (e.g. "2024-01-15T09:30:00+00:00"
+  // where 09:30 is the actual local appointment time). Slice off the offset so Google Calendar
+  // receives a plain local datetime string, then apply timeZone so it displays correctly.
+  const startLocal = booking.appointment_at.slice(0, 19); // "2024-01-15T09:30:00"
+  const endLocal = new Date(
+    new Date(booking.appointment_at).getTime() + (booking.service_duration_minutes ?? 60) * 60_000
+  ).toISOString().slice(0, 19);                           // "2024-01-15T10:30:00"
+
   const calendarId = conn.calendar_id ?? "primary";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
@@ -60,8 +75,8 @@ export async function POST(req: NextRequest) {
       `Manage: ${appUrl}/dashboard/calendar`,
       `vomni-booking:${booking.id}`, // marker to avoid circular sync
     ].filter(Boolean).join("\n"),
-    start: { dateTime: startAt.toISOString() },
-    end: { dateTime: endAt.toISOString() },
+    start: { dateTime: startLocal, timeZone: timezone },
+    end:   { dateTime: endLocal,   timeZone: timezone },
     reminders: { useDefault: true },
   };
 
