@@ -597,28 +597,30 @@ export default function DashboardOverview() {
               </div>
 
               {/* Horizontal funnel */}
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                 {funnelSteps.map((step, i) => (
-                  <div key={step.label} style={{ display: "flex", alignItems: "flex-start", flex: 1 }}>
-                    <div style={{ flex: 1, textAlign: "center" }}>
-                      <div style={{
-                        fontSize: 30, fontWeight: 700,
-                        color: i === 3 ? G : TEXT,
-                        lineHeight: 1,
-                      }}>
+                  <div key={step.label} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                    <div style={{
+                      flex: 1, textAlign: "center",
+                      background: i === 3 ? "rgba(0,200,150,0.08)" : "#F9FAFB",
+                      border: `1px solid ${i === 3 ? "rgba(0,200,150,0.25)" : "#E5E7EB"}`,
+                      borderRadius: 10,
+                      padding: "12px 8px",
+                    }}>
+                      <div style={{ fontSize: 28, fontWeight: 700, color: i === 3 ? G : TEXT, lineHeight: 1 }}>
                         {step.count}
                       </div>
-                      <div style={{ fontSize: 11, color: MUTED, marginTop: 4, lineHeight: 1.3 }}>
+                      <div style={{ fontSize: 11, color: MUTED, marginTop: 5, lineHeight: 1.3 }}>
                         {step.label}
                       </div>
                       {step.pctBase !== null && (
-                        <div style={{ fontSize: 11, color: G, fontWeight: 600, marginTop: 3 }}>
+                        <div style={{ fontSize: 11, color: G, fontWeight: 600, marginTop: 4 }}>
                           {pct(step.count, step.pctBase)}%
                         </div>
                       )}
                     </div>
                     {i < funnelSteps.length - 1 && (
-                      <div style={{ color: "#D1D5DB", fontSize: 14, padding: "6px 0 0 2px", flexShrink: 0 }}>›</div>
+                      <div style={{ color: "#C0C7D0", fontSize: 20, fontWeight: 300, padding: "0 1px", flexShrink: 0, lineHeight: 1 }}>→</div>
                     )}
                   </div>
                 ))}
