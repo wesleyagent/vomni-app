@@ -104,27 +104,21 @@ function IPhone({ animate = false }: { animate?: boolean }) {
 // ─── Tab: Overview ────────────────────────────────────────────────────────────
 function OverviewTab() {
   const metrics = [
-    { label: "Requests Sent",   value: "47",     sub: "This month" },
-    { label: "Completion Rate", value: "66%",    sub: "↑ vs 40% avg" },
-    { label: "Avg Rating",      value: "4.3 ★",  sub: "Up 0.4 stars" },
-    { label: "Google Reviews",  value: "28",     sub: "Redirected" },
-    { label: "Negative Caught", value: "3",      sub: "Saved privately", warn: true },
-    { label: "Review Velocity", value: "8.2/wk", sub: "Growing" },
+    { label: "Today's bookings", value: "6",   sub: "Saturday 4 Apr",  warn: false },
+    { label: "Google reviews",   value: "7",   sub: "↑ 3 this month",  warn: false },
+    { label: "Completion rate",  value: "66%", sub: "↑ vs 40% avg",    warn: false },
+    { label: "Avg rating",       value: "4.8", sub: "Up 0.3 stars",    warn: false },
   ];
   const activity = [
-    { name: "James Mitchell", status: "Redirected to Google", color: G },
-    { name: "Tyler Brooks",   status: "Private Feedback",      color: "#F59E0B" },
-    { name: "James Smith",  status: "Redirected to Google", color: G },
-    { name: "Aiden Clarke",   status: "Sent",                  color: TM },
-    { name: "Marcus Lee",     status: "Opened",                color: "#8B5CF6" },
-    { name: "Priya Patel",    status: "Redirected to Google", color: G },
-    { name: "Liam Foster",    status: "Private Feedback",      color: "#F59E0B" },
-    { name: "Ethan Walsh",    status: "Redirected to Google", color: G },
+    { name: "Yoni K.",  status: "Confirmed booking",           color: G },
+    { name: "Dana M.",  status: "Rebooked via WhatsApp",        color: G },
+    { name: "Lior T.",  status: "Left a 5-star review",         color: G },
+    { name: "Ron S.",   status: "Appointment reminder sent",    color: TM },
   ];
   return (
     <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
       <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 20, color: N }}>Kings Cuts London</p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 20 }}>
         {metrics.map((m, i) => (
           <div key={i} style={{ background: OW, borderRadius: 12, padding: "14px 18px" }}>
             <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: TM }}>{m.label}</p>
@@ -142,108 +136,55 @@ function OverviewTab() {
           </div>
         ))}
       </div>
-      <div style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: "14px 18px" }}>
-        <p style={{ fontSize: 13, fontWeight: 600, color: "#B45309" }}>⚠ Alert - Isaac Thompson left a 2★ review</p>
-        <p style={{ fontSize: 12, color: "#92400E", marginTop: 4 }}>"The wait time was too long and nobody apologised..." · 2 hours ago</p>
-      </div>
     </div>
   );
 }
 
-// ─── Tab: Recovery ────────────────────────────────────────────────────────────
+// ─── Tab: Feedback inbox ──────────────────────────────────────────────────────
 function RecoveryTab() {
-  const cards = [
-    {
-      name: "Tyler Brooks", rating: 2, badge: "new", resolved: false,
-      text: "The fade was uneven on the left side and the neckline wasn't clean. Expected better for the price.",
-      aiReply: "Hi Tyler, I'm really sorry to hear your visit didn't meet the standard you expect from us. An uneven fade is completely unacceptable and I apologise. I'd love to have you back and make this right - your next visit is completely on us. Please reply here or call us directly.",
-    },
-    {
-      name: "Aiden Clarke", rating: 3, badge: "resolved", resolved: true,
-      text: "Service was fine but the shop was busier than expected. Had to wait 25 minutes past my appointment time.",
-      aiReply: "",
-    },
-    {
-      name: "Isaac Thompson", rating: 2, badge: "new", resolved: false,
-      text: "The wait time was too long and nobody apologised for the delay. Won't be coming back.",
-      aiReply: "",
-    },
-  ];
   return (
-    <div style={{ padding: 24, fontFamily: "Inter, sans-serif", display: "flex", flexDirection: "column", gap: 16 }}>
-      {cards.map((c, i) => (
-        <div key={i} style={{ background: OW, borderRadius: 16, padding: 20, border: `1px solid ${BD}` }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: "50%", background: N, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 600 }}>{c.name[0]}</div>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: N }}>{c.name}</p>
-                <Stars count={c.rating} size={13} />
-              </div>
-            </div>
-            <span style={{
-              background: c.badge === "resolved" ? "rgba(0,200,150,0.1)" : "rgba(245,158,11,0.1)",
-              color: c.badge === "resolved" ? G : "#F59E0B",
-              fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 9999, textTransform: "capitalize",
-            }}>{c.badge}</span>
+    <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
+      <div style={{ background: OW, borderRadius: 16, padding: 20, border: `1px solid ${BD}` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: N, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 600 }}>R</div>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: N }}>Ron S.</p>
+            <Stars count={3} size={13} />
           </div>
-          <p style={{ fontSize: 13, color: TS, fontStyle: "italic", lineHeight: 1.5 }}>"{c.text}"</p>
-          {c.aiReply && (
-            <div style={{ marginTop: 14, background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 12, padding: 16 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: G, marginBottom: 8 }}>AI Suggested Reply</p>
-              <p style={{ fontSize: 13, color: N, lineHeight: 1.6 }}>{c.aiReply}</p>
-              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-                <button style={{ background: G, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Mark In Progress</button>
-                <button style={{ background: "#fff", color: TS, border: `1px solid ${BD}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, cursor: "pointer" }}>Mark Resolved</button>
-              </div>
-            </div>
-          )}
-          {!c.aiReply && !c.resolved && (
-            <button style={{ marginTop: 12, background: G, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              Generate Reply
-            </button>
-          )}
+          <span style={{ marginLeft: "auto", background: "rgba(245,158,11,0.1)", color: "#F59E0B", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 9999 }}>New</span>
         </div>
-      ))}
+        <p style={{ fontSize: 13, color: TS, fontStyle: "italic", lineHeight: 1.5, marginBottom: 16 }}>&ldquo;Wait was a bit long.&rdquo;</p>
+        <textarea
+          readOnly
+          value={"Hi Ron — thanks for letting us know. We're sorry about the wait and we're working on it. Hope to see you back soon."}
+          style={{ width: "100%", fontFamily: "Inter, sans-serif", fontSize: 13, color: N, background: "#fff", border: `1px solid ${BD}`, borderRadius: 10, padding: "12px 14px", resize: "none", height: 80, outline: "none", boxSizing: "border-box" }}
+        />
+        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+          <button style={{ background: G, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Send reply</button>
+          <button style={{ background: "#fff", color: TS, border: `1px solid ${BD}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, cursor: "pointer" }}>Mark resolved</button>
+        </div>
+      </div>
     </div>
   );
 }
 
 // ─── Tab: Analytics ───────────────────────────────────────────────────────────
 function AnalyticsTab({ chartLoaded }: { chartLoaded: boolean }) {
-  const ratingRef    = useRef<HTMLCanvasElement>(null);
-  const requestRef   = useRef<HTMLCanvasElement>(null);
-  const completionRef = useRef<HTMLCanvasElement>(null);
-  const reviewsRef   = useRef<HTMLCanvasElement>(null);
-  const instances    = useRef<any[]>([]);
+  const bookingsRef = useRef<HTMLCanvasElement>(null);
+  const reviewsRef  = useRef<HTMLCanvasElement>(null);
+  const instances   = useRef<any[]>([]);
 
   useEffect(() => {
     if (!chartLoaded || typeof window === "undefined" || !window.Chart) return;
-
-    // Destroy previous instances
     instances.current.forEach((c) => { try { c.destroy(); } catch {} });
     instances.current = [];
-
     const Chart = window.Chart;
-    const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar"];
+    const weeks = ["W1", "W2", "W3", "W4", "W5", "W6"];
 
-    if (ratingRef.current) {
-      instances.current.push(new Chart(ratingRef.current.getContext("2d"), {
-        type: "doughnut",
-        data: {
-          labels: ["5★", "4★", "3★", "2★"],
-          datasets: [{ data: [18, 6, 3, 4], backgroundColor: [G, "#34D399", "#F59E0B", "#EF4444"], borderWidth: 0 }],
-        },
-        options: {
-          responsive: true, cutout: "65%",
-          plugins: { legend: { position: "right", labels: { font: { family: "Inter", size: 11 }, color: N, padding: 12 } } },
-        },
-      }));
-    }
-    if (requestRef.current) {
-      instances.current.push(new Chart(requestRef.current.getContext("2d"), {
+    if (bookingsRef.current) {
+      instances.current.push(new Chart(bookingsRef.current.getContext("2d"), {
         type: "bar",
-        data: { labels: months, datasets: [{ label: "Sent", data: [28, 32, 30, 35, 43, 47], backgroundColor: G, borderRadius: 6 }] },
+        data: { labels: weeks, datasets: [{ label: "Bookings", data: [24, 28, 26, 31, 34, 38], backgroundColor: G, borderRadius: 6 }] },
         options: {
           responsive: true,
           plugins: { legend: { display: false } },
@@ -254,30 +195,10 @@ function AnalyticsTab({ chartLoaded }: { chartLoaded: boolean }) {
         },
       }));
     }
-    if (completionRef.current) {
-      instances.current.push(new Chart(completionRef.current.getContext("2d"), {
-        type: "line",
-        data: {
-          labels: months,
-          datasets: [{ label: "Completion %", data: [50, 55, 52, 58, 62, 66], borderColor: G, backgroundColor: "rgba(0,200,150,0.08)", fill: true, tension: 0.4, pointBackgroundColor: G, borderWidth: 2 }],
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { min: 40, max: 80, grid: { color: "rgba(0,0,0,0.04)" }, ticks: { color: TM, font: { family: "Inter" } } },
-            x: { grid: { display: false }, ticks: { color: TM, font: { family: "Inter" } } },
-          },
-        },
-      }));
-    }
     if (reviewsRef.current) {
       instances.current.push(new Chart(reviewsRef.current.getContext("2d"), {
-        type: "line",
-        data: {
-          labels: months,
-          datasets: [{ label: "Reviews", data: [11, 14, 17, 20, 24, 28], borderColor: G, backgroundColor: "rgba(0,200,150,0.08)", fill: true, tension: 0.4, pointBackgroundColor: G, borderWidth: 2 }],
-        },
+        type: "bar",
+        data: { labels: weeks, datasets: [{ label: "Reviews", data: [3, 5, 4, 6, 7, 8], backgroundColor: G, borderRadius: 6 }] },
         options: {
           responsive: true,
           plugins: { legend: { display: false } },
@@ -288,33 +209,19 @@ function AnalyticsTab({ chartLoaded }: { chartLoaded: boolean }) {
         },
       }));
     }
-
     return () => { instances.current.forEach((c) => { try { c.destroy(); } catch {} }); };
   }, [chartLoaded]);
 
   return (
     <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
-      <div className="analytics-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
-        {[
-          { label: "Rating Distribution", ref: ratingRef },
-          { label: "Requests Sent",       ref: requestRef },
-          { label: "Completion Rate %",   ref: completionRef },
-          { label: "Google Reviews",      ref: reviewsRef },
-        ].map((item, i) => (
-          <div key={i} style={{ background: OW, borderRadius: 12, padding: 16 }}>
-            <p style={{ fontSize: 12, fontWeight: 600, color: N, marginBottom: 12 }}>{item.label}</p>
-            <canvas ref={item.ref} height={160} />
-          </div>
-        ))}
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-        <div style={{ background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.2)", borderRadius: 12, padding: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: G }}>Completion Rate Above Average</p>
-          <p style={{ fontSize: 12, color: TS, marginTop: 6, lineHeight: 1.5 }}>Your 66% completion rate is 26pp above the 40% industry average - excellent performance.</p>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div style={{ background: OW, borderRadius: 12, padding: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: N, marginBottom: 12 }}>Bookings per week</p>
+          <canvas ref={bookingsRef} height={160} />
         </div>
-        <div style={{ background: "rgba(245,158,11,0.06)", border: "1px solid rgba(245,158,11,0.2)", borderRadius: 12, padding: 16 }}>
-          <p style={{ fontSize: 13, fontWeight: 700, color: "#F59E0B" }}>3 Negative Reviews Caught</p>
-          <p style={{ fontSize: 12, color: TS, marginTop: 6, lineHeight: 1.5 }}>3 complaints were resolved privately this month - protecting your public Google rating.</p>
+        <div style={{ background: OW, borderRadius: 12, padding: 16 }}>
+          <p style={{ fontSize: 12, fontWeight: 600, color: N, marginBottom: 12 }}>Reviews per week</p>
+          <canvas ref={reviewsRef} height={160} />
         </div>
       </div>
     </div>
@@ -323,9 +230,36 @@ function AnalyticsTab({ chartLoaded }: { chartLoaded: boolean }) {
 
 // ─── Tab: Customer view ───────────────────────────────────────────────────────
 function CustomerViewTab() {
+  const customers = [
+    { name: "Yoni K.",  last: "2 Apr 2026",  next: "Sat 18 Apr",  status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
+    { name: "Dana M.",  last: "1 Apr 2026",  next: "Fri 17 Apr",  status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
+    { name: "Ron S.",   last: "18 Mar 2026", next: "—",           status: "At risk",  statusColor: "#F59E0B", statusBg: "rgba(245,158,11,0.1)" },
+    { name: "Maya K.",  last: "10 Feb 2026", next: "—",           status: "Lapsed",   statusColor: "#EF4444", statusBg: "rgba(239,68,68,0.1)" },
+    { name: "Lior T.",  last: "4 Apr 2026",  next: "Wed 22 Apr",  status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
+  ];
+  const colW = ["30%", "22%", "22%", "16%"];
+  const headers = ["Name", "Last visit", "Next booking", "Status"];
   return (
-    <div style={{ padding: 40, display: "flex", justifyContent: "center", background: OW, minHeight: 500 }}>
-      <IPhone />
+    <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
+      <div style={{ border: `1px solid ${BD}`, borderRadius: 12, overflow: "hidden" }}>
+        {/* Header row */}
+        <div style={{ display: "grid", gridTemplateColumns: colW.join(" "), background: OW, borderBottom: `1px solid ${BD}` }}>
+          {headers.map((h, i) => (
+            <div key={i} style={{ padding: "10px 16px", fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: TM }}>{h}</div>
+          ))}
+        </div>
+        {/* Data rows */}
+        {customers.map((c, i) => (
+          <div key={i} style={{ display: "grid", gridTemplateColumns: colW.join(" "), borderBottom: i < customers.length - 1 ? `1px solid ${BD}` : "none", background: "#fff" }}>
+            <div style={{ padding: "12px 16px", fontSize: 13, fontWeight: 600, color: N }}>{c.name}</div>
+            <div style={{ padding: "12px 16px", fontSize: 13, color: TS }}>{c.last}</div>
+            <div style={{ padding: "12px 16px", fontSize: 13, color: TS }}>{c.next}</div>
+            <div style={{ padding: "12px 16px" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: c.statusColor, background: c.statusBg, padding: "3px 10px", borderRadius: 9999 }}>{c.status}</span>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -379,6 +313,17 @@ export default function LandingPage() {
       const ref = params.get("ref");
       if (ref) { sessionStorage.setItem("vomni_ref", ref); }
     } catch { /* ignore */ }
+  }, []);
+
+  // Scroll to hash on load (e.g. /#book-demo from contact page)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector(hash);
+      if (el) el.scrollIntoView({ behavior: "smooth" });
+    }, 300);
+    return () => clearTimeout(t);
   }, []);
 
   // Nav scroll border
@@ -503,7 +448,7 @@ export default function LandingPage() {
 
   const tabs = [
     { id: "overview",  label: "Overview" },
-    { id: "recovery",  label: "Recovery inbox" },
+    { id: "recovery",  label: "Feedback inbox" },
     { id: "analytics", label: "Analytics" },
     { id: "customer",  label: "Customer view" },
   ];
@@ -545,7 +490,6 @@ export default function LandingPage() {
           <div className="nav-links" style={{ display: "flex", gap: 40, alignItems: "center" }}>
             {[
               { label: "How it Works", id: "how-it-works" },
-              { label: "See Demo",     id: "demo" },
               { label: "Pricing",      id: "pricing" },
             ].map((item) => (
               <a
@@ -612,7 +556,6 @@ export default function LandingPage() {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", paddingTop: 8 }}>
           {[
             { label: "How it Works", action: () => { setMenuOpen(false); document.querySelector("#how-it-works")?.scrollIntoView({ behavior: "smooth" }); } },
-            { label: "See Demo",     action: () => { setMenuOpen(false); document.querySelector("#demo")?.scrollIntoView({ behavior: "smooth" }); } },
             { label: "Pricing",      action: () => { setMenuOpen(false); document.querySelector("#pricing")?.scrollIntoView({ behavior: "smooth" }); } },
             { label: "Switch to Vomni", action: () => { setMenuOpen(false); window.location.href = "/migrate"; } },
             { label: "Blog",         action: () => { setMenuOpen(false); window.location.href = "/blog"; } },
@@ -649,15 +592,16 @@ export default function LandingPage() {
 
           {/* Left */}
           <div>
+            <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 13, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: G, marginBottom: 16 }}>Book · Protect · Grow</p>
             <h1 className="hero-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 80, fontWeight: 800, lineHeight: 1.0, letterSpacing: "-0.03em", color: N }}>
-              More 5-star<br /><span style={{ color: G }}>reviews.</span><br />Fewer surprises.
+              More bookings.<br /><span style={{ color: G }}>Fewer surprises.</span>
             </h1>
             <p className="hero-sub" style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, lineHeight: 1.6, maxWidth: 460, marginTop: 24 }}>
-              Put your reputation on autopilot. Vomni captures every customer experience instantly - giving everyone a voice and ensuring your business gets the recognition it deserves.
+              Put your business on autopilot. Vomni handles your bookings, follows up with every customer after their visit, and brings back regulars who've gone quiet — all via WhatsApp, without you lifting a finger.
             </p>
             <div className="hero-buttons" style={{ marginTop: 40, display: "flex", gap: 16, alignItems: "center" }}>
               <a href="/signup" className="cta-primary" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>
-                Start Getting Reviews - from £35/month
+                Start free — from £35/month
               </a>
               <button
                 onClick={scrollToBookDemo}
@@ -670,10 +614,10 @@ export default function LandingPage() {
             </div>
             <div className="hero-trust" style={{ marginTop: 32, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <Stars count={5} size={20} />
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS }}>Trusted by businesses whose reputation is everything</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS }}>Trusted by businesses that value every customer</span>
             </div>
             <div className="trust-pills" style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {["✓ 98% SMS open rate", "✓ 5 min setup", "✓ 14-day money back"].map((t) => (
+              {["✓ WhatsApp-first", "✓ Live in 5 minutes", "✓ Switch in an afternoon"].map((t) => (
                 <span key={t} style={{ background: OW, borderRadius: 9999, padding: "8px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: TS }}>{t}</span>
               ))}
             </div>
@@ -687,10 +631,10 @@ export default function LandingPage() {
                 <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 20, color: N }}>Kings Cuts London</p>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                   {[
-                    { label: "Requests Sent",   value: "47",    sub: "This month" },
-                    { label: "Completion Rate", value: "66%",   sub: "↑ vs 40% avg" },
-                    { label: "Avg Rating",      value: "4.3 ★", sub: "Up 0.4 stars" },
-                    { label: "Google Reviews",  value: "28",    sub: "Redirected" },
+                    { label: "Today's bookings", value: "6",   sub: "Saturday 4 Apr" },
+                    { label: "Google reviews",   value: "7",   sub: "↑ 3 this month" },
+                    { label: "Completion rate",  value: "66%", sub: "↑ vs 40% avg" },
+                    { label: "Avg rating",       value: "4.8", sub: "Up 0.3 stars" },
                   ].map((m, i) => (
                     <div key={i} style={{ background: OW, borderRadius: 12, padding: "14px 16px" }}>
                       <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.05em", color: TM }}>{m.label}</p>
@@ -701,9 +645,10 @@ export default function LandingPage() {
                 </div>
                 <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: TM, marginTop: 16, marginBottom: 10 }}>RECENT ACTIVITY</p>
                 {[
-                  { name: "James Mitchell", status: "Redirected to Google", color: G },
-                  { name: "Tyler Brooks",   status: "Private feedback",      color: "#F59E0B" },
-                  { name: "James Smith",  status: "Redirected to Google", color: G },
+                  { name: "Yoni K.", status: "Confirmed booking",        color: G },
+                  { name: "Dana M.", status: "Rebooked via WhatsApp",     color: G },
+                  { name: "Lior T.", status: "Left a 5-star review",      color: G },
+                  { name: "Ron S.",  status: "Reminder sent",             color: TM },
                 ].map((a, i, arr) => (
                   <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: i < arr.length - 1 ? `1px solid ${BD}` : "none" }}>
                     <span style={{ fontSize: 12, color: N }}>{a.name}</span>
@@ -722,8 +667,8 @@ export default function LandingPage() {
                 </svg>
               </div>
               <div>
-                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>New 5-star review on Google</p>
-                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: TM, marginTop: 2 }}>James Smith · just now</p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Maya K. just rebooked</p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: TM, marginTop: 2 }}>Last visit 11 weeks ago · via WhatsApp</p>
               </div>
             </div>
           </div>
@@ -737,10 +682,10 @@ export default function LandingPage() {
             {/* Left - headline + subtext */}
             <div>
               <h2 className="pain-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 72, fontWeight: 800, color: "#fff", lineHeight: 1.05 }}>
-                Reputation damage happens in minutes. Recovery takes months.
+                Most unhappy customers never complain. They just don't come back.
               </h2>
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, lineHeight: 1.6, marginTop: 24 }}>
-                A single bad review costs the average UK service business 22% of potential new customers - before they ever walk through the door.
+                1 in 3 customers who have a bad experience never say a word — they quietly stop booking. Vomni makes sure every customer can tell you directly, so you fix it before they're gone.
               </p>
               <button
                 onClick={scrollToBookDemo}
@@ -748,7 +693,7 @@ export default function LandingPage() {
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = GD; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
               >
-                See How Vomni Fixes This →
+                See how Vomni works →
               </button>
             </div>
             {/* Right - stacked stat cards */}
@@ -835,8 +780,8 @@ export default function LandingPage() {
             {[
               {
                 num: "01",
-                title: "Set up email forwarding once. That\u2019s it.",
-                body: "Set up one email forward from your booking system to Vomni. That is literally it - you never need to touch it again.",
+                title: "Set up your booking page once. That\u2019s it.",
+                body: "Add your services, set your hours, share your link. Clients book themselves in from their phone. You never need to touch it again.",
                 icon: (
                   <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
@@ -846,8 +791,8 @@ export default function LandingPage() {
               },
               {
                 num: "02",
-                title: "We send the perfect review request.",
-                body: "After every appointment your customer gets a personalised SMS at the right time. It reads like it came from you personally.",
+                title: "After every visit, every customer hears from you.",
+                body: "After every appointment, every customer gets a personal WhatsApp at exactly the right time. It reads like it came from you — because it does.",
                 icon: (
                   <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -856,8 +801,8 @@ export default function LandingPage() {
               },
               {
                 num: "03",
-                title: "Happy customers go to Google.",
-                body: "4-5 stars go straight to your Google review page. 1-3 stars come to you privately so you can fix it before it goes public.",
+                title: "Set it up once. It runs forever.",
+                body: "Every customer gets a personal follow-up after their visit. You see every response in your dashboard. Vomni handles the rest.",
                 icon: (
                   <svg width={32} height={32} viewBox="0 0 24 24" fill={G}>
                     <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" opacity=".9"/>
@@ -896,18 +841,12 @@ export default function LandingPage() {
             {/* Message from Kings Cuts */}
             <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
               <div style={{ background: "#fff", border: `1.5px solid ${G}`, borderRadius: "18px 18px 4px 18px", padding: "14px 18px", maxWidth: "80%", fontFamily: "Inter, sans-serif", fontSize: 15, color: N, lineHeight: 1.5 }}>
-                Hi James, thanks for your cut at Kings Cuts today! How was your experience? Tap to rate us: vomni.app/r/kc ✂️
+                Hey Yoni — it's been 5 weeks since your last fade at Nova Cuts. Your chair's free Thursday at 3pm. Want it?
               </div>
             </div>
             {/* Star rating response */}
             <div style={{ display: "flex", justifyContent: "center", gap: 6, margin: "20px 0" }}>
               {Array.from({ length: 5 }).map((_, i) => <StarSVG key={i} size={28} />)}
-            </div>
-            {/* Redirect confirmation */}
-            <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 20 }}>
-              <div style={{ background: G, borderRadius: "18px 18px 18px 4px", padding: "14px 18px", maxWidth: "80%", fontFamily: "Inter, sans-serif", fontSize: 15, color: "#fff", lineHeight: 1.5 }}>
-                Thanks James! We&apos;ve sent you to Google to leave your review 🙏
-              </div>
             </div>
             {/* Notification */}
             <div style={{ background: OW, borderRadius: 12, borderLeft: `3px solid ${G}`, padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
@@ -915,7 +854,7 @@ export default function LandingPage() {
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500 }}>New 5-star review on Google · James Smith</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500 }}>Yoni K. just rebooked — via WhatsApp · just now</span>
             </div>
           </div>
           <div style={{ marginTop: 60, textAlign: "center" }}>
@@ -935,13 +874,13 @@ export default function LandingPage() {
       <section className="testimonials-section section-pad" style={{ background: OW, padding: "120px 0" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
           <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: N, textAlign: "center" }}>
-            Built for businesses that run on reputation.
+            Built for businesses where every customer counts.
           </h2>
           <div className="testimonials-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 28, marginTop: 80 }}>
             {[
-              { quote: "34 reviews to 180 in four months. We're now the first result for barber Shoreditch.", name: "Marcus T.", biz: "Kings Cuts London",         avatar: "https://i.pravatar.cc/80?img=11" },
-              { quote: "Three complaints resolved privately last month. None of them reached Google.",         name: "Priya K.",  biz: "Glamour Hair Studio",        avatar: "https://i.pravatar.cc/80?img=47" },
-              { quote: "Eight minutes to set up. Sixty new reviews. I haven't touched it since day one.",     name: "Tom B.",    biz: "The Oak Table Restaurant",   avatar: "https://i.pravatar.cc/80?img=33" },
+              { quote: "Three customers who hadn't booked since February rebooked last week. Vomni messaged them. I did nothing.", name: "Priya K.", biz: "Glamour Hair",       avatar: "https://i.pravatar.cc/80?img=47" },
+              { quote: "Eight minutes to set up. My Google rating climbed on its own. Haven't touched it since.",                 name: "Tom B.",   biz: "The Oak Tree",       avatar: "https://i.pravatar.cc/80?img=33" },
+              { quote: "Moved over from our old system in an afternoon. No commission, no drama. Should have done it months ago.", name: "James R.", biz: "The Fade Room",      avatar: "https://i.pravatar.cc/80?img=15" },
             ].map((t, i) => (
               <div
                 key={i}
@@ -987,7 +926,8 @@ export default function LandingPage() {
       </div>
 
       {/* ── TRY IT LIVE ─────────────────────────────────────────────────────── */}
-      <section id="demo" style={{ background: OW, padding: "100px 0" }}>
+      {/* HIDDEN — set to {false &&} to restore */}
+      {false && <section id="demo" style={{ background: OW, padding: "100px 0" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, letterSpacing: "0.1em", color: G, textTransform: "uppercase", textAlign: "center" }}>
             TRY IT LIVE
@@ -1065,7 +1005,7 @@ export default function LandingPage() {
             These are live demo accounts with real product functionality.
           </p>
         </div>
-      </section>
+      </section>}
 
       {/* ── BOOK A DEMO ─────────────────────────────────────────────────────── */}
       <section id="book-demo" style={{ background: N, padding: "120px 0" }}>
@@ -1216,7 +1156,7 @@ export default function LandingPage() {
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: G, fontWeight: 600, margin: "6px 0 0" }}>or £299/year - save £121</p>
               <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Review request automation", "Basic dashboard", "Email support"].map(f => (
+                {["Booking page, live in 5 minutes", "Automated WhatsApp review requests after every visit", "Basic dashboard", "Email support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="#E5E7EB"/><path d="M5 8l2 2 4-4" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280" }}>{f}</span>
@@ -1242,7 +1182,7 @@ export default function LandingPage() {
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: G, fontWeight: 600, margin: "6px 0 0" }}>or £699/year - save £249</p>
               <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Everything in Starter", "Full dashboard", "AI insights and suggested replies", "Analytics", "Weekly email reports"].map(f => (
+                {["Everything in Starter", "Automated follow-ups after every visit", "Lapsed customer re-engagement via WhatsApp", "Full analytics + weekly email reports", "Priority support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(0,200,150,0.15)"/><path d="M5 8l2 2 4-4" stroke="#00C896" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151" }}>{f}</span>
@@ -1265,7 +1205,7 @@ export default function LandingPage() {
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#F5A623", fontWeight: 600, margin: "6px 0 0" }}>or £1,499/year - save £289</p>
               <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Everything in Growth", "Dedicated SMS number + priority support"].map(f => (
+                {["Everything in Growth", "Dedicated WhatsApp number", "Same-day support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(245,166,35,0.2)"/><path d="M5 8l2 2 4-4" stroke="#F5A623" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{f}</span>
@@ -1289,10 +1229,10 @@ export default function LandingPage() {
       <section className="section-pad" style={{ background: "#fff", padding: "120px 0", textAlign: "center" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
           <h2 className="section-headline final-cta-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 80, fontWeight: 800, color: N, lineHeight: 1.0, letterSpacing: "-0.03em" }}>
-            Your competitors are collecting reviews right now.
+            Every day you wait, your competition pulls further ahead.
           </h2>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, marginTop: 24 }}>
-            Every day without Vomni, your competitor gets the review instead.
+
           </p>
           <a
             href="/signup"

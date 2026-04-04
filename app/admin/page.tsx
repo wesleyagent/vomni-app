@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
-import { Users, RefreshCw, ChevronDown, ChevronRight, Activity, DollarSign, Zap } from "lucide-react";
+import { Users, RefreshCw, ChevronDown, ChevronRight, Activity, DollarSign, Zap, Mail } from "lucide-react";
 import { db } from "@/lib/db";
 import { getBenchmark } from "@/lib/benchmarks";
 
@@ -517,6 +517,117 @@ function ActivityTab({ businesses }: { businesses: BizRow[] }) {
   );
 }
 
+// ── Tab: Messages (contact submissions) ──────────────────────────────────────
+
+interface ContactRow {
+  id: string;
+  name: string;
+  email: string;
+  business: string | null;
+  message: string;
+  status: string;
+  created_at: string;
+}
+
+function MessagesTab() {
+  const [rows, setRows]       = useState<ContactRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState<string | null>(null);
+
+  useEffect(() => { load(); }, []);
+
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/db/contact_submissions?select=*&order=created_at.desc&limit=100");
+      const data = res.ok ? await res.json() : [];
+      setRows(data);
+    } catch { /* silent */ }
+    setLoading(false);
+  }
+
+  async function markRead(id: string) {
+    await fetch(`/api/admin/db/contact_submissions?id=${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "read" }),
+    });
+    setRows(prev => prev.map(r => r.id === id ? { ...r, status: "read" } : r));
+  }
+
+  const statusColor = (s: string) =>
+    s === "new" ? "#F59E0B" : s === "replied" ? G : "#9CA3AF";
+
+  if (loading) return (
+    <div style={{ display: "flex", height: 200, alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 28, height: 28, borderRadius: "50%", border: `2px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 20 }}>
+        <Mail size={18} style={{ color: G }} />
+        <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: 0 }}>Contact submissions</h2>
+        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF" }}>{rows.length} total</span>
+      </div>
+      <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+        {rows.length === 0 ? (
+          <div style={{ padding: "48px 24px", textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#9CA3AF" }}>
+            No messages yet.
+          </div>
+        ) : (
+          <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                {["Name", "Email", "Business", "Date", "Status", ""].map(h => (
+                  <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontWeight: 600, color: "#6B7280", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row, idx) => (
+                <>
+                  <tr
+                    key={row.id}
+                    onClick={() => { setExpanded(e => e === row.id ? null : row.id); if (row.status === "new") markRead(row.id); }}
+                    style={{ borderTop: idx > 0 ? "1px solid #F3F4F6" : "none", cursor: "pointer", background: expanded === row.id ? "#F9FAFB" : "#fff" }}
+                  >
+                    <td style={{ padding: "14px 16px", fontWeight: 600, color: N }}>{row.name}</td>
+                    <td style={{ padding: "14px 16px", color: "#6B7280" }}>{row.email}</td>
+                    <td style={{ padding: "14px 16px", color: "#6B7280" }}>{row.business ?? "—"}</td>
+                    <td style={{ padding: "14px 16px", color: "#9CA3AF", whiteSpace: "nowrap" }}>{fmtDate(row.created_at)}</td>
+                    <td style={{ padding: "14px 16px" }}>
+                      <span style={{ fontWeight: 600, fontSize: 12, color: statusColor(row.status), background: `${statusColor(row.status)}18`, padding: "3px 10px", borderRadius: 9999, textTransform: "capitalize" }}>{row.status}</span>
+                    </td>
+                    <td style={{ padding: "14px 16px", color: "#9CA3AF", fontSize: 12 }}>{expanded === row.id ? "▲" : "▼"}</td>
+                  </tr>
+                  {expanded === row.id && (
+                    <tr key={`${row.id}-exp`}>
+                      <td colSpan={6} style={{ padding: "0 16px 16px 16px", background: "#F9FAFB" }}>
+                        <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 10, padding: 16 }}>
+                          <p style={{ margin: "0 0 12px", fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#9CA3AF" }}>Message</p>
+                          <p style={{ margin: "0 0 16px", fontSize: 14, color: N, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{row.message}</p>
+                          <a
+                            href={`mailto:${row.email}?subject=Re: your Vomni enquiry`}
+                            style={{ display: "inline-block", background: G, color: "#fff", borderRadius: 9999, padding: "8px 18px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, textDecoration: "none" }}
+                          >
+                            Reply via email →
+                          </a>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Admin Page ───────────────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -524,7 +635,7 @@ export default function AdminPage() {
   const [statsMap,   setStatsMap]   = useState<Record<string, BizStats>>({});
   const [loading,    setLoading]    = useState(true);
   const [loadError,  setLoadError]  = useState<string | null>(null);
-  const [activeTab,  setActiveTab]  = useState<"dashboard" | "revenue" | "activity">("dashboard");
+  const [activeTab,  setActiveTab]  = useState<"dashboard" | "revenue" | "activity" | "messages">("dashboard");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -579,6 +690,7 @@ export default function AdminPage() {
     { key: "dashboard", label: "Dashboard", icon: Users },
     { key: "revenue",   label: "Revenue",   icon: DollarSign },
     { key: "activity",  label: "Activity",  icon: Zap },
+    { key: "messages",  label: "Messages",  icon: Mail },
   ] as const;
 
   return (
@@ -684,6 +796,7 @@ export default function AdminPage() {
             {activeTab === "dashboard" && <DashboardTab businesses={businesses} statsMap={statsMap} />}
             {activeTab === "revenue"   && <RevenueTab   businesses={businesses} />}
             {activeTab === "activity"  && <ActivityTab  businesses={businesses} />}
+            {activeTab === "messages"  && <MessagesTab />}
           </>
         )}
       </div>

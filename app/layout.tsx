@@ -5,9 +5,9 @@ import CookieBanner from "@/components/CookieBanner";
 import TranslateWidget from "@/components/TranslateWidget";
 
 export const metadata: Metadata = {
-  title: "Vomni - Get More 5-Star Google Reviews on Autopilot",
+  title: "Vomni — Bookings, Reviews & Customer Retention on Autopilot",
   description:
-    "Vomni automatically asks your happy customers for reviews and catches unhappy ones before they go public. Built for barbers, salons, restaurants, dentists, and tattoo shops.",
+    "Vomni runs your booking page, follows up with every customer after their visit, and brings back regulars who've gone quiet — all via WhatsApp, automatically.",
 };
 
 export default function RootLayout({
