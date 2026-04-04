@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useEffect, useState, useMemo, useCallback, useRef } from "react";
 import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare } from "lucide-react";
 import { useBusinessContext } from "../_context";
 import { db, getAuthToken } from "@/lib/db";
@@ -96,7 +96,7 @@ const APPT_BADGE: Record<string, { label: string; icon: React.ReactNode; style: 
 export default function CustomersPage() {
   const { businessId, timezone } = useBusinessContext();
 
-  const [activeTab,  setActiveTab]  = useState<"schedule" | "clients">("clients");
+  const [activeTab,  setActiveTab]  = useState<"schedule" | "clients">("schedule");
 
   // CRM tab state
   const [crmFilter,    setCrmFilter]    = useState<"all"|"active"|"at_risk"|"lapsed"|"opted_out"|"imported">("all");
@@ -112,6 +112,7 @@ export default function CustomersPage() {
   const [syncResult,   setSyncResult]   = useState<{ synced: number } | null>(null);
   const [crmSearch,    setCrmSearch]    = useState("");
   const [crmError,     setCrmError]     = useState<string | null>(null);
+  const autoSyncAttempted = useRef(false);
   const CRM_PER_PAGE = 20;
 
 
@@ -136,9 +137,6 @@ export default function CustomersPage() {
         setApptLoading(false);
       });
 
-    // Pre-fetch clients data immediately — don't wait for tab click
-    fetchCrm();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
   // ── CRM fetch ────────────────────────────────────────────────────────────
@@ -171,6 +169,11 @@ export default function CustomersPage() {
           notesMap[c.id] = c.notes ?? "";
         }
         setCrmNotes(prev => ({ ...prev, ...notesMap }));
+        // Auto-sync imported clients if CRM is empty on first load
+        if ((json.stats?.total ?? 0) === 0 && !autoSyncAttempted.current) {
+          autoSyncAttempted.current = true;
+          syncClients();
+        }
       } else {
         const body = await res.json().catch(() => ({}));
         setCrmError(`${res.status}: ${body.error ?? "Unknown error"}`);
