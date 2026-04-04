@@ -971,7 +971,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
                   onChange={e => setSendReminder(e.target.checked)}
                   style={{ width: 18, height: 18, accentColor: G }}
                 />
-                {t("Send me a reminder SMS before my appointment", "שלחו לי תזכורת SMS לפני הפגישה", lang)}
+                {t("Send me appointment reminders via WhatsApp", "שלח לי תזכורות לתורים בוואטסאפ", lang)}
               </label>
 
               {/* Summary card */}
