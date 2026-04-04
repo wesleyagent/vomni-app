@@ -1189,7 +1189,7 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
-              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", marginTop: 16 }}>Perfect for: established businesses serious about reputation</p>
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", marginTop: 16 }}>Perfect for: established businesses ready to put growth on autopilot</p>
               <a href="/signup" style={{ display: "block", marginTop: 24, background: G, color: "#fff", borderRadius: 9999, padding: "16px 0", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, textAlign: "center", textDecoration: "none" }}>
                 Get Started - Most Popular
               </a>
