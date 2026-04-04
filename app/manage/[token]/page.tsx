@@ -90,7 +90,7 @@ export default async function ManagePage({
 
   if (!booking) return <NotFound />;
 
-  const biz = booking.businesses as {
+  const biz = booking.businesses as unknown as {
     name: string | null;
     google_review_link: string | null;
     booking_slug: string | null;
@@ -98,8 +98,8 @@ export default async function ManagePage({
     booking_buffer_minutes: number | null;
   } | null;
 
-  const svc = booking.services as { name: string | null; name_he: string | null } | null;
-  const stf = booking.staff as { name: string | null; name_he: string | null } | null;
+  const svc = booking.services as unknown as { name: string | null; name_he: string | null } | null;
+  const stf = booking.staff as unknown as { name: string | null; name_he: string | null } | null;
 
   if (booking.status === "cancelled") {
     return <AlreadyCancelled businessName={biz?.name ?? ""} />;

@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Booking not found or not eligible for rescheduling" }, { status: 404 });
   }
 
-  const biz = existing.businesses as { booking_buffer_minutes: number | null } | null;
+  const biz = existing.businesses as unknown as { booking_buffer_minutes: number | null } | null;
   const bufferMinutes = biz?.booking_buffer_minutes ?? 0;
 
   // 1. Call atomic RPC — re-checks availability server-side at the moment of submission
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
 
   if (newBooking) {
-    const business = newBooking.businesses as {
+    const business = newBooking.businesses as unknown as {
       name: string | null;
       booking_slug: string | null;
       booking_timezone: string | null;
