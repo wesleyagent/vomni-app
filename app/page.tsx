@@ -103,38 +103,82 @@ function IPhone({ animate = false }: { animate?: boolean }) {
 
 // ─── Tab: Overview ────────────────────────────────────────────────────────────
 function OverviewTab() {
+  const navTabs = ["Overview", "Calendar", "Customers", "Feedback", "Analytics", "Settings"];
   const metrics = [
-    { label: "Today's bookings", value: "6",   sub: "Saturday 4 Apr",  warn: false },
-    { label: "Google reviews",   value: "7",   sub: "↑ 3 this month",  warn: false },
-    { label: "Completion rate",  value: "66%", sub: "↑ vs 40% avg",    warn: false },
-    { label: "Avg rating",       value: "4.8", sub: "Up 0.3 stars",    warn: false },
+    { label: "Today's Bookings", value: "8",    sub: "Saturday 4 Apr" },
+    { label: "This Week Revenue", value: "£640", sub: "↑ 12% vs last week" },
+    { label: "Completion Rate",   value: "91%",  sub: "↑ vs 80% avg" },
+    { label: "Avg Rating",        value: "4.8",  sub: "↑ 0.3 stars" },
   ];
   const activity = [
-    { name: "Yoni K.",  status: "Confirmed booking",           color: G },
-    { name: "Dana M.",  status: "Rebooked via WhatsApp",        color: G },
-    { name: "Lior T.",  status: "Left a 5-star review",         color: G },
-    { name: "Ron S.",   status: "Appointment reminder sent",    color: TM },
+    { name: "Yoni K.",  status: "New booking",          color: G },
+    { name: "Dana M.",  status: "Re-engagement worked",  color: G },
+    { name: "Lior T.",  status: "5-star Google review",  color: G },
+    { name: "Ron S.",   status: "Private complaint",      color: "#EF4444" },
+    { name: "Maya K.",  status: "No-show recorded",       color: "#F59E0B" },
   ];
+  const funnel = [{ v: 24, l: "sent" }, { v: 18, l: "opened" }, { v: 14, l: "rated" }, { v: 11, l: "→ Google" }];
   return (
-    <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
-      <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, marginBottom: 20, color: N }}>Kings Cuts London</p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: 20 }}>
-        {metrics.map((m, i) => (
-          <div key={i} style={{ background: OW, borderRadius: 12, padding: "14px 18px" }}>
-            <p style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em", color: TM }}>{m.label}</p>
-            <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 800, color: m.warn ? "#F59E0B" : G, lineHeight: 1.1, marginTop: 4 }}>{m.value}</p>
-            <p style={{ fontSize: 12, color: TM, marginTop: 4 }}>{m.sub}</p>
-          </div>
+    <div style={{ fontFamily: "Inter, sans-serif", background: "#F7F8FA", minHeight: 500 }}>
+      {/* Dash nav tabs */}
+      <div style={{ background: "#fff", borderBottom: `1px solid ${BD}`, display: "flex", overflowX: "auto" as const }}>
+        {navTabs.map(t => (
+          <div key={t} style={{ padding: "11px 16px", fontSize: 12, whiteSpace: "nowrap" as const, fontWeight: t === "Overview" ? 700 : 500, color: t === "Overview" ? G : TS, borderBottom: t === "Overview" ? `2px solid ${G}` : "2px solid transparent", fontFamily: t === "Overview" ? "'Bricolage Grotesque',sans-serif" : "Inter,sans-serif" }}>{t}</div>
         ))}
       </div>
-      <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: TM, marginBottom: 10 }}>RECENT ACTIVITY</p>
-      <div style={{ marginBottom: 16 }}>
-        {activity.map((a, i) => (
-          <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: i < activity.length - 1 ? `1px solid ${BD}` : "none" }}>
-            <span style={{ fontSize: 13, color: N }}>{a.name}</span>
-            <span style={{ fontSize: 12, color: a.color, fontWeight: 500 }}>{a.status}</span>
+      <div style={{ padding: "14px 18px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+          <span style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 15, fontWeight: 700, color: N }}>Kings Cuts London</span>
+          <span style={{ background: "rgba(0,200,150,0.1)", color: G, fontSize: 10, fontWeight: 600, padding: "3px 9px", borderRadius: 9999 }}>Pro ★</span>
+        </div>
+        {/* 4 metric cards */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 8, marginBottom: 12 }}>
+          {metrics.map((m, i) => (
+            <div key={i} style={{ background: "#fff", borderRadius: 10, padding: "11px 13px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+              <p style={{ fontSize: 9, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: TM }}>{m.label}</p>
+              <p style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 20, fontWeight: 800, color: G, lineHeight: 1, marginTop: 3 }}>{m.value}</p>
+              <p style={{ fontSize: 10, color: G, marginTop: 3 }}>{m.sub}</p>
+            </div>
+          ))}
+        </div>
+        {/* This month row */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+          <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+            <p style={{ fontSize: 10, fontWeight: 600, color: N, marginBottom: 10 }}>Review pipeline</p>
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {funnel.map((s, i) => (
+                <div key={i} style={{ display: "flex", alignItems: "center", flex: 1 }}>
+                  <div style={{ flex: 1, textAlign: "center" as const }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: i === 3 ? G : N }}>{s.v}</div>
+                    <div style={{ fontSize: 9, color: TM, marginTop: 2 }}>{s.l}</div>
+                  </div>
+                  {i < 3 && <span style={{ color: "#D1D5DB", fontSize: 11 }}>›</span>}
+                </div>
+              ))}
+            </div>
           </div>
-        ))}
+          <div style={{ background: "#E1F5EE", borderRadius: 10, padding: "12px 14px" }}>
+            <p style={{ fontSize: 9, fontWeight: 600, color: "#085041", marginBottom: 8 }}>Vomni handled — automatically</p>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5 }}>
+              {[["12","reminders"],["24","review reqs"],["3","re-engage"],["0","bad reviews"]].map(([v,l],i) => (
+                <div key={i} style={{ background: "#fff", borderRadius: 7, padding: "7px 9px" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: G }}>{v}</div>
+                  <div style={{ fontSize: 9, color: TM }}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        {/* Recent activity */}
+        <div style={{ background: "#fff", borderRadius: 10, padding: "11px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}>
+          <p style={{ fontSize: 9, textTransform: "uppercase" as const, letterSpacing: "0.1em", color: TM, marginBottom: 7 }}>RECENT ACTIVITY</p>
+          {activity.map((a, i) => (
+            <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "5px 0", borderBottom: i < activity.length - 1 ? `1px solid ${BD}` : "none" }}>
+              <span style={{ fontSize: 12, color: N }}>{a.name}</span>
+              <span style={{ fontSize: 11, color: a.color, fontWeight: 500 }}>{a.status}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -142,26 +186,62 @@ function OverviewTab() {
 
 // ─── Tab: Feedback inbox ──────────────────────────────────────────────────────
 function RecoveryTab() {
+  const [tone, setTone] = useState<"professional"|"empathetic"|"concise">("empathetic");
+  const [active, setActive] = useState(0);
+  const reviews = [
+    { initial: "R", name: "Ron S.",    stars: 2, time: "2h ago",    comment: "Wait was a bit long and staff seemed rushed.",
+      responses: { professional: "Dear Ron, thank you for your feedback. We apologise for the extended wait time and will address staffing levels during peak hours. We would welcome the opportunity to provide you with a better experience.", empathetic: "Hi Ron — thanks for being honest with us. We're really sorry your time was wasted waiting. That's not the experience we want for you at all. We're reviewing our scheduling and would love to make it right.", concise: "Hi Ron, sorry about the wait — we're fixing our scheduling. Hope to see you back soon." } },
+    { initial: "M", name: "Maya K.",   stars: 1, time: "5h ago",    comment: "Booked for 2pm, wasn't seen until 2:40. Not good.",
+      responses: { professional: "Dear Maya, we sincerely apologise for the significant delay to your appointment. This falls well below our standards and we are reviewing our scheduling processes as a priority.", empathetic: "Hi Maya, a 40-minute wait is completely unacceptable and we totally understand your frustration. We'd love to offer you a complimentary visit to make up for it — please let us know.", concise: "Hi Maya, really sorry about the delay. DM us — we'd like to make this right with a free visit." } },
+    { initial: "D", name: "Daniel B.", stars: 2, time: "Yesterday", comment: "Cut was fine but the atmosphere felt chaotic.",
+      responses: { professional: "Thank you for your feedback, Daniel. We're sorry the atmosphere wasn't up to our usual standard and will address this with the team.", empathetic: "Hey Daniel — appreciate you saying something. You're right, some days are tougher. We're sorry it affected your visit and we'll work on creating a calmer environment.", concise: "Thanks Daniel, noted on the atmosphere — we'll sort it out." } },
+  ];
+  const tones = [{ k: "professional" as const, l: "Professional" }, { k: "empathetic" as const, l: "Empathetic" }, { k: "concise" as const, l: "Concise" }];
+  const rev = reviews[active];
   return (
-    <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
-      <div style={{ background: OW, borderRadius: 16, padding: 20, border: `1px solid ${BD}` }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: "50%", background: N, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 600 }}>R</div>
-          <div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: N }}>Ron S.</p>
-            <Stars count={3} size={13} />
-          </div>
-          <span style={{ marginLeft: "auto", background: "rgba(245,158,11,0.1)", color: "#F59E0B", fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 9999 }}>New</span>
+    <div style={{ display: "flex", fontFamily: "Inter, sans-serif", minHeight: 500 }}>
+      {/* Left list */}
+      <div style={{ width: 190, borderRight: `1px solid ${BD}`, background: "#F9FAFB", flexShrink: 0 }}>
+        <div style={{ padding: "13px 15px", borderBottom: `1px solid ${BD}` }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: N }}>Feedback Inbox</p>
+          <p style={{ fontSize: 10, color: TM }}>3 unread</p>
         </div>
-        <p style={{ fontSize: 13, color: TS, fontStyle: "italic", lineHeight: 1.5, marginBottom: 16 }}>&ldquo;Wait was a bit long.&rdquo;</p>
-        <textarea
-          readOnly
-          value={"Hi Ron — thanks for letting us know. We're sorry about the wait and we're working on it. Hope to see you back soon."}
-          style={{ width: "100%", fontFamily: "Inter, sans-serif", fontSize: 13, color: N, background: "#fff", border: `1px solid ${BD}`, borderRadius: 10, padding: "12px 14px", resize: "none", height: 80, outline: "none", boxSizing: "border-box" }}
-        />
-        <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-          <button style={{ background: G, color: "#fff", border: "none", borderRadius: 8, padding: "8px 16px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Send reply</button>
-          <button style={{ background: "#fff", color: TS, border: `1px solid ${BD}`, borderRadius: 8, padding: "8px 16px", fontSize: 13, cursor: "pointer" }}>Mark resolved</button>
+        {reviews.map((r, i) => (
+          <div key={i} onClick={() => setActive(i)} style={{ padding: "11px 14px", borderBottom: `1px solid ${BD}`, background: i === active ? "#fff" : "transparent", cursor: "pointer", borderLeft: i === active ? `3px solid ${G}` : "3px solid transparent" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: N }}>{r.name}</span>
+              <span style={{ fontSize: 10, color: TM }}>{r.time}</span>
+            </div>
+            <div style={{ display: "flex", gap: 1, marginBottom: 3 }}>
+              {Array.from({ length: 5 }).map((_, si) => <span key={si} style={{ color: si < r.stars ? "#F59E0B" : "#E5E7EB", fontSize: 11 }}>★</span>)}
+            </div>
+            <p style={{ fontSize: 11, color: TS, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{r.comment}</p>
+          </div>
+        ))}
+      </div>
+      {/* Right detail */}
+      <div style={{ flex: 1, padding: 18 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 11 }}>
+          <div style={{ width: 36, height: 36, borderRadius: "50%", background: N, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>{rev.initial}</div>
+          <div>
+            <p style={{ fontSize: 13, fontWeight: 600, color: N }}>{rev.name}</p>
+            <div style={{ display: "flex", gap: 1 }}>{Array.from({ length: 5 }).map((_, i) => <span key={i} style={{ color: i < rev.stars ? "#F59E0B" : "#E5E7EB", fontSize: 13 }}>★</span>)}</div>
+          </div>
+          <span style={{ marginLeft: "auto", background: "rgba(245,158,11,0.1)", color: "#F59E0B", fontSize: 11, fontWeight: 600, padding: "3px 10px", borderRadius: 9999 }}>New</span>
+        </div>
+        <p style={{ fontSize: 12, color: TS, fontStyle: "italic", lineHeight: 1.5, marginBottom: 13, background: OW, padding: "9px 12px", borderRadius: 8, border: `1px solid ${BD}` }}>"{rev.comment}"</p>
+        {/* Tone toggles */}
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 9 }}>
+          <span style={{ fontSize: 10, color: TM, fontWeight: 600 }}>AI tone:</span>
+          {tones.map(t => (
+            <button key={t.k} onClick={() => setTone(t.k)} style={{ fontSize: 10, fontWeight: 600, padding: "4px 10px", borderRadius: 9999, border: `1px solid ${tone === t.k ? G : BD}`, background: tone === t.k ? "rgba(0,200,150,0.1)" : "#fff", color: tone === t.k ? G : TS, cursor: "pointer" }}>{t.l}</button>
+          ))}
+        </div>
+        <textarea readOnly value={rev.responses[tone]} style={{ width: "100%", fontFamily: "Inter,sans-serif", fontSize: 12, color: N, background: "#fff", border: `1px solid ${BD}`, borderRadius: 9, padding: "10px 13px", resize: "none" as const, height: 88, outline: "none", boxSizing: "border-box" as const, lineHeight: 1.6 }} />
+        <div style={{ display: "flex", gap: 7, marginTop: 9 }}>
+          <button style={{ background: G, color: "#fff", border: "none", borderRadius: 8, padding: "7px 15px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>Send reply</button>
+          <button style={{ background: "#fff", color: TS, border: `1px solid ${BD}`, borderRadius: 8, padding: "7px 13px", fontSize: 12, cursor: "pointer" }}>Mark resolved</button>
+          <button style={{ background: "#fff", color: TS, border: `1px solid ${BD}`, borderRadius: 8, padding: "7px 13px", fontSize: 12, cursor: "pointer" }}>Dismiss</button>
         </div>
       </div>
     </div>
@@ -172,6 +252,7 @@ function RecoveryTab() {
 function AnalyticsTab({ chartLoaded }: { chartLoaded: boolean }) {
   const bookingsRef = useRef<HTMLCanvasElement>(null);
   const reviewsRef  = useRef<HTMLCanvasElement>(null);
+  const donutRef    = useRef<HTMLCanvasElement>(null);
   const instances   = useRef<any[]>([]);
 
   useEffect(() => {
@@ -179,49 +260,57 @@ function AnalyticsTab({ chartLoaded }: { chartLoaded: boolean }) {
     instances.current.forEach((c) => { try { c.destroy(); } catch {} });
     instances.current = [];
     const Chart = window.Chart;
-    const weeks = ["W1", "W2", "W3", "W4", "W5", "W6"];
+    const months = ["Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr"];
 
     if (bookingsRef.current) {
       instances.current.push(new Chart(bookingsRef.current.getContext("2d"), {
         type: "bar",
-        data: { labels: weeks, datasets: [{ label: "Bookings", data: [24, 28, 26, 31, 34, 38], backgroundColor: G, borderRadius: 6 }] },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { grid: { color: "rgba(0,0,0,0.04)" }, ticks: { color: TM, font: { family: "Inter" } } },
-            x: { grid: { display: false }, ticks: { color: TM, font: { family: "Inter" } } },
-          },
-        },
+        data: { labels: months, datasets: [
+          { label: "Confirmed", data: [62, 58, 71, 66, 74, 81, 88], backgroundColor: G, borderRadius: 5, stack: "s" },
+          { label: "No-shows",  data: [4,  6,  5,  3,  4,  3,  2],  backgroundColor: "rgba(239,68,68,0.25)", borderRadius: 5, stack: "s" },
+        ]},
+        options: { responsive: true, plugins: { legend: { display: true, labels: { boxWidth: 9, font: { family: "Inter", size: 9 } } } },
+          scales: { y: { stacked: true, grid: { color: "rgba(0,0,0,0.04)" }, ticks: { color: TM, font: { family: "Inter", size: 9 } } }, x: { stacked: true, grid: { display: false }, ticks: { color: TM, font: { family: "Inter", size: 9 } } } } },
       }));
     }
     if (reviewsRef.current) {
       instances.current.push(new Chart(reviewsRef.current.getContext("2d"), {
         type: "bar",
-        data: { labels: weeks, datasets: [{ label: "Reviews", data: [3, 5, 4, 6, 7, 8], backgroundColor: G, borderRadius: 6 }] },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { min: 0, grid: { color: "rgba(0,0,0,0.04)" }, ticks: { color: TM, font: { family: "Inter" } } },
-            x: { grid: { display: false }, ticks: { color: TM, font: { family: "Inter" } } },
-          },
-        },
+        data: { labels: months, datasets: [
+          { label: "→ Google", data: [8, 7, 11, 9, 13, 15, 17], backgroundColor: G, borderRadius: 5 },
+          { label: "Private",  data: [3, 5,  2, 4,  2,  3,  2], backgroundColor: "rgba(245,158,11,0.45)", borderRadius: 5 },
+        ]},
+        options: { responsive: true, plugins: { legend: { display: true, labels: { boxWidth: 9, font: { family: "Inter", size: 9 } } } },
+          scales: { y: { min: 0, grid: { color: "rgba(0,0,0,0.04)" }, ticks: { color: TM, font: { family: "Inter", size: 9 } } }, x: { grid: { display: false }, ticks: { color: TM, font: { family: "Inter", size: 9 } } } } },
+      }));
+    }
+    if (donutRef.current) {
+      instances.current.push(new Chart(donutRef.current.getContext("2d"), {
+        type: "doughnut",
+        data: { labels: ["5 stars", "4 stars", "3 stars", "1–2 stars"],
+          datasets: [{ data: [58, 27, 9, 6], backgroundColor: [G, "#34D399", "#FCD34D", "#FCA5A5"], borderWidth: 0, hoverOffset: 4 }] },
+        options: { cutout: "65%", plugins: { legend: { position: "right" as const, labels: { boxWidth: 9, font: { family: "Inter", size: 9 }, padding: 8 } } } },
       }));
     }
     return () => { instances.current.forEach((c) => { try { c.destroy(); } catch {} }); };
   }, [chartLoaded]);
 
   return (
-    <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div style={{ background: OW, borderRadius: 12, padding: 16 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: N, marginBottom: 12 }}>Bookings per week</p>
-          <canvas ref={bookingsRef} height={160} />
+    <div style={{ padding: 18, fontFamily: "Inter, sans-serif" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+        <div style={{ background: OW, borderRadius: 12, padding: 14 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: N, marginBottom: 8 }}>Bookings per month</p>
+          <canvas ref={bookingsRef} height={150} />
         </div>
-        <div style={{ background: OW, borderRadius: 12, padding: 16 }}>
-          <p style={{ fontSize: 12, fontWeight: 600, color: N, marginBottom: 12 }}>Reviews per week</p>
-          <canvas ref={reviewsRef} height={160} />
+        <div style={{ background: OW, borderRadius: 12, padding: 14 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: N, marginBottom: 8 }}>Reviews per month</p>
+          <canvas ref={reviewsRef} height={150} />
+        </div>
+      </div>
+      <div style={{ background: OW, borderRadius: 12, padding: 14 }}>
+        <p style={{ fontSize: 11, fontWeight: 600, color: N, marginBottom: 10 }}>Rating breakdown</p>
+        <div style={{ maxWidth: 340, margin: "0 auto" }}>
+          <canvas ref={donutRef} height={120} />
         </div>
       </div>
     </div>
@@ -231,31 +320,35 @@ function AnalyticsTab({ chartLoaded }: { chartLoaded: boolean }) {
 // ─── Tab: Customer view ───────────────────────────────────────────────────────
 function CustomerViewTab() {
   const customers = [
-    { name: "Yoni K.",  last: "2 Apr 2026",  next: "Sat 18 Apr",  status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
-    { name: "Dana M.",  last: "1 Apr 2026",  next: "Fri 17 Apr",  status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
-    { name: "Ron S.",   last: "18 Mar 2026", next: "—",           status: "At risk",  statusColor: "#F59E0B", statusBg: "rgba(245,158,11,0.1)" },
-    { name: "Maya K.",  last: "10 Feb 2026", next: "—",           status: "Lapsed",   statusColor: "#EF4444", statusBg: "rgba(239,68,68,0.1)" },
-    { name: "Lior T.",  last: "4 Apr 2026",  next: "Wed 22 Apr",  status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
+    { name: "Tom H.",     last: "5 Apr 2026",  next: "Thu 24 Apr", visits: 31, status: "VIP",      statusColor: "#8B5CF6", statusBg: "rgba(139,92,246,0.1)" },
+    { name: "Yoni K.",    last: "4 Apr 2026",  next: "Mon 21 Apr", visits: 14, status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
+    { name: "Lior T.",    last: "4 Apr 2026",  next: "Wed 23 Apr", visits: 22, status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
+    { name: "Dana M.",    last: "2 Apr 2026",  next: "Fri 18 Apr", visits: 8,  status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
+    { name: "James M.",   last: "28 Mar 2026", next: "Sat 19 Apr", visits: 6,  status: "Active",   statusColor: G,         statusBg: "rgba(0,200,150,0.1)" },
+    { name: "Ron S.",     last: "18 Mar 2026", next: "—",          visits: 4,  status: "At risk",  statusColor: "#F59E0B", statusBg: "rgba(245,158,11,0.1)" },
+    { name: "Ella W.",    last: "11 Mar 2026", next: "—",          visits: 3,  status: "At risk",  statusColor: "#F59E0B", statusBg: "rgba(245,158,11,0.1)" },
+    { name: "Maya K.",    last: "10 Feb 2026", next: "—",          visits: 7,  status: "Lapsed",   statusColor: "#EF4444", statusBg: "rgba(239,68,68,0.1)" },
+    { name: "Daniel B.",  last: "3 Feb 2026",  next: "—",          visits: 2,  status: "Lapsed",   statusColor: "#EF4444", statusBg: "rgba(239,68,68,0.1)" },
+    { name: "Sarah O.",   last: "12 Jan 2026", next: "—",          visits: 1,  status: "Lapsed",   statusColor: "#EF4444", statusBg: "rgba(239,68,68,0.1)" },
   ];
-  const colW = ["30%", "22%", "22%", "16%"];
-  const headers = ["Name", "Last visit", "Next booking", "Status"];
+  const colW = ["26%", "20%", "20%", "12%", "16%"];
+  const headers = ["Name", "Last visit", "Next booking", "Visits", "Status"];
   return (
-    <div style={{ padding: 24, fontFamily: "Inter, sans-serif" }}>
-      <div style={{ border: `1px solid ${BD}`, borderRadius: 12, overflow: "hidden" }}>
-        {/* Header row */}
+    <div style={{ fontFamily: "Inter, sans-serif" }}>
+      <div style={{ overflow: "hidden" }}>
         <div style={{ display: "grid", gridTemplateColumns: colW.join(" "), background: OW, borderBottom: `1px solid ${BD}` }}>
           {headers.map((h, i) => (
-            <div key={i} style={{ padding: "10px 16px", fontSize: 11, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: TM }}>{h}</div>
+            <div key={i} style={{ padding: "10px 16px", fontSize: 10, fontWeight: 600, textTransform: "uppercase" as const, letterSpacing: "0.05em", color: TM }}>{h}</div>
           ))}
         </div>
-        {/* Data rows */}
         {customers.map((c, i) => (
-          <div key={i} style={{ display: "grid", gridTemplateColumns: colW.join(" "), borderBottom: i < customers.length - 1 ? `1px solid ${BD}` : "none", background: "#fff" }}>
-            <div style={{ padding: "12px 16px", fontSize: 13, fontWeight: 600, color: N }}>{c.name}</div>
-            <div style={{ padding: "12px 16px", fontSize: 13, color: TS }}>{c.last}</div>
-            <div style={{ padding: "12px 16px", fontSize: 13, color: TS }}>{c.next}</div>
-            <div style={{ padding: "12px 16px" }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: c.statusColor, background: c.statusBg, padding: "3px 10px", borderRadius: 9999 }}>{c.status}</span>
+          <div key={i} style={{ display: "grid", gridTemplateColumns: colW.join(" "), borderBottom: `1px solid ${BD}`, background: "#fff" }}>
+            <div style={{ padding: "10px 16px", fontSize: 13, fontWeight: 600, color: N }}>{c.name}</div>
+            <div style={{ padding: "10px 16px", fontSize: 12, color: TS }}>{c.last}</div>
+            <div style={{ padding: "10px 16px", fontSize: 12, color: TS }}>{c.next}</div>
+            <div style={{ padding: "10px 16px", fontSize: 12, color: TS }}>{c.visits}</div>
+            <div style={{ padding: "10px 16px" }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: c.statusColor, background: c.statusBg, padding: "3px 8px", borderRadius: 9999 }}>{c.status}</span>
             </div>
           </div>
         ))}
