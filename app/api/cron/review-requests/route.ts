@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendReviewRequest } from "@/lib/whatsapp";
 import { canSendReviewRequest } from "@/lib/review-rules";
-import { decryptPhone, fingerprintPhone } from "@/lib/phone";
+import { fingerprintPhone } from "@/lib/phone";
 
 // GET /api/cron/review-requests
 // Runs hourly (schedule: "0 * * * *" in vercel.json)
@@ -28,7 +28,6 @@ export async function GET(req: NextRequest) {
       business_id,
       customer_name,
       customer_phone,
-      customer_phone_encrypted,
       appointment_at,
       service_name,
       cancellation_token,
@@ -63,23 +62,7 @@ export async function GET(req: NextRequest) {
   let skipped = 0;
 
   for (const booking of bookings) {
-    // Resolve the customer phone for Twilio:
-    // Prefer decrypted from customer_phone_encrypted (new bookings),
-    // fall back to customer_phone (legacy bookings with raw phone).
-    let twilioPhone: string | null = null;
-
-    if (booking.customer_phone_encrypted) {
-      try {
-        twilioPhone = decryptPhone(booking.customer_phone_encrypted);
-      } catch {
-        console.warn(`[review-requests] decrypt failed for booking ${booking.id}`);
-      }
-    }
-
-    if (!twilioPhone) {
-      // Legacy booking — use stored phone (may be raw or display)
-      twilioPhone = booking.customer_phone ?? null;
-    }
+    const twilioPhone: string | null = booking.customer_phone ?? null;
 
     if (!twilioPhone) {
       console.warn(`[review-requests] no phone for booking ${booking.id} — skipping`);
