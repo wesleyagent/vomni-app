@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type CSSProperties } from "react";
 
 // ── Colours ────────────────────────────────────────────────────────────────
 
@@ -226,7 +226,7 @@ export default function ManageClient({ token, booking, business }: Props) {
 
   // ── Shared card wrapper ──────────────────────────────────────────────────
 
-  const cardStyle: React.CSSProperties = {
+  const cardStyle: CSSProperties = {
     background: "#fff",
     borderRadius: 20,
     boxShadow: "0 4px 24px rgba(0,0,0,0.08)",
@@ -236,7 +236,7 @@ export default function ManageClient({ token, booking, business }: Props) {
     margin: "0 auto",
   };
 
-  const shell: React.CSSProperties = {
+  const shell: CSSProperties = {
     minHeight: "100vh",
     background: GREY,
     display: "flex",

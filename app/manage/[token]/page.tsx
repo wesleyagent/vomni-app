@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import ManageClient from "./ManageClient";
 
@@ -6,7 +7,7 @@ const N = "#0A0F1E";
 
 // ── Static terminal states ────────────────────────────────────────────────────
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children }: { children: ReactNode }) {
   return (
     <div style={{ minHeight: "100vh", background: "#F7F8FA", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
       <div style={{ maxWidth: 480, width: "100%", textAlign: "center" }}>
