@@ -3,56 +3,13 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare, Upload } from "lucide-react";
 import { useBusinessContext } from "../_context";
-import { getAllBookings, fmtDate, type DBBooking, db, getAuthToken } from "@/lib/db";
+import { db, getAuthToken } from "@/lib/db";
 
 const G     = "#00C896";
 const N     = "#0A0F1E";
 const PAGE_SIZE = 15;
 
 // ── Status definitions ─────────────────────────────────────────────────────
-
-/** Ordered journey steps */
-const JOURNEY_STEPS: { key: string; label: string }[] = [
-  { key: "pending",                        label: "Pending"    },
-  { key: "sms_sent",                       label: "SMS Sent"   },
-  { key: "form_opened",                    label: "Opened"     },
-  { key: "form_submitted",                 label: "Rated"      },
-  { key: "redirected_to_google",           label: "Google"     },
-  { key: "private_feedback",               label: "Private"    },
-  { key: "private_feedback_from_positive", label: "Private"    },
-  // legacy
-  { key: "reviewed_positive",              label: "Positive"   },
-  { key: "reviewed_negative",              label: "Negative"   },
-  { key: "redirected",                     label: "Redirected" },
-];
-
-const STEP_INDEX: Record<string, number> = {
-  pending:                        0,
-  sms_sent:                       1,
-  form_opened:                    2,
-  form_submitted:                 3,
-  redirected_to_google:           4,
-  private_feedback:               3,
-  private_feedback_from_positive: 3,
-  // legacy
-  reviewed_positive:              3,
-  reviewed_negative:              3,
-  redirected:                     4,
-};
-
-function stepColor(key: string): string {
-  if (key === "pending")                           return "#9CA3AF";
-  if (key === "sms_sent")                          return "#F59E0B";
-  if (key === "form_opened")                       return "#F59E0B";
-  if (key === "form_submitted")                    return G;
-  if (key === "redirected_to_google")              return G;
-  if (key === "private_feedback")                  return "#EF4444";
-  if (key === "private_feedback_from_positive")    return "#F59E0B";
-  if (key === "reviewed_positive")                 return G;
-  if (key === "reviewed_negative")                 return "#EF4444";
-  if (key === "redirected")                        return G;
-  return "#9CA3AF";
-}
 
 /** Compact badge for table / mobile cards */
 const STATUS_BADGE: Record<string, { label: string; style: React.CSSProperties }> = {
@@ -73,25 +30,6 @@ const STATUS_BADGE: Record<string, { label: string; style: React.CSSProperties }
   failed:            { label: "Failed",            style: { background: "#FEE2E2", color: "#DC2626" } },
 };
 
-const STATUS_OPTIONS = [
-  { value: "all",                         label: "All" },
-  { value: "pending",                     label: "Pending" },
-  { value: "sms_sent",                    label: "SMS Sent" },
-  { value: "form_opened",                 label: "Form Opened" },
-  { value: "form_submitted",              label: "Rated" },
-  { value: "redirected_to_google",        label: "Sent to Google" },
-  { value: "private_feedback",            label: "Private Feedback" },
-  // legacy
-  { value: "reviewed_positive",           label: "Positive (legacy)" },
-  { value: "reviewed_negative",           label: "Negative (legacy)" },
-  { value: "redirected",                  label: "Redirected (legacy)" },
-];
-
-const DATE_OPTIONS = [
-  { value: "all",   label: "All time" },
-  { value: "week",  label: "This week" },
-  { value: "month", label: "This month" },
-];
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -105,60 +43,6 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-/**
- * Visual horizontal progress track showing which journey stage the booking is at.
- * 4 nodes: Pending → SMS Sent → Opened → Reviewed/Redirected
- */
-function JourneyTrack({ status }: { status: string | null }) {
-  const current = status ?? "pending";
-  const idx     = STEP_INDEX[current] ?? 0;
-  const isNeg   = current === "reviewed_negative" || current === "private_feedback";
-
-  // 4 display nodes
-  const nodes = [
-    { key: "pending",     label: "Sent"      },
-    { key: "sms_sent",    label: "SMS"       },
-    { key: "form_opened", label: "Opened"    },
-    { key: "form_submitted", label: isNeg ? "Negative" : idx >= 3 ? "Reviewed" : "Review" },
-  ];
-
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 0, minWidth: 160 }}>
-      {nodes.map((node, i) => {
-        const reached  = i <= idx;
-        const isActive = i === idx;
-        const dotColor = reached
-          ? (isNeg && i === 3 ? "#EF4444" : i === 0 ? "#9CA3AF" : i === 1 ? "#F59E0B" : i === 2 ? "#F59E0B" : G)
-          : "#E5E7EB";
-
-        return (
-          <div key={node.key} style={{ display: "flex", alignItems: "center", flex: i < nodes.length - 1 ? 1 : "none" }}>
-            {/* Dot */}
-            <div style={{
-              width: isActive ? 12 : 8,
-              height: isActive ? 12 : 8,
-              borderRadius: "50%",
-              background: dotColor,
-              flexShrink: 0,
-              transition: "all 0.2s",
-              boxShadow: isActive ? `0 0 0 3px ${dotColor}30` : "none",
-            }} />
-            {/* Line */}
-            {i < nodes.length - 1 && (
-              <div style={{
-                flex: 1,
-                height: 2,
-                background: i < idx ? dotColor : "#E5E7EB",
-                minWidth: 12,
-                transition: "background 0.2s",
-              }} />
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 // ── CRM Types ────────────────────────────────────────────────────────────────
 
@@ -191,6 +75,8 @@ interface Appointment {
   service_name: string | null;
   appointment_at: string | null;
   status: "confirmed" | "completed" | "no_show" | "cancelled" | "pending";
+  review_status: string | null;
+  rating: number | null;
   notes: string | null;
   created_at: string;
 }
@@ -210,15 +96,7 @@ const APPT_BADGE: Record<string, { label: string; icon: React.ReactNode; style: 
 export default function CustomersPage() {
   const { businessId, timezone } = useBusinessContext();
 
-  const [activeTab,  setActiveTab]  = useState<"appointments" | "reviews" | "crm">("appointments");
-
-  // Reviews tab state
-  const [bookings,  setBookings]  = useState<DBBooking[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [search,    setSearch]    = useState("");
-  const [status,    setStatus]    = useState("all");
-  const [dateRange, setDateRange] = useState("all");
-  const [page,      setPage]      = useState(1);
+  const [activeTab,  setActiveTab]  = useState<"schedule" | "clients">("clients");
 
   // CRM tab state
   const [crmFilter,    setCrmFilter]    = useState<"all"|"active"|"at_risk"|"lapsed"|"opted_out"|"imported">("all");
@@ -232,6 +110,7 @@ export default function CustomersPage() {
   const [sendingNudge, setSendingNudge] = useState<string | null>(null);
   const [syncing,      setSyncing]      = useState(false);
   const [syncResult,   setSyncResult]   = useState<{ synced: number } | null>(null);
+  const [crmSearch,    setCrmSearch]    = useState("");
   const CRM_PER_PAGE = 20;
 
   // Bulk review request state
@@ -249,17 +128,10 @@ export default function CustomersPage() {
   const [markingNoShow,  setMarkingNoShow]  = useState<string | null>(null);
 
   useEffect(() => {
-    if (!businessId) { setLoading(false); setApptLoading(false); return; }
+    if (!businessId) { setApptLoading(false); return; }
 
-    // Load review data
-    getAllBookings(businessId).then(data => {
-      setBookings(data);
-      setLoading(false);
-    });
-
-    // Load appointments
     db.from("bookings")
-      .select("id, customer_name, customer_email, customer_phone, service_name, appointment_at, status, notes, created_at")
+      .select("id, customer_name, customer_email, customer_phone, service_name, appointment_at, status, review_status, rating, notes, created_at")
       .eq("business_id", businessId)
       .order("appointment_at", { ascending: false })
       .then(({ data }) => {
@@ -296,7 +168,7 @@ export default function CustomersPage() {
   }, [businessId, crmFilter, crmPage]);
 
   useEffect(() => {
-    if (activeTab === "crm") fetchCrm();
+    if (activeTab === "clients") fetchCrm();
   }, [activeTab, fetchCrm]);
 
   async function saveNotes(profileId: string) {
@@ -374,27 +246,18 @@ export default function CustomersPage() {
   const apptTotalPages = Math.max(1, Math.ceil(filteredAppts.length / PAGE_SIZE));
   const apptPaged      = filteredAppts.slice((apptPage - 1) * PAGE_SIZE, apptPage * PAGE_SIZE);
 
-  const filtered = useMemo(() => {
-    const now   = new Date();
-    const wkAgo = new Date(now); wkAgo.setDate(now.getDate() - 7);
-    const moSt  = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Client-side search filter for Clients tab
+  const filteredClients = useMemo(() => {
+    if (!crmSearch.trim()) return crmCustomers;
+    const q = crmSearch.toLowerCase();
+    return crmCustomers.filter(c =>
+      c.display_name?.toLowerCase().includes(q) ||
+      c.phone_display?.toLowerCase().includes(q) ||
+      c.last_service?.toLowerCase().includes(q)
+    );
+  }, [crmCustomers, crmSearch]);
 
-    return bookings.filter(b => {
-      const matchSearch = !search || [b.customer_name, b.customer_email, b.service]
-        .some(v => v?.toLowerCase().includes(search.toLowerCase()));
-      const matchStatus = status === "all" || b.review_status === status;
-      const created     = new Date(b.created_at);
-      const matchDate   = dateRange === "all" ? true
-        : dateRange === "week" ? created >= wkAgo
-        : created >= moSt;
-      return matchSearch && matchStatus && matchDate;
-    });
-  }, [bookings, search, status, dateRange]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const paged      = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-
-  if (loading) {
+  if (apptLoading && activeTab === "schedule") {
     return (
       <div style={{ display: "flex", height: "100%", alignItems: "center", justifyContent: "center" }}>
         <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
@@ -414,9 +277,8 @@ export default function CustomersPage() {
         {/* Sub-tabs */}
         <div style={{ display: "flex", gap: 4, borderBottom: "2px solid #F3F4F6" }}>
           {([
-            { key: "appointments", label: "Appointments", icon: <Calendar size={15} /> },
-            { key: "reviews",      label: "Reviews",      icon: <Star size={15} /> },
-            { key: "crm",          label: "CRM",          icon: <UserCheck size={15} /> },
+            { key: "clients",  label: "Clients",  icon: <UserCheck size={15} />, count: crmStats.total },
+            { key: "schedule", label: "Schedule",  icon: <Calendar size={15} />,  count: appointments.length },
           ] as const).map(tab => (
             <button
               key={tab.key}
@@ -437,15 +299,15 @@ export default function CustomersPage() {
                 color: activeTab === tab.key ? G : "#9CA3AF",
                 borderRadius: 99, padding: "1px 8px", fontSize: 11, fontWeight: 700,
               }}>
-                {tab.key === "appointments" ? appointments.length : tab.key === "reviews" ? bookings.length : crmStats.total}
+                {tab.count}
               </span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* ── APPOINTMENTS TAB ── */}
-      {activeTab === "appointments" && (
+      {/* ── SCHEDULE TAB ── */}
+      {activeTab === "schedule" && (
         <>
           {/* Filters */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
@@ -492,7 +354,7 @@ export default function CustomersPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
                   <thead>
                     <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                      {["Customer", "Service", "Date & Time", "Status", "Actions"].map(h => (
+                      {["Customer", "Service", "Date & Time", "Status", "Review", "Rating", "Actions"].map(h => (
                         <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
                       ))}
                     </tr>
@@ -523,6 +385,19 @@ export default function CustomersPage() {
                               {badge.icon}
                               {badge.label}
                             </span>
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            {a.review_status ? (() => {
+                              const rb = STATUS_BADGE[a.review_status] ?? STATUS_BADGE.pending;
+                              return (
+                                <span style={{ fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: "3px 9px", ...rb.style }}>
+                                  {rb.label}
+                                </span>
+                              );
+                            })() : <span style={{ fontSize: 12, color: "#D1D5DB" }}>—</span>}
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            {a.rating ? <StarRating rating={a.rating} /> : <span style={{ fontSize: 12, color: "#D1D5DB" }}>—</span>}
                           </td>
                           <td style={{ padding: "14px 16px" }}>
                             {canMarkNoShow && (
@@ -569,150 +444,23 @@ export default function CustomersPage() {
         </>
       )}
 
-      {/* ── REVIEWS TAB ── */}
-      {activeTab === "reviews" && (
+
+      {/* ── CLIENTS TAB ── */}
+      {activeTab === "clients" && (
         <>
-          {/* Filters */}
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 20 }}>
-        <div style={{ position: "relative", flex: "1 1 220px", minWidth: 200 }}>
-          <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
-          <input
-            value={search}
-            onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search name, email, service…"
-            style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 10, paddingBottom: 10, border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box" }}
-          />
-        </div>
-        <select
-          value={status}
-          onChange={e => { setStatus(e.target.value); setPage(1); }}
-          style={{ padding: "10px 12px", border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", background: "#fff", minWidth: 180 }}
-        >
-          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select
-          value={dateRange}
-          onChange={e => { setDateRange(e.target.value); setPage(1); }}
-          style={{ padding: "10px 12px", border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", background: "#fff", minWidth: 140 }}
-        >
-          {DATE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-      </div>
-
-      {/* Legend */}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 20 }}>
-        {[
-          { color: "#9CA3AF", label: "Pending" },
-          { color: "#F59E0B", label: "SMS Sent" },
-          { color: "#F59E0B", label: "Form Opened" },
-          { color: G,         label: "Positive / Redirected" },
-          { color: "#EF4444", label: "Negative" },
-        ].map(l => (
-          <div key={l.label} style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <div style={{ width: 10, height: 10, borderRadius: "50%", background: l.color }} />
-            <span style={{ fontSize: 12, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>{l.label}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Table */}
-      {paged.length === 0 ? (
-        <div style={{ textAlign: "center", padding: "64px 24px", background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
-          {bookings.length === 0 ? (
-            <>
-              <div style={{ width: 64, height: 64, borderRadius: "50%", background: "rgba(0,200,150,0.08)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                <Users size={28} style={{ color: G }} />
-              </div>
-              <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 8px" }}>
-                No customers yet
-              </h3>
-              <p style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif", maxWidth: 380, margin: "0 auto 24px", lineHeight: 1.6 }}>
-                Customers appear here when they are added via the Vomni booking system. Each entry tracks their full review journey - from first message to Google review.
-              </p>
-            </>
-          ) : (
-            <>
-              <Users size={32} style={{ color: "#D1D5DB", margin: "0 auto 12px" }} />
-              <p style={{ fontSize: 15, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
-                No results match your filters.
-              </p>
-            </>
-          )}
-        </div>
-      ) : (
-        <>
-          {/* Table */}
-          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
-              <thead>
-                <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                  {["Customer", "Service", "Appointment", "Journey", "Status", "Rating", "Added"].map(h => (
-                    <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {paged.map((b, idx) => {
-                  const badge = STATUS_BADGE[b.review_status ?? "pending"] ?? STATUS_BADGE.pending;
-                  return (
-                    <tr key={b.id} style={{ borderTop: idx > 0 ? "1px solid #F3F4F6" : "none" }}>
-                      <td style={{ padding: "14px 16px" }}>
-                        <p style={{ fontWeight: 500, color: N, fontSize: 14, margin: 0 }}>{b.customer_name ?? "-"}</p>
-                        {b.customer_email && <p style={{ fontSize: 12, color: "#9CA3AF", margin: "2px 0 0" }}>{b.customer_email}</p>}
-                      </td>
-                      <td style={{ padding: "14px 16px", fontSize: 14, color: "#374151" }}>{b.service ?? "-"}</td>
-                      <td style={{ padding: "14px 16px", fontSize: 13, color: "#6B7280" }}>{fmtDate(b.appointment_at)}</td>
-                      <td style={{ padding: "14px 16px" }}>
-                        <JourneyTrack status={b.review_status} />
-                      </td>
-                      <td style={{ padding: "14px 16px" }}>
-                        <span style={{ fontSize: 12, fontWeight: 500, borderRadius: 9999, padding: "3px 10px", ...badge.style }}>
-                          {badge.label}
-                        </span>
-                      </td>
-                      <td style={{ padding: "14px 16px" }}>
-                        {b.rating ? <StarRating rating={b.rating} /> : <span style={{ fontSize: 12, color: "#D1D5DB" }}>-</span>}
-                      </td>
-                      <td style={{ padding: "14px 16px", fontSize: 13, color: "#6B7280" }}>{fmtDate(b.created_at)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div style={{ marginTop: 20, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
-                {(page - 1) * PAGE_SIZE + 1}-{Math.min(page * PAGE_SIZE, filtered.length)} of {filtered.length}
-              </span>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button
-                  disabled={page === 1}
-                  onClick={() => setPage(p => p - 1)}
-                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #E5E7EB", background: page === 1 ? "#F9FAFB" : "#fff", color: page === 1 ? "#D1D5DB" : N, cursor: page === 1 ? "not-allowed" : "pointer" }}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <button
-                  disabled={page === totalPages}
-                  onClick={() => setPage(p => p + 1)}
-                  style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #E5E7EB", background: page === totalPages ? "#F9FAFB" : "#fff", color: page === totalPages ? "#D1D5DB" : N, cursor: page === totalPages ? "not-allowed" : "pointer" }}
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+          {/* Search + stat cards */}
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
+            <div style={{ position: "relative", flex: "1 1 240px", minWidth: 200 }}>
+              <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <input
+                value={crmSearch}
+                onChange={e => setCrmSearch(e.target.value)}
+                placeholder="Search name, phone, service…"
+                style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 10, paddingBottom: 10, border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              />
             </div>
-          )}
-        </>
-      )}
-        </>
-      )} {/* end reviews tab */}
+          </div>
 
-      {/* ── CRM TAB ── */}
-      {activeTab === "crm" && (
-        <>
           {/* Stat cards */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 16, marginBottom: 24 }}>
             {[
@@ -789,7 +537,7 @@ export default function CustomersPage() {
             <div style={{ display: "flex", justifyContent: "center", padding: 64 }}>
               <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
             </div>
-          ) : crmCustomers.length === 0 ? (
+          ) : filteredClients.length === 0 ? (
             <div style={{ textAlign: "center", padding: "64px 24px", background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB" }}>
               <Users size={36} style={{ color: "#D1D5DB", margin: "0 auto 16px" }} />
               <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 8px" }}>
@@ -797,7 +545,7 @@ export default function CustomersPage() {
               </h3>
               <p style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif", maxWidth: 420, margin: "0 auto", lineHeight: 1.6 }}>
                 {crmStats.total === 0
-                  ? "Customers appear here after their first completed appointment or import. Your CRM builds itself."
+                  ? "Clients appear here after their first completed appointment or import. Your client list builds itself."
                   : "Try a different filter."}
               </p>
             </div>
@@ -812,7 +560,7 @@ export default function CustomersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {crmCustomers.map((c, idx) => {
+                  {filteredClients.map((c, idx) => {
                     const isExpanded = crmExpanded === c.id;
                     const statusBadge = {
                       active:    { label: "Active",    bg: "rgba(0,200,150,0.1)",  color: "#00A87D" },
@@ -1097,7 +845,7 @@ export default function CustomersPage() {
           </div>
 
         </>
-      )} {/* end crm tab */}
+      )} {/* end clients tab */}
 
     </div>
   );
