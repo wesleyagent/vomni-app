@@ -201,11 +201,10 @@ export async function POST(
     }
     bookingId = result.booking_id!;
 
-    // Immediately overwrite customer_phone with display value and set encrypted columns
+    // Immediately overwrite customer_phone with display value
     // (the RPC stored the raw phone — we replace it now)
     await supabaseAdmin.from("bookings").update({
       customer_phone: phoneDisplay,
-      customer_phone_encrypted: phoneEncrypted,
       phone_display: phoneDisplay,
     }).eq("id", bookingId);
   } else {
@@ -217,7 +216,6 @@ export async function POST(
         service_id: service.id,
         customer_name: customerName,
         customer_phone: phoneDisplay,            // masked — not raw
-        customer_phone_encrypted: phoneEncrypted,
         phone_display: phoneDisplay,
         customer_email: email || null,
         service: service.name,
