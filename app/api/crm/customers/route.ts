@@ -223,7 +223,7 @@ export async function GET(req: NextRequest) {
       nudged_recently: nudgedRecently,
       opted_out:         p.opted_out ?? false,
       opted_out_at:      p.opted_out_at ?? null,
-      marketing_consent: (p as typeof p & { marketing_consent?: boolean }).marketing_consent ?? false,
+      marketing_consent: (p as typeof p & { marketing_consent?: boolean }).marketing_consent ?? true,
       notes:             p.notes ?? null,
       created_at:     p.created_at,
     };
