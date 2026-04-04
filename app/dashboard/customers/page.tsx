@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare, Upload } from "lucide-react";
+import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare } from "lucide-react";
 import { useBusinessContext } from "../_context";
 import { db, getAuthToken } from "@/lib/db";
 
@@ -113,11 +113,6 @@ export default function CustomersPage() {
   const [crmSearch,    setCrmSearch]    = useState("");
   const CRM_PER_PAGE = 20;
 
-  // Bulk review request state
-  const [bulkFile,     setBulkFile]     = useState<File | null>(null);
-  const [bulkSending,  setBulkSending]  = useState(false);
-  const [bulkResult,   setBulkResult]   = useState<{ sent: number; failed: number; skipped: number; total: number } | null>(null);
-  const [bulkError,    setBulkError]    = useState<string | null>(null);
 
   // Appointments tab state
   const [appointments,   setAppointments]   = useState<Appointment[]>([]);
@@ -130,6 +125,7 @@ export default function CustomersPage() {
   useEffect(() => {
     if (!businessId) { setApptLoading(false); return; }
 
+    // Load appointments (Schedule tab)
     db.from("bookings")
       .select("id, customer_name, customer_email, customer_phone, service_name, appointment_at, status, review_status, rating, notes, created_at")
       .eq("business_id", businessId)
@@ -138,6 +134,10 @@ export default function CustomersPage() {
         setAppointments((data ?? []) as Appointment[]);
         setApptLoading(false);
       });
+
+    // Pre-fetch clients data immediately — don't wait for tab click
+    fetchCrm();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessId]);
 
   // ── CRM fetch ────────────────────────────────────────────────────────────
@@ -749,100 +749,6 @@ export default function CustomersPage() {
               </div>
             </div>
           )}
-          {/* ── Send review requests in bulk ── */}
-          <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", padding: 28, marginTop: 24, boxShadow: "0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
-              <Upload size={18} style={{ color: G }} />
-              <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 600, color: N, margin: 0 }}>Send review requests in bulk</h2>
-            </div>
-            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.6 }}>
-              Upload a CSV with two columns: <strong>name</strong> and <strong>phone</strong>. We&apos;ll send a WhatsApp review request to each customer.
-            </p>
-
-            {bulkError && (
-              <div style={{ padding: "10px 14px", borderRadius: 8, background: "#FEE2E2", border: "1px solid #FECACA", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#DC2626", marginBottom: 12 }}>
-                {bulkError}
-              </div>
-            )}
-
-            {bulkResult && (
-              <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(0,200,150,0.08)", border: "1px solid rgba(0,200,150,0.2)", fontFamily: "Inter, sans-serif", fontSize: 13, color: N, marginBottom: 12 }}>
-                ✓ Done — <strong>{bulkResult.sent}</strong> sent, <strong>{bulkResult.skipped}</strong> skipped, <strong>{bulkResult.failed}</strong> failed (of {bulkResult.total} rows)
-              </div>
-            )}
-
-            <div
-              onClick={() => document.getElementById("bulk-csv-input")?.click()}
-              style={{
-                border: `2px dashed ${bulkFile ? G : "#E5E7EB"}`,
-                borderRadius: 12, padding: "24px 16px", textAlign: "center",
-                cursor: "pointer", marginBottom: 14, background: bulkFile ? "rgba(0,200,150,0.04)" : "#FAFAFA",
-              }}
-            >
-              <Upload size={28} style={{ color: bulkFile ? G : "#9CA3AF", margin: "0 auto 8px", display: "block" }} />
-              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: bulkFile ? N : "#9CA3AF", margin: "0 0 2px" }}>
-                {bulkFile ? bulkFile.name : "Click to select a CSV file"}
-              </p>
-              {!bulkFile && (
-                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: 0 }}>Columns: name, phone</p>
-              )}
-              <input
-                id="bulk-csv-input"
-                type="file"
-                accept=".csv"
-                style={{ display: "none" }}
-                onChange={e => {
-                  const f = e.target.files?.[0] ?? null;
-                  setBulkFile(f);
-                  setBulkResult(null);
-                  setBulkError(null);
-                }}
-              />
-            </div>
-
-            <button
-              disabled={!bulkFile || bulkSending || !businessId}
-              onClick={async () => {
-                if (!bulkFile || !businessId) return;
-                setBulkSending(true);
-                setBulkError(null);
-                setBulkResult(null);
-                try {
-                  const token = await getAuthToken();
-                  const fd = new FormData();
-                  fd.append("file", bulkFile);
-                  fd.append("business_id", businessId);
-                  const res = await fetch("/api/crm/bulk-review-request", {
-                    method: "POST",
-                    headers: token ? { Authorization: `Bearer ${token}` } : {},
-                    body: fd,
-                  });
-                  const data = await res.json();
-                  if (!res.ok) {
-                    setBulkError(data.error ?? "Upload failed");
-                  } else {
-                    setBulkResult(data);
-                    setBulkFile(null);
-                    const inp = document.getElementById("bulk-csv-input") as HTMLInputElement | null;
-                    if (inp) inp.value = "";
-                  }
-                } catch {
-                  setBulkError("Network error — please try again");
-                } finally {
-                  setBulkSending(false);
-                }
-              }}
-              style={{
-                padding: "11px 24px", borderRadius: 10,
-                background: !bulkFile || bulkSending || !businessId ? "#F3F4F6" : G,
-                color: !bulkFile || bulkSending || !businessId ? "#9CA3AF" : "#fff",
-                border: "none", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600,
-                cursor: !bulkFile || bulkSending || !businessId ? "not-allowed" : "pointer",
-              }}
-            >
-              {bulkSending ? "Sending…" : "Send review requests"}
-            </button>
-          </div>
 
         </>
       )} {/* end clients tab */}
