@@ -142,7 +142,7 @@ export default function MigratePage() {
               We&apos;ve heard every reason not to switch. Here&apos;s the truth about each one.
             </p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 24 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 24 }}>
             {FEARS.map((f, i) => (
               <div key={i} style={{ background: OW, borderRadius: 16, padding: "36px", border: `1px solid ${BD}` }}>
                 <div style={{ display: "flex", gap: 16, alignItems: "flex-start", marginBottom: 16 }}>
