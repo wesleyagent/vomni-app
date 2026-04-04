@@ -36,7 +36,7 @@ interface StaffMember {
   name: string;
 }
 
-type ViewMode = "day" | "week" | "upcoming";
+type ViewMode = "day" | "fiveday" | "month";
 
 const STAFF_COLORS = [
   "#00C896", "#3B82F6", "#F59E0B", "#EF4444", "#8B5CF6",
@@ -49,7 +49,7 @@ function formatDateStr(d: Date): string {
 
 export default function CalendarPage() {
   const ctx = useContext(BusinessContext);
-  const [view, setView] = useState<ViewMode>("day");
+  const [view, setView] = useState<ViewMode>("fiveday");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookings, setBookings] = useState<CalendarBooking[]>([]);
   const [staffList, setStaffList] = useState<StaffMember[]>([]);
@@ -135,18 +135,20 @@ export default function CalendarPage() {
       const ds = formatDateStr(currentDate);
       startDate = `${ds}T00:00:00`;
       endDate = `${ds}T23:59:59`;
-    } else if (view === "week") {
+    } else if (view === "fiveday") {
       const sun = new Date(currentDate);
       sun.setDate(sun.getDate() - sun.getDay());
-      const sat = new Date(sun);
-      sat.setDate(sat.getDate() + 6);
+      const thu = new Date(sun);
+      thu.setDate(thu.getDate() + 4);
       startDate = `${formatDateStr(sun)}T00:00:00`;
-      endDate = `${formatDateStr(sat)}T23:59:59`;
+      endDate = `${formatDateStr(thu)}T23:59:59`;
     } else {
-      startDate = new Date().toISOString();
-      const future = new Date();
-      future.setDate(future.getDate() + 30);
-      endDate = future.toISOString();
+      const y = currentDate.getFullYear();
+      const m = currentDate.getMonth();
+      const first = new Date(y, m, 1);
+      const last = new Date(y, m + 1, 0);
+      startDate = `${formatDateStr(first)}T00:00:00`;
+      endDate = `${formatDateStr(last)}T23:59:59`;
     }
 
     const { data: bks } = await db
@@ -188,6 +190,12 @@ export default function CalendarPage() {
   function navigateWeek(offset: number) {
     const d = new Date(currentDate);
     d.setDate(d.getDate() + offset * 7);
+    setCurrentDate(d);
+  }
+
+  function navigateMonth(offset: number) {
+    const d = new Date(currentDate);
+    d.setMonth(d.getMonth() + offset);
     setCurrentDate(d);
   }
 
@@ -282,6 +290,20 @@ export default function CalendarPage() {
   const currentDateStr = formatDateStr(currentDate);
   const isToday = currentDateStr === todayStr;
 
+  const showTodayBtn = view === "day" ? !isToday
+    : view === "fiveday" ? (() => {
+        const t = new Date();
+        const sun = new Date(currentDate);
+        sun.setDate(sun.getDate() - sun.getDay());
+        const thu = new Date(sun);
+        thu.setDate(thu.getDate() + 4);
+        return t < sun || t > thu;
+      })()
+    : (() => {
+        const t = new Date();
+        return t.getMonth() !== currentDate.getMonth() || t.getFullYear() !== currentDate.getFullYear();
+      })();
+
   // Filtered bookings based on selected staff
   const filteredBookings = selectedStaffId
     ? bookings.filter(b => b.staff_id === selectedStaffId)
@@ -326,8 +348,14 @@ export default function CalendarPage() {
           <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 700, color: N, margin: 0 }}>Calendar</h1>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: SECONDARY, margin: "3px 0 0" }}>
             {view === "day" && (isToday ? "Today" : currentDate.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }))}
-            {view === "week" && `Week of ${currentDate.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}
-            {view === "upcoming" && "Next 30 days"}
+            {view === "fiveday" && (() => {
+              const sun = new Date(currentDate);
+              sun.setDate(sun.getDate() - sun.getDay());
+              const thu = new Date(sun);
+              thu.setDate(thu.getDate() + 4);
+              return `${sun.toLocaleDateString("en-GB", { day: "numeric", month: "short" })} – ${thu.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+            })()}
+            {view === "month" && currentDate.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}
           </p>
         </div>
 
@@ -343,7 +371,7 @@ export default function CalendarPage() {
             <Plus size={15} strokeWidth={2.5} /> New Booking
           </button>
 
-          {!isToday && view !== "upcoming" && (
+          {showTodayBtn && (
             <button
               onClick={() => setCurrentDate(new Date())}
               style={{
@@ -354,21 +382,19 @@ export default function CalendarPage() {
             >Today</button>
           )}
 
-          {view !== "upcoming" && (
-            <div style={{ display: "flex", gap: 3 }}>
-              <button
-                onClick={() => view === "day" ? navigateDay(-1) : navigateWeek(-1)}
-                style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 8, padding: 7, cursor: "pointer", display: "flex", alignItems: "center" }}
-              ><ChevronLeft size={17} color={SECONDARY} /></button>
-              <button
-                onClick={() => view === "day" ? navigateDay(1) : navigateWeek(1)}
-                style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 8, padding: 7, cursor: "pointer", display: "flex", alignItems: "center" }}
-              ><ChevronRight size={17} color={SECONDARY} /></button>
-            </div>
-          )}
+          <div style={{ display: "flex", gap: 3 }}>
+            <button
+              onClick={() => view === "day" ? navigateDay(-1) : view === "fiveday" ? navigateDay(-7) : navigateMonth(-1)}
+              style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 8, padding: 7, cursor: "pointer", display: "flex", alignItems: "center" }}
+            ><ChevronLeft size={17} color={SECONDARY} /></button>
+            <button
+              onClick={() => view === "day" ? navigateDay(1) : view === "fiveday" ? navigateDay(7) : navigateMonth(1)}
+              style={{ background: "#fff", border: `1px solid ${BORDER}`, borderRadius: 8, padding: 7, cursor: "pointer", display: "flex", alignItems: "center" }}
+            ><ChevronRight size={17} color={SECONDARY} /></button>
+          </div>
 
           <div style={{ display: "flex", background: GREY, borderRadius: 10, padding: 3 }}>
-            {(["day", "week", "upcoming"] as ViewMode[]).map(v => (
+            {(["day", "fiveday", "month"] as ViewMode[]).map(v => (
               <button
                 key={v}
                 onClick={() => setView(v)}
@@ -377,9 +403,9 @@ export default function CalendarPage() {
                   background: view === v ? "#fff" : "transparent",
                   boxShadow: view === v ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
                   fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: view === v ? 600 : 500,
-                  color: view === v ? N : SECONDARY, cursor: "pointer", textTransform: "capitalize",
+                  color: view === v ? N : SECONDARY, cursor: "pointer",
                 }}
-              >{v === "upcoming" ? "Upcoming" : v}</button>
+              >{v === "fiveday" ? "5-Day" : v === "month" ? "Month" : "Day"}</button>
             ))}
           </div>
         </div>
@@ -459,20 +485,7 @@ export default function CalendarPage() {
                   <span style={{ fontSize: 11, color: "#93C5FD", fontFamily: "Inter, sans-serif" }}>Google Calendar</span>
                 </div>
               ))}
-              {filteredBookings.length === 0 && gcalEvents.filter(e => e.start.substring(0, 10) === formatDateStr(currentDate)).length === 0 ? (
-                <div style={{
-                  background: "#fff", borderRadius: 16, border: `1px solid ${BORDER}`,
-                  padding: "60px 24px", textAlign: "center",
-                }}>
-                  <div style={{ fontSize: 44, marginBottom: 12 }}>📅</div>
-                  <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 600, color: N, margin: "0 0 4px" }}>
-                    {isToday ? "Nothing today" : "Nothing on this day"}
-                  </p>
-                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: MUTED, margin: 0 }}>
-                    Tap + to add an appointment
-                  </p>
-                </div>
-              ) : filteredBookings.length > 0 ? (
+              {filteredBookings.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {filteredBookings.map(b => {
                     const status = (b.status ?? "confirmed") as BookingStatus;
@@ -540,21 +553,22 @@ export default function CalendarPage() {
                     );
                   })}
                 </div>
-              ) : null}
+              )}
             </div>
           )}
 
-          {/* ── WEEK VIEW ── */}
-          {view === "week" && (() => {
+          {/* ── 5-DAY VIEW (Sun–Thu) ── */}
+          {view === "fiveday" && (() => {
             const sun = new Date(currentDate);
             sun.setDate(sun.getDate() - sun.getDay());
-            const days = Array.from({ length: 7 }, (_, i) => {
+            const DAY_NAMES_5 = ["Sun", "Mon", "Tue", "Wed", "Thu"];
+            const days = Array.from({ length: 5 }, (_, i) => {
               const d = new Date(sun);
               d.setDate(d.getDate() + i);
               return d;
             });
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                 {days.map((d, i) => {
                   const ds = formatDateStr(d);
                   const dayBookings = filteredBookings.filter(b => b.appointment_at?.substring(0, 10) === ds);
@@ -569,7 +583,7 @@ export default function CalendarPage() {
                         background: isDayToday ? `${G}08` : "transparent", textAlign: "center",
                       }}>
                         <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: MUTED, textTransform: "uppercase" }}>
-                          {DAY_NAMES_SHORT_EN[i]}
+                          {DAY_NAMES_5[i]}
                         </div>
                         <div style={{
                           fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700,
@@ -577,9 +591,7 @@ export default function CalendarPage() {
                         }}>{d.getDate()}</div>
                       </div>
                       <div style={{ padding: 6 }}>
-                        {dayBookings.length === 0 ? (
-                          <div style={{ padding: 12, textAlign: "center", fontFamily: "Inter, sans-serif", fontSize: 11, color: "#D1D5DB" }}>—</div>
-                        ) : dayBookings.map(b => (
+                        {dayBookings.map(b => (
                           <button
                             key={b.id}
                             onClick={() => setSelectedBooking(b)}
@@ -607,72 +619,78 @@ export default function CalendarPage() {
           })()}
 
           {/* ── UPCOMING LIST ── */}
-          {view === "upcoming" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {filteredBookings.filter(b => b.status === "confirmed").length === 0 ? (
-                <div style={{
-                  background: "#fff", borderRadius: 16, border: `1px solid ${BORDER}`,
-                  padding: 60, textAlign: "center",
-                }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>📅</div>
-                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: MUTED }}>No upcoming appointments</p>
+          {/* ── MONTH VIEW ── */}
+          {view === "month" && (() => {
+            const y = currentDate.getFullYear();
+            const m = currentDate.getMonth();
+            const firstDay = new Date(y, m, 1);
+            const lastDay = new Date(y, m + 1, 0);
+            const startDow = firstDay.getDay();
+            const totalCells = Math.ceil((startDow + lastDay.getDate()) / 7) * 7;
+            const cells = Array.from({ length: totalCells }, (_, i) => {
+              return new Date(y, m, i - startDow + 1);
+            });
+            const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+            return (
+              <div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
+                  {DAY_HEADERS.map(h => (
+                    <div key={h} style={{ textAlign: "center", padding: "6px 0", fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: MUTED, textTransform: "uppercase" }}>
+                      {h}
+                    </div>
+                  ))}
                 </div>
-              ) : filteredBookings.filter(b => b.status === "confirmed").map(b => {
-                const time = b.appointment_at?.substring(11, 16) ?? "";
-                const dateStr = b.appointment_at?.substring(0, 10) ?? "";
-                const dateObj = new Date(dateStr + "T00:00:00");
-                return (
-                  <button
-                    key={b.id}
-                    onClick={() => setSelectedBooking(b)}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 16,
-                      background: "#fff", borderRadius: 12, border: `1px solid ${BORDER}`,
-                      padding: "16px 20px", cursor: "pointer", textAlign: "left",
-                    }}
-                  >
-                    <div style={{
-                      width: 48, height: 48, borderRadius: 12, background: GREY,
-                      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                      flexShrink: 0,
-                    }}>
-                      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: N }}>{dateObj.getDate()}</div>
-                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 10, fontWeight: 600, color: MUTED, textTransform: "uppercase" }}>
-                        {dateObj.toLocaleDateString("en-US", { month: "short" })}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 4 }}>
+                  {cells.map((d, i) => {
+                    const ds = formatDateStr(d);
+                    const isCurrentMonth = d.getMonth() === m;
+                    const isDayToday = ds === todayStr;
+                    const dayBookings = filteredBookings.filter(b => b.appointment_at?.substring(0, 10) === ds);
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => { if (isCurrentMonth) { setCurrentDate(d); setView("day"); } }}
+                        style={{
+                          minHeight: 80, borderRadius: 10,
+                          border: `1px solid ${isDayToday ? G : BORDER}`,
+                          background: isCurrentMonth ? "#fff" : GREY,
+                          padding: "6px 8px",
+                          cursor: isCurrentMonth ? "pointer" : "default",
+                          opacity: isCurrentMonth ? 1 : 0.4,
+                        }}
+                      >
+                        <div style={{
+                          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 13, fontWeight: 700,
+                          color: isDayToday ? G : isCurrentMonth ? N : MUTED,
+                          marginBottom: 4,
+                        }}>{d.getDate()}</div>
+                        {dayBookings.slice(0, 3).map(b => (
+                          <div
+                            key={b.id}
+                            onClick={e => { e.stopPropagation(); setSelectedBooking(b); }}
+                            style={{
+                              fontSize: 10, fontFamily: "Inter, sans-serif", fontWeight: 600,
+                              color: "#fff", background: getStaffColor(b.staff_id),
+                              borderRadius: 3, padding: "1px 4px", marginBottom: 2,
+                              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                              cursor: "pointer",
+                            }}
+                          >
+                            {b.appointment_at?.substring(11, 16)} {b.customer_name}
+                          </div>
+                        ))}
+                        {dayBookings.length > 3 && (
+                          <div style={{ fontSize: 10, fontFamily: "Inter, sans-serif", color: MUTED }}>
+                            +{dayBookings.length - 3} more
+                          </div>
+                        )}
                       </div>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700, color: N }}>
-                        {b.customer_name} — {time}
-                      </div>
-                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: SECONDARY, marginTop: 2 }}>
-                        {b.service_name}{b.staff_id && staffList.length > 1 ? ` · ${getStaffName(b.staff_id)}` : ""}
-                      </div>
-                    </div>
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        const reviewUrl = `${typeof window !== "undefined" ? window.location.origin : "https://vomni.io"}/review-invite/${ctx?.businessId}`;
-                        const name = b.customer_name ?? "there";
-                        const bName = ctx?.businessName ?? "us";
-                        setReviewModalBooking(b);
-                        setReviewMessage(`Hi ${name}! Thanks for visiting ${bName}. We'd love to hear your feedback — could you leave us a quick Google review? 🌟 ${reviewUrl}`);
-                        setShowQR(false);
-                        setShowReviewModal(true);
-                      }}
-                      style={{
-                        padding: "6px 12px", borderRadius: 9999,
-                        background: `${G}15`, color: G, border: `1px solid ${G}`,
-                        fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
-                        cursor: "pointer", whiteSpace: "nowrap", flexShrink: 0,
-                      }}
-                    >⭐ Review</button>
-                    <span style={{ color: MUTED, fontSize: 18 }}>›</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </>
       )}
 
