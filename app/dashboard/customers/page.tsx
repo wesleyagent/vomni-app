@@ -75,6 +75,7 @@ interface Appointment {
   service_name: string | null;
   appointment_at: string | null;
   status: "confirmed" | "completed" | "no_show" | "cancelled" | "pending";
+  cancellation_reason: string | null;
   review_status: string | null;
   rating: number | null;
   notes: string | null;
@@ -88,6 +89,7 @@ const APPT_BADGE: Record<string, { label: string; icon: React.ReactNode; style: 
   completed:  { label: "Completed",  icon: <CheckCircle size={12} />, style: { background: "#EFF6FF", color: "#3B82F6", border: "1px solid #BFDBFE" } },
   no_show:    { label: "No-Show",    icon: <XCircle size={12} />,     style: { background: "#FEE2E2", color: "#DC2626", border: "1px solid #FECACA" } },
   cancelled:  { label: "Cancelled",  icon: <XCircle size={12} />,     style: { background: "#F3F4F6", color: "#6B7280", border: "1px solid #E5E7EB" } },
+  rescheduled: { label: "Rescheduled", icon: <CheckCircle size={12} />, style: { background: "#EFF6FF", color: "#3B82F6", border: "1px solid #BFDBFE" } },
   pending:    { label: "Pending",    icon: <Clock size={12} />,       style: { background: "#FEF3C7", color: "#B45309", border: "1px solid #FDE68A" } },
 };
 
@@ -129,7 +131,7 @@ export default function CustomersPage() {
 
     // Load appointments (Schedule tab)
     db.from("bookings")
-      .select("id, customer_name, customer_email, customer_phone, service_name, appointment_at, status, review_status, rating, notes, created_at")
+      .select("id, customer_name, customer_email, customer_phone, service_name, appointment_at, status, cancellation_reason, review_status, rating, notes, created_at")
       .eq("business_id", businessId)
       .order("appointment_at", { ascending: false })
       .then(({ data }) => {
@@ -379,7 +381,8 @@ export default function CustomersPage() {
                   </thead>
                   <tbody>
                     {apptPaged.map((a, idx) => {
-                      const badge = APPT_BADGE[a.status] ?? APPT_BADGE.pending;
+                      const badgeKey = a.status === "cancelled" && a.cancellation_reason === "rescheduled" ? "rescheduled" : a.status;
+                      const badge = APPT_BADGE[badgeKey] ?? APPT_BADGE.pending;
                       const isPast = a.appointment_at ? new Date(a.appointment_at) < new Date() : false;
                       const canMarkNoShow = (a.status === "confirmed" || a.status === "pending") && isPast;
                       return (
