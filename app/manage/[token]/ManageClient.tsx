@@ -128,8 +128,8 @@ export default function ManageClient({ token, booking, business }: Props) {
     try {
       const url = `/api/booking/${business.bookingSlug}/availability?date=${date}&service_id=${booking.serviceId}&staff_id=${booking.staffId ?? "any"}`;
       const res = await fetch(url);
-      const data = await res.json() as { slots?: string[] };
-      setSlots(data.slots ?? []);
+      const data = await res.json() as { slots?: (string | { time: string })[] };
+      setSlots((data.slots ?? []).map(s => typeof s === "string" ? s : s.time));
     } catch {
       setSlots([]);
     }
