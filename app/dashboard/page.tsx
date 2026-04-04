@@ -582,7 +582,7 @@ export default function DashboardOverview() {
           This month
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
           {/* Left + Right columns */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
