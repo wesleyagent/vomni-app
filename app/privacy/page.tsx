@@ -84,7 +84,7 @@ export default function PrivacyPage() {
         <P>We operate under both Israeli and UK privacy law.</P>
 
         <Section title="1. Who we are">
-          <P>Vomni Ltd, Tel Aviv, Israel.</P>
+          <P>Vomni</P>
           <P>Contact: <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a></P>
         </Section>
 

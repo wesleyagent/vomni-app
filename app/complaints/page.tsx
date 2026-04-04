@@ -40,52 +40,68 @@ function LegalFooter() {
   );
 }
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginTop: 48 }}>
+      <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginBottom: 16 }}>{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function P({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, margin: "0 0 12px" }}>
+      {children}
+    </p>
+  );
+}
+
+function Item({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+      <span style={{ color: G, flexShrink: 0, marginTop: 2 }}>—</span>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, margin: 0 }}>{children}</p>
+    </div>
+  );
+}
+
 export default function ComplaintsPage() {
   return (
     <div style={{ background: "#fff", minHeight: "100vh" }}>
       <LegalHeader />
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", marginBottom: 32 }}>
-          Last updated March 2026.
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px 80px" }}>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", marginBottom: 16 }}>
+          Last updated: 4 April 2026
         </p>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 40, fontWeight: 800, color: N, marginBottom: 8 }}>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 40, fontWeight: 800, color: N, marginBottom: 16 }}>
           Complaints Policy
         </h1>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          We&apos;re a small team and we take every complaint seriously.
-        </p>
+        <P>We take every complaint seriously.</P>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>How to raise a complaint</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          Email <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a> with:
-        </p>
-        <ul style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, paddingLeft: 24 }}>
-          <li>Your business name</li>
-          <li>A clear description of your complaint</li>
-          <li>What you would like us to do about it</li>
-        </ul>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          We acknowledge every complaint within 1 working day.
-        </p>
+        <Section title="How to raise a complaint">
+          <P>Email <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a> with your business name, a clear description of your complaint, and what you would like us to do about it.</P>
+          <P>We acknowledge every complaint within 1 working day.</P>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>What happens next</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          We aim to resolve every complaint within 5 working days. If it takes longer we will update you with a timeline. For complaints about data or privacy we aim to respond within 72 hours.
-        </p>
+        <Section title="What happens next">
+          <P>We aim to resolve every complaint within 5 working days. If it takes longer we will keep you updated. For complaints relating to data or privacy we aim to respond within 72 hours.</P>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>If you&apos;re not satisfied with our response</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          You can escalate to:
-        </p>
-        <ul style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, paddingLeft: 24 }}>
-          <li>For data protection complaints - the Information Commissioner&apos;s Office (ICO) at <a href="https://ico.org.uk" target="_blank" rel="noreferrer" style={{ color: G, textDecoration: "none" }}>ico.org.uk</a></li>
-          <li>For general consumer complaints - Citizens Advice at <a href="https://citizensadvice.org.uk" target="_blank" rel="noreferrer" style={{ color: G, textDecoration: "none" }}>citizensadvice.org.uk</a></li>
-        </ul>
+        <Section title="If you are not satisfied with our response">
+          <P>You can escalate to the relevant authority in your jurisdiction:</P>
+          <Item>Israel: Privacy Protection Authority — <a href="https://www.gov.il" target="_blank" rel="noreferrer" style={{ color: G, textDecoration: "none" }}>gov.il</a></Item>
+          <Item>United Kingdom: Information Commissioner&apos;s Office — <a href="https://ico.org.uk" target="_blank" rel="noreferrer" style={{ color: G, textDecoration: "none" }}>ico.org.uk</a></Item>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Our commitment</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          We will always treat complaints fairly, respond promptly, and use every complaint as an opportunity to improve. If we got something wrong we will say so clearly and put it right.
-        </p>
+        <Section title="Our commitment">
+          <P>We will always treat complaints fairly, respond promptly, and use every complaint as an opportunity to improve. If we got something wrong we will say so and put it right.</P>
+        </Section>
+
+        <div style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid #E5E7EB" }}>
+          <P>Contact: <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a></P>
+        </div>
+
       </div>
       <LegalFooter />
     </div>

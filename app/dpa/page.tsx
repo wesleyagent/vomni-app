@@ -40,72 +40,80 @@ function LegalFooter() {
   );
 }
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginTop: 48 }}>
+      <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginBottom: 16 }}>{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function P({ children }: { children: React.ReactNode }) {
+  return (
+    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, margin: "0 0 12px" }}>
+      {children}
+    </p>
+  );
+}
+
+function Item({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+      <span style={{ color: G, flexShrink: 0, marginTop: 2 }}>—</span>
+      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, margin: 0 }}>{children}</p>
+    </div>
+  );
+}
+
 export default function DpaPage() {
   return (
     <div style={{ background: "#fff", minHeight: "100vh" }}>
       <LegalHeader />
-      <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", marginBottom: 32 }}>
-          Last updated March 2026.
+      <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px 80px" }}>
+        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", marginBottom: 16 }}>
+          Last updated: 4 April 2026
         </p>
-        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 40, fontWeight: 800, color: N, marginBottom: 8 }}>
+        <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 40, fontWeight: 800, color: N, marginBottom: 16 }}>
           Data Processing Agreement
         </h1>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          This agreement is between Vomni (the data processor) and your business (the data controller).
-        </p>
+        <P>This agreement is between Vomni Ltd (&ldquo;Vomni&rdquo;, the data processor) and your business (the data controller). It applies for the duration of your Vomni subscription.</P>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>What this agreement covers</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          Vomni processes personal data - specifically customer names and phone numbers - on your behalf. The sole purpose is to send automated feedback request text messages after customer appointments.
-        </p>
+        <Section title="1. What this covers">
+          <P>Vomni processes personal data — specifically customer names and phone numbers — on your behalf, solely for the purpose of operating the Vomni platform on your instructions.</P>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>What data is processed</h2>
-        <ul style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, paddingLeft: 24 }}>
-          <li>Customer first names and phone numbers received from your booking confirmation emails</li>
-          <li>Customer responses to feedback requests</li>
-          <li>Timestamps of messages sent and received</li>
-        </ul>
+        <Section title="2. Vomni&apos;s responsibilities">
+          <P>We will:</P>
+          <Item>Process personal data only for the purposes described above and only on your instructions.</Item>
+          <Item>Ensure all personnel with access to personal data are bound by confidentiality obligations.</Item>
+          <Item>Implement appropriate technical and organisational measures to protect personal data.</Item>
+          <Item>Notify you without undue delay of any data breach affecting your customers&apos; data.</Item>
+          <Item>Assist you in responding to data subject rights requests.</Item>
+          <Item>Delete or return all personal data when you close your account, at your election.</Item>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>How long this agreement lasts</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          This agreement remains in force for the duration of your Vomni subscription.
-        </p>
+        <Section title="3. Your responsibilities">
+          <P>You are responsible for:</P>
+          <Item>Ensuring you have a lawful basis for sharing customer contact data with Vomni.</Item>
+          <Item>Informing your customers that they may receive communications after their appointment and that they can reply STOP at any time to unsubscribe.</Item>
+          <Item>Notifying Vomni immediately at <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a> if any customer requests deletion of their personal data.</Item>
+          <Item>Ensuring your own privacy policy references Vomni as a data processor.</Item>
+          <Item>Only sharing data for genuine customers who have had a real appointment or transaction with your business.</Item>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Vomni&apos;s responsibilities</h2>
-        <ul style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, paddingLeft: 24 }}>
-          <li>We process personal data only for the purpose described above</li>
-          <li>All staff with access to personal data are bound by confidentiality</li>
-          <li>We implement appropriate technical and security measures to protect data</li>
-          <li>We will notify you without delay of any data breach affecting your customers</li>
-          <li>We will assist you in responding to any data subject rights request</li>
-          <li>We will delete or return all personal data when you close your account</li>
-          <li>Our current sub-processors are Twilio (SMS delivery) and Supabase (data storage)</li>
-        </ul>
+        <Section title="4. Where data is stored">
+          <P>Customer data is stored securely within jurisdictions that provide an adequate level of data protection in accordance with Israeli and UK privacy law.</P>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Your responsibilities</h2>
-        <ul style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8, paddingLeft: 24 }}>
-          <li>Ensure you have a lawful basis for sharing customer contact data with Vomni</li>
-          <li>Inform customers they may receive a feedback text after their appointment. Suggested wording: &quot;After your visit you may receive a short text message asking for feedback on your experience. Reply STOP at any time to opt out.&quot;</li>
-          <li>Notify Vomni immediately at hello@vomni.io if any customer asks to have their data deleted</li>
-          <li>Update your privacy policy to mention Vomni as a data processor</li>
-          <li>Only share data for genuine customers who have had a real appointment</li>
-        </ul>
+        <Section title="5. Governing law">
+          <P>This agreement is governed by the laws of Israel.</P>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Where data is stored</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          Customer data is stored on servers within the European Economic Area or in countries recognised by the UK Information Commissioner&apos;s Office as providing adequate data protection.
-        </p>
+        <Section title="6. Contact">
+          <P><a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a></P>
+        </Section>
 
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Governing law</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          This agreement is governed by the laws of England and Wales and is subject to UK GDPR and the Data Protection Act 2018.
-        </p>
-
-        <h2 style={{ fontFamily: "Inter, sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 40 }}>Contact</h2>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 16, color: "#374151", lineHeight: 1.8 }}>
-          <a href="mailto:hello@vomni.io" style={{ color: G, textDecoration: "none" }}>hello@vomni.io</a>
-        </p>
       </div>
       <LegalFooter />
     </div>
