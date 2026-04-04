@@ -104,7 +104,7 @@ export default function PrivacyPage() {
           <Item><strong>Email address</strong> — optional, used for email confirmations if provided.</Item>
           <Item><strong>Marketing consent</strong> — whether you opted in to receive re-engagement reminders. Optional and unchecked by default.</Item>
 
-          <P style={{ marginTop: 16 }}>We do not collect payment information from end customers. We do not collect sensitive personal data.</P>
+          <div style={{ marginTop: 16 }}><P>We do not collect payment information from end customers. We do not collect sensitive personal data.</P></div>
         </Section>
 
         <Section title="4. How we use your data">
