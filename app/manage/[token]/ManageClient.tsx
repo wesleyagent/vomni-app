@@ -166,7 +166,7 @@ export default function ManageClient({ token, booking, business }: Props) {
   // ── Reschedule ──────────────────────────────────────────────────────────
 
   async function handleReschedule() {
-    if (!selDate || !selSlot || !booking.staffId) return;
+    if (!selDate || !selSlot) return;
     setConfirming(true);
     setRescheduleError(null);
     const newAt = `${selDate}T${selSlot}:00`;
@@ -177,7 +177,7 @@ export default function ManageClient({ token, booking, business }: Props) {
         body: JSON.stringify({
           token,
           new_appointment_at: newAt,
-          new_staff_id: booking.staffId,
+          new_staff_id: booking.staffId ?? null,
         }),
       });
       const data = await res.json() as {

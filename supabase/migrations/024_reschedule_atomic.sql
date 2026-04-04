@@ -8,8 +8,8 @@
 CREATE OR REPLACE FUNCTION reschedule_booking_atomic(
   p_old_token          text,
   p_new_appointment_at timestamptz,
-  p_new_staff_id       uuid,
-  p_buffer_minutes     int DEFAULT 0
+  p_new_staff_id       uuid    DEFAULT NULL,
+  p_buffer_minutes     int     DEFAULT 0
 )
 RETURNS json
 LANGUAGE plpgsql
@@ -41,12 +41,13 @@ BEGIN
   v_new_end_at := p_new_appointment_at
     + ((v_booking.service_duration_minutes + p_buffer_minutes) || ' minutes')::interval;
 
-  -- Check that the new slot is free for this staff member
-  -- (excluding the booking being rescheduled, in case same slot is selected)
+  -- Check that the new slot is free for this staff member (or business-wide if no staff).
+  -- Uses IS NOT DISTINCT FROM for null-safe comparison so solo businesses (staff_id IS NULL)
+  -- are handled correctly. Excludes the booking being rescheduled to allow same-slot moves.
   SELECT COUNT(*)
   INTO   v_conflict_count
   FROM   bookings
-  WHERE  staff_id   = p_new_staff_id
+  WHERE  staff_id IS NOT DISTINCT FROM p_new_staff_id
     AND  status     = 'confirmed'
     AND  id        != v_booking.id
     -- existing booking overlaps with requested window
@@ -104,7 +105,7 @@ BEGIN
   ) VALUES (
     v_booking.business_id,
     v_booking.service_id,
-    p_new_staff_id,
+    COALESCE(p_new_staff_id, v_booking.staff_id),
     v_booking.customer_name,
     v_booking.customer_phone,
     v_booking.customer_email,
