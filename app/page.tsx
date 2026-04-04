@@ -306,23 +306,31 @@ export default function LandingPage() {
     setBookingSubmitting(false);
   }
 
-  // Capture ?ref= referral code to sessionStorage
+  // Capture ?ref= referral code to sessionStorage; handle ?demo=1 scroll
   useEffect(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       const ref = params.get("ref");
       if (ref) { sessionStorage.setItem("vomni_ref", ref); }
+      if (params.get("demo") === "1") {
+        // Remove the query param from the URL without triggering a reload
+        window.history.replaceState({}, "", "/");
+        const t = setTimeout(() => {
+          document.querySelector("#book-demo")?.scrollIntoView({ behavior: "smooth" });
+        }, 400);
+        return () => clearTimeout(t);
+      }
     } catch { /* ignore */ }
   }, []);
 
-  // Scroll to hash on load (e.g. /#book-demo from contact page)
+  // Scroll to hash on load (legacy — e.g. /#book-demo links)
   useEffect(() => {
     const hash = window.location.hash;
     if (!hash) return;
     const t = setTimeout(() => {
       const el = document.querySelector(hash);
       if (el) el.scrollIntoView({ behavior: "smooth" });
-    }, 300);
+    }, 800);
     return () => clearTimeout(t);
   }, []);
 

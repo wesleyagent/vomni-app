@@ -3,7 +3,10 @@
  * All reads/writes go through these helpers so pages stay clean.
  */
 import { createClient } from "@supabase/supabase-js";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
+// Anon client — used only for auth session helpers (getCurrentUser, getAuthToken).
+// All data queries use supabaseAdmin to bypass RLS from server-side helpers.
 const url  = process.env.NEXT_PUBLIC_SUPABASE_URL  ?? "";
 const key  = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
 export const db = createClient(url, key);
@@ -119,7 +122,7 @@ export async function getAuthToken(): Promise<string | null> {
 
 /** Gets the business row where owner_email matches the logged-in user. */
 export async function getMyBusiness(email: string): Promise<DBBusiness | null> {
-  const { data, error } = await db
+  const { data, error } = await supabaseAdmin
     .from("businesses")
     .select("*")
     .eq("owner_email", email)
@@ -162,7 +165,7 @@ export async function getOverviewStats(businessId: string) {
   const weekAgo    = sevenDaysAgo();
 
   // All bookings this month (join feedback to derive effective status)
-  const { data: monthBookings } = await db
+  const { data: monthBookings } = await supabaseAdmin
     .from("bookings")
     .select("id, review_status, rating, created_at, feedback!booking_id(rating)")
     .eq("business_id", businessId)
@@ -188,7 +191,7 @@ export async function getOverviewStats(businessId: string) {
   ).length;
 
   // Avg rating — all time, from feedback table (more accurate)
-  const { data: ratedFb } = await db
+  const { data: ratedFb } = await supabaseAdmin
     .from("feedback")
     .select("rating")
     .eq("business_id", businessId)
@@ -199,14 +202,14 @@ export async function getOverviewStats(businessId: string) {
     : 0;
 
   // Negative caught — ALL feedback with rating <= 3
-  const { count: negativeFb } = await db
+  const { count: negativeFb } = await supabaseAdmin
     .from("feedback")
     .select("id", { count: "exact", head: true })
     .eq("business_id", businessId)
     .lte("rating", 3);
 
   // Google reviews — positive feedback (rating >= 4) this month
-  const { count: positiveFb } = await db
+  const { count: positiveFb } = await supabaseAdmin
     .from("feedback")
     .select("id", { count: "exact", head: true })
     .eq("business_id", businessId)
@@ -214,7 +217,7 @@ export async function getOverviewStats(businessId: string) {
     .gte("created_at", monthStart);
 
   // Review velocity — positive feedback in last 7 days
-  const { count: velocity7d } = await db
+  const { count: velocity7d } = await supabaseAdmin
     .from("feedback")
     .select("id", { count: "exact", head: true })
     .eq("business_id", businessId)
@@ -239,7 +242,7 @@ export async function getOverviewStats(businessId: string) {
 // ── Recent activity ────────────────────────────────────────────────────────
 
 export async function getRecentActivity(businessId: string): Promise<DBBooking[]> {
-  const { data } = await db
+  const { data } = await supabaseAdmin
     .from("bookings")
     .select("*")
     .eq("business_id", businessId)
@@ -251,7 +254,7 @@ export async function getRecentActivity(businessId: string): Promise<DBBooking[]
 // ── Active alerts ──────────────────────────────────────────────────────────
 
 export async function getActiveAlerts(businessId: string): Promise<DBFeedback[]> {
-  const { data } = await db
+  const { data } = await supabaseAdmin
     .from("feedback")
     .select("*, bookings(customer_name, customer_phone, service, appointment_at)")
     .eq("business_id", businessId)
@@ -270,7 +273,7 @@ export async function getActiveAlerts(businessId: string): Promise<DBFeedback[]>
 // ── All bookings ───────────────────────────────────────────────────────────
 
 export async function getAllBookings(businessId: string): Promise<DBBooking[]> {
-  const { data } = await db
+  const { data } = await supabaseAdmin
     .from("bookings")
     .select("*, feedback!booking_id(rating, status, sentiment_topic, created_at)")
     .eq("business_id", businessId)
@@ -295,7 +298,7 @@ export async function getAllBookings(businessId: string): Promise<DBBooking[]> {
 
 export async function getAllFeedback(businessId: string): Promise<DBFeedback[]> {
   // Try to join booking for customer_name / customer_phone
-  const { data } = await db
+  const { data } = await supabaseAdmin
     .from("feedback")
     .select(`*, bookings(customer_name, customer_phone)`)
     .eq("business_id", businessId)
@@ -312,7 +315,7 @@ export async function getAllFeedback(businessId: string): Promise<DBFeedback[]> 
 }
 
 export async function updateFeedbackStatus(id: string, status: string) {
-  await db.from("feedback").update({ status }).eq("id", id);
+  await supabaseAdmin.from("feedback").update({ status }).eq("id", id);
 }
 
 // ── Analytics ──────────────────────────────────────────────────────────────
@@ -371,6 +374,6 @@ export async function updateBusiness(
     | "ai_insights_cache" | "ai_insights_cached_at" | "starting_rating"
   >>
 ) {
-  const { error } = await db.from("businesses").update(patch as Record<string, unknown>).eq("id", id);
+  const { error } = await supabaseAdmin.from("businesses").update(patch as Record<string, unknown>).eq("id", id);
   return !error;
 }

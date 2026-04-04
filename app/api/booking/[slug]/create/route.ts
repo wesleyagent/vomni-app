@@ -186,7 +186,12 @@ export async function POST(
     });
 
     if (rpcErr) {
-      console.error("[booking/create] RPC error:", rpcErr.message);
+      console.error("[booking/create] RPC error:", {
+        message: rpcErr.message,
+        code:    (rpcErr as any).code,
+        details: (rpcErr as any).details,
+        hint:    (rpcErr as any).hint,
+      });
       return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
     }
 
@@ -236,7 +241,12 @@ export async function POST(
       .single();
 
     if (insertErr || !booking) {
-      console.error("[booking/create] insert error:", insertErr?.message);
+      console.error("[booking/create] insert error:", {
+        message: insertErr?.message,
+        code:    (insertErr as any)?.code,
+        details: (insertErr as any)?.details,
+        hint:    (insertErr as any)?.hint,
+      });
       return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
     }
     bookingId = booking.id;

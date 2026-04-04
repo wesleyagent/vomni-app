@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Lock, LayoutDashboard, ArrowLeft,
-  Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones, CalendarCheck, Radar,
+  Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones, CalendarCheck, Radar, Mail,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
@@ -24,6 +24,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [error, setError] = useState("");
   const [workspaceOpen, setWorkspaceOpen] = useState(true);
   const [supportCount, setSupportCount] = useState(0);
+  const [contactCount, setContactCount] = useState(0);
 
   useEffect(() => {
     setMounted(true);
@@ -42,6 +43,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       .select("id", { count: "exact", head: true })
       .eq("status", "needs_human")
       .then(({ count }) => setSupportCount(count ?? 0));
+    supabase
+      .from("contact_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "new")
+      .then(({ count }) => setContactCount(count ?? 0));
   }, [authenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -232,6 +238,43 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Demo Requests */}
           <NavLink href="/admin/demo-requests" label="Demo Requests" icon={CalendarCheck} />
+
+          {/* Contact Submissions */}
+          <Link
+            href="/admin/contact"
+            style={isActivePrefix("/admin/contact") ? {
+              display: "flex", alignItems: "center", gap: 9, padding: "9px 10px",
+              borderRadius: 8, background: "rgba(0,200,150,0.1)", color: G,
+              borderLeft: `3px solid ${G}`, fontSize: 14, fontWeight: 500, textDecoration: "none",
+            } : {
+              display: "flex", alignItems: "center", gap: 9, padding: "9px 12px",
+              borderRadius: 8, color: "rgba(255,255,255,0.55)", borderLeft: "3px solid transparent",
+              fontSize: 14, fontWeight: 500, textDecoration: "none",
+            }}
+            onMouseEnter={(e) => {
+              if (!isActivePrefix("/admin/contact")) {
+                (e.currentTarget as HTMLElement).style.color = "#fff";
+                (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.05)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isActivePrefix("/admin/contact")) {
+                (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.55)";
+                (e.currentTarget as HTMLElement).style.background = "transparent";
+              }
+            }}
+          >
+            <Mail size={18} />
+            <span style={{ flex: 1 }}>Contact</span>
+            {contactCount > 0 && (
+              <span style={{
+                background: "#EF4444", color: "white", borderRadius: 9999,
+                fontSize: 10, fontWeight: 700, padding: "1px 6px", minWidth: 18, textAlign: "center",
+              }}>
+                {contactCount}
+              </span>
+            )}
+          </Link>
 
           {/* Agent Workspace section */}
           <div style={{ marginTop: 12 }}>

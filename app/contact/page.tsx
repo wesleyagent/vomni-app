@@ -142,7 +142,7 @@ export default function ContactPage() {
                 Want to see Vomni live first?{" "}
                 <button
                   type="button"
-                  onClick={() => { window.location.href = "/#book-demo"; }}
+                  onClick={() => { window.location.href = "/?demo=1"; }}
                   style={{ background: "none", border: "none", padding: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: G, fontWeight: 500, cursor: "pointer", textDecoration: "underline" }}
                 >
                   Book a free demo
