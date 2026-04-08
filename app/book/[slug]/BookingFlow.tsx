@@ -92,6 +92,10 @@ export default function BookingFlow({ slug }: { slug: string }) {
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  // Waitlist mode — set when user clicks "Join Waitlist" for a specific full slot
+  const [waitlistMode, setWaitlistMode] = useState(false);
+  const [waitlistJoined, setWaitlistJoined] = useState<{ position: number; date: string; time: string } | null>(null);
+
   // Confirmation
   const [confirmed, setConfirmed] = useState<{
     id: string;
@@ -127,6 +131,8 @@ export default function BookingFlow({ slug }: { slug: string }) {
         setServices(data.services);
         setStaff(data.staff);
         setStaffServices(data.staffServices);
+        // Auto-tick rebook reminder for Israeli businesses (ILS currency)
+        if (data.business?.booking_currency === "ILS") setMarketingConsent(true);
       } catch {
         setError(lang === "he" ? "שגיאה בטעינה" : "Failed to load");
       }
@@ -135,12 +141,14 @@ export default function BookingFlow({ slug }: { slug: string }) {
   }, [slug, lang]);
 
   // Load available slots when date/service/staff changes
+  // include_full=true so booked slots appear as available:false (for Join Waitlist)
   const loadSlots = useCallback(async (date: string, serviceId: string, staffId: string) => {
     setLoadingSlots(true);
     setSlots([]);
+    setWaitlistMode(false);
     try {
       const res = await fetch(
-        `/api/booking/${slug}/availability?date=${date}&service_id=${serviceId}&staff_id=${staffId}`
+        `/api/booking/${slug}/availability?date=${date}&service_id=${serviceId}&staff_id=${staffId}&include_full=true`
       );
       if (res.ok) {
         const data = await res.json();
@@ -192,15 +200,48 @@ export default function BookingFlow({ slug }: { slug: string }) {
   }
 
   // Time selection
-  function handleTimeSelect(time: string) {
+  function handleTimeSelect(time: string, asWaitlist = false) {
     setSelectedTime(time);
+    setWaitlistMode(asWaitlist);
     scrollTo(step4Ref);
   }
 
-  // Submit booking
+  // Submit booking (or waitlist join)
   async function handleSubmit() {
     if (!selectedService || !selectedDate || !selectedTime || !firstName || !lastName || !phone) return;
     setSubmitting(true);
+
+    if (waitlistMode) {
+      // Join waitlist for a specific full slot
+      try {
+        const res = await fetch(`/api/booking/${slug}/waitlist`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            date: selectedDate,
+            time: selectedTime,
+            service_id: selectedService,
+            staff_id: selectedStaff !== "any" ? selectedStaff : undefined,
+            customer_name: `${firstName} ${lastName}`.trim(),
+            customer_phone: phone,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok && data.success) {
+          setWaitlistJoined({ position: data.position ?? 1, date: selectedDate, time: selectedTime });
+        } else if (res.status === 409) {
+          alert(t("You're already on the waitlist for this slot.", "כבר נמצאים ברשימת ההמתנה לשעה זו.", lang));
+        } else {
+          alert(data.error ?? t("Failed to join waitlist", "שגיאה בהצטרפות לרשימה", lang));
+        }
+      } catch {
+        alert(t("Connection error", "שגיאה בחיבור", lang));
+      }
+      setSubmitting(false);
+      return;
+    }
+
+    // Normal booking
     try {
       const res = await fetch(`/api/booking/${slug}/create`, {
         method: "POST",
@@ -397,6 +438,37 @@ export default function BookingFlow({ slug }: { slug: string }) {
                 📤 {t("Share", "שתף", lang)}
               </button>
             )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Waitlist joined screen ──
+  if (waitlistJoined) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#fff", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+        <div style={{ maxWidth: 440, width: "100%", textAlign: "center" }}>
+          <div style={{ width: 80, height: 80, borderRadius: "50%", background: N, margin: "0 auto 24px", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 700, color: N, margin: "0 0 8px" }}>
+            {t("You're on the Waitlist!", "נוספת לרשימת ההמתנה!", lang)}
+          </h1>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: SECONDARY, margin: "0 0 24px" }}>
+            {t(`You're #${waitlistJoined.position} in line for ${waitlistJoined.date} at ${waitlistJoined.time}. We'll SMS you when a slot opens.`,
+               `מיקומך ברשימה: ${waitlistJoined.position} לתאריך ${waitlistJoined.date} בשעה ${waitlistJoined.time}. נשלח SMS כשיפתח מקום.`, lang)}
+          </p>
+          <div style={{ background: GREY, borderRadius: 16, padding: 20, marginBottom: 24 }}>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: SECONDARY, margin: 0 }}>
+              {t("When a slot opens, you'll get an SMS with a confirmation link. You'll have 15 minutes to confirm.",
+                 "כאשר יפתח מקום, תקבל SMS עם קישור לאישור. יהיו לך 15 דקות לאשר.",lang)}
+            </p>
           </div>
         </div>
       </div>
@@ -770,58 +842,71 @@ export default function BookingFlow({ slug }: { slug: string }) {
                   </div>
                 ) : slots.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "24px 0" }}>
-                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: MUTED, margin: "0 0 16px" }}>
-                      {t("No available times for this date. Try another date or join the waitlist.", "אין שעות פנויות לתאריך זה. נסה תאריך אחר או הצטרף לרשימת ההמתנה.", lang)}
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: MUTED }}>
+                      {t("No times available for this date. Try another date.", "אין שעות פנויות לתאריך זה. נסה תאריך אחר.", lang)}
                     </p>
-                    {selectedService && selectedDate && firstName && phone ? (
-                      <button
-                        onClick={async () => {
-                          await fetch(`/api/booking/${slug}/waitlist`, {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              date: selectedDate,
-                              service_id: selectedService,
-                              staff_id: selectedStaff !== "any" ? selectedStaff : undefined,
-                              customer_name: `${firstName} ${lastName}`.trim(),
-                              customer_phone: phone,
-                            }),
-                          });
-                          alert(t("You're on the waitlist! We'll SMS you if a slot opens.", "נוספת לרשימת ההמתנה! נשלח לך SMS אם יפתח מקום.", lang));
-                        }}
-                        style={{
-                          padding: "10px 24px", borderRadius: 9999, background: N, color: "#fff",
-                          border: "none", fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer",
-                        }}
-                      >
-                        {t("Join Waitlist", "הצטרף לרשימת ההמתנה", lang)}
-                      </button>
-                    ) : null}
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8 }}>
-                    {slots.map(slot => {
-                      const isSelected = selectedTime === slot.time;
-                      return (
-                        <button
-                          key={slot.time}
-                          onClick={() => handleTimeSelect(slot.time)}
-                          style={{
-                            padding: "12px 16px", borderRadius: 12,
-                            background: isSelected ? G : "#fff",
-                            border: isSelected ? `2px solid ${G}` : `1px solid ${BORDER}`,
-                            color: isSelected ? "#fff" : N,
-                            fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600,
-                            cursor: "pointer",
-                            boxShadow: isSelected ? `0 0 0 3px rgba(0,200,150,0.15)` : "none",
-                            transition: "all 0.15s ease",
-                          }}
-                        >
-                          {slot.time}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <>
+                    {/* Available slots */}
+                    {slots.some(s => s.available) && (
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: 8, marginBottom: 12 }}>
+                        {slots.filter(s => s.available).map(slot => {
+                          const isSelected = selectedTime === slot.time && !waitlistMode;
+                          return (
+                            <button
+                              key={slot.time}
+                              onClick={() => handleTimeSelect(slot.time, false)}
+                              style={{
+                                padding: "12px 16px", borderRadius: 12,
+                                background: isSelected ? G : "#fff",
+                                border: isSelected ? `2px solid ${G}` : `1px solid ${BORDER}`,
+                                color: isSelected ? "#fff" : N,
+                                fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600,
+                                cursor: "pointer",
+                                boxShadow: isSelected ? `0 0 0 3px rgba(0,200,150,0.15)` : "none",
+                                transition: "all 0.15s ease",
+                              }}
+                            >
+                              {slot.time}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Full slots — show Join Waitlist */}
+                    {slots.some(s => !s.available) && (
+                      <>
+                        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: MUTED, margin: "8px 0 8px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                          {t("Full — Join Waitlist", "מלא — הצטרף לרשימה", lang)}
+                        </p>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(120px, 1fr))", gap: 8 }}>
+                          {slots.filter(s => !s.available).map(slot => {
+                            const isSelected = selectedTime === slot.time && waitlistMode;
+                            return (
+                              <button
+                                key={slot.time}
+                                onClick={() => handleTimeSelect(slot.time, true)}
+                                style={{
+                                  padding: "10px 12px", borderRadius: 12,
+                                  background: isSelected ? N : "#fff",
+                                  border: isSelected ? `2px solid ${N}` : `1px dashed ${BORDER}`,
+                                  color: isSelected ? "#fff" : SECONDARY,
+                                  fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600,
+                                  cursor: "pointer", textAlign: "center",
+                                  transition: "all 0.15s ease",
+                                }}
+                              >
+                                <div>{slot.time}</div>
+                                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{t("Waitlist", "רשימה", lang)}</div>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -997,25 +1082,44 @@ export default function BookingFlow({ slug }: { slug: string }) {
                 </div>
               )}
 
+              {/* Waitlist mode banner */}
+              {waitlistMode && selectedTime && (
+                <div style={{
+                  background: `${N}10`, border: `1px solid ${N}20`, borderRadius: 12,
+                  padding: "12px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, color: N,
+                  display: "flex", alignItems: "center", gap: 8,
+                }}>
+                  <span style={{ fontSize: 18 }}>⏳</span>
+                  <span>
+                    {t(`Joining waitlist for ${selectedTime} — you'll be notified by SMS if a slot opens.`,
+                       `מצטרף לרשימת ההמתנה לשעה ${selectedTime} — תקבל SMS אם יפתח מקום.`, lang)}
+                  </span>
+                </div>
+              )}
+
               {/* Submit button */}
               <button
                 onClick={handleSubmit}
                 disabled={submitting || !firstName || !lastName || !phone || (business.require_email && !email)}
                 style={{
                   width: "100%", padding: "18px 24px", borderRadius: 9999,
-                  background: (submitting || !firstName || !lastName || !phone) ? "#D1D5DB" : G,
+                  background: (submitting || !firstName || !lastName || !phone)
+                    ? "#D1D5DB"
+                    : waitlistMode ? N : G,
                   color: "#fff", border: "none",
                   fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700,
                   cursor: (submitting || !firstName || !lastName || !phone) ? "default" : "pointer",
                   transition: "background 0.15s",
                   marginTop: 8,
                 }}
-                onMouseEnter={e => { if (!submitting) (e.currentTarget).style.background = GD; }}
-                onMouseLeave={e => { if (!submitting) (e.currentTarget).style.background = G; }}
+                onMouseEnter={e => { if (!submitting) (e.currentTarget).style.background = waitlistMode ? "#1a1f35" : GD; }}
+                onMouseLeave={e => { if (!submitting) (e.currentTarget).style.background = waitlistMode ? N : G; }}
               >
                 {submitting
-                  ? t("Booking...", "מזמין...", lang)
-                  : t("Confirm Booking", "אישור הזמנה", lang)
+                  ? (waitlistMode ? t("Joining...", "מצטרף...", lang) : t("Booking...", "מזמין...", lang))
+                  : waitlistMode
+                    ? t("Join Waitlist", "הצטרף לרשימת ההמתנה", lang)
+                    : t("Confirm Booking", "אישור הזמנה", lang)
                 }
               </button>
             </div>
