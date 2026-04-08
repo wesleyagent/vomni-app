@@ -11,7 +11,7 @@ import { supabaseAdmin }    from "@/lib/supabase-admin";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type CalendarProvider = "google" | "outlook" | "apple" | "caldav";
+export type CalendarProvider = "google" | "outlook" | "microsoft" | "apple" | "caldav";
 
 export interface CalendarConnection {
   id:              string;
@@ -123,7 +123,7 @@ async function getGoogleBusy(conn: CalendarConnection, dateStr: string, timezone
   } catch { return []; }
 }
 
-// ── Microsoft Outlook (Graph API) ─────────────────────────────────────────────
+// ── Microsoft Outlook (Graph API) — legacy encrypted token path ───────────────
 
 async function refreshOutlookToken(conn: CalendarConnection): Promise<string | null> {
   const tokens = conn.token_encrypted ? decryptToken(conn.token_encrypted) : null;
@@ -140,7 +140,7 @@ async function refreshOutlookToken(conn: CalendarConnection): Promise<string | n
       client_secret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
       refresh_token: tokens.refresh_token,
       grant_type:    "refresh_token",
-      scope:         "https://graph.microsoft.com/Calendars.Read offline_access",
+      scope:         "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
     }),
   });
 
@@ -154,6 +154,69 @@ async function refreshOutlookToken(conn: CalendarConnection): Promise<string | n
 
 async function getOutlookBusy(conn: CalendarConnection, dateStr: string, timezone: string): Promise<BusyPeriod[]> {
   const token = await refreshOutlookToken(conn);
+  if (!token) return [];
+
+  const startDt = new Date(`${dateStr}T00:00:00`).toISOString();
+  const endDt   = new Date(`${dateStr}T23:59:59`).toISOString();
+
+  try {
+    const res = await fetch(
+      `https://graph.microsoft.com/v1.0/me/calendarView?startDateTime=${startDt}&endDateTime=${endDt}&$select=start,end,showAs`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    if (!res.ok) return [];
+    const data = await res.json() as { value: { start: { dateTime: string }; end: { dateTime: string }; showAs: string }[] };
+    return (data.value ?? [])
+      .filter(e => e.showAs === "busy" || e.showAs === "tentative")
+      .map(e => ({ start: e.start.dateTime + "Z", end: e.end.dateTime + "Z" }));
+  } catch { return []; }
+}
+
+// ── Microsoft Calendar (Graph API) — new unencrypted token path ───────────────
+// Connections stored via /api/auth/callback/microsoft use plain access_token /
+// refresh_token columns (same pattern as Google). Token refresh writes back to
+// those columns, not token_encrypted.
+
+async function refreshMicrosoftToken(conn: CalendarConnection): Promise<string | null> {
+  // access_token is stored in plain column (not token_encrypted) for microsoft provider
+  const plainToken = (conn as unknown as { access_token?: string; refresh_token?: string; token_expires_at?: string }).access_token;
+  const plainRefresh = (conn as unknown as { access_token?: string; refresh_token?: string; token_expires_at?: string }).refresh_token;
+  const plainExpiry = (conn as unknown as { access_token?: string; refresh_token?: string; token_expires_at?: string }).token_expires_at;
+
+  if (!plainToken) return null;
+
+  const expiresAt = plainExpiry ? new Date(plainExpiry).getTime() : 0;
+  if (expiresAt > Date.now() + 60_000) return plainToken;
+  if (!plainRefresh) return null;
+
+  const tenantId = process.env.MICROSOFT_TENANT_ID ?? "common";
+  const res = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id:     process.env.MICROSOFT_CLIENT_ID     ?? "",
+      client_secret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
+      refresh_token: plainRefresh,
+      grant_type:    "refresh_token",
+      scope:         "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
+    }),
+  });
+
+  if (!res.ok) { await deactivateConnection(conn.id); return null; }
+
+  const data = await res.json() as { access_token: string; expires_in: number };
+  const newExpiry = new Date(Date.now() + data.expires_in * 1000).toISOString();
+
+  await supabaseAdmin
+    .from("calendar_connections")
+    .update({ access_token: data.access_token, token_expires_at: newExpiry, updated_at: new Date().toISOString() })
+    .eq("id", conn.id);
+
+  return data.access_token;
+}
+
+async function getMicrosoftBusy(conn: CalendarConnection, dateStr: string): Promise<BusyPeriod[]> {
+  const token = await refreshMicrosoftToken(conn);
   if (!token) return [];
 
   const startDt = new Date(`${dateStr}T00:00:00`).toISOString();
@@ -231,11 +294,12 @@ export async function getBusyTimes(
   timezone: string,
 ): Promise<BusyPeriod[]> {
   switch (conn.provider) {
-    case "google":  return getGoogleBusy(conn, dateStr, timezone);
-    case "outlook": return getOutlookBusy(conn, dateStr, timezone);
+    case "google":    return getGoogleBusy(conn, dateStr, timezone);
+    case "outlook":   return getOutlookBusy(conn, dateStr, timezone);
+    case "microsoft": return getMicrosoftBusy(conn, dateStr);
     case "apple":
-    case "caldav":  return getCalDAVBusy(conn, dateStr);
-    default:        return [];
+    case "caldav":    return getCalDAVBusy(conn, dateStr);
+    default:          return [];
   }
 }
 

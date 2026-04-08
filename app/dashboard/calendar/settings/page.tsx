@@ -118,6 +118,11 @@ export default function CalendarSettingsPage() {
   const [googleCalendarId, setGoogleCalendarId] = useState<string | null>(null);
   const [disconnectingGoogle, setDisconnectingGoogle] = useState(false);
 
+  // Microsoft Calendar two-way sync
+  const [microsoftConnected, setMicrosoftConnected] = useState(false);
+  const [microsoftCalendarId, setMicrosoftCalendarId] = useState<string | null>(null);
+  const [disconnectingMicrosoft, setDisconnectingMicrosoft] = useState(false);
+
   useEffect(() => {
     setPageOrigin(window.location.origin);
     if (ctx?.businessId) loadAll();
@@ -173,6 +178,16 @@ export default function CalendarSettingsPage() {
       }
     } catch {}
 
+    // Microsoft Calendar connection status
+    try {
+      const res = await fetch(`/api/calendar/microsoft/status?business_id=${bizId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMicrosoftConnected(data.connected ?? false);
+        setMicrosoftCalendarId(data.calendar_id ?? null);
+      }
+    } catch {}
+
     // Check URL params for OAuth result
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -180,6 +195,10 @@ export default function CalendarSettingsPage() {
         flash("Google Calendar connected!");
         window.history.replaceState({}, "", window.location.pathname);
         setGoogleConnected(true);
+      } else if (params.get("calendar_connected") === "microsoft") {
+        flash("Microsoft Calendar connected!");
+        window.history.replaceState({}, "", window.location.pathname);
+        setMicrosoftConnected(true);
       } else if (params.get("calendar_error")) {
         flash("Error: " + params.get("calendar_error"));
         window.history.replaceState({}, "", window.location.pathname);
@@ -196,6 +215,15 @@ export default function CalendarSettingsPage() {
     setGoogleCalendarId(null);
     setDisconnectingGoogle(false);
     flash("Google Calendar disconnected");
+  }
+
+  async function disconnectMicrosoft() {
+    setDisconnectingMicrosoft(true);
+    await fetch(`/api/calendar/microsoft/status?business_id=${ctx!.businessId}`, { method: "DELETE" });
+    setMicrosoftConnected(false);
+    setMicrosoftCalendarId(null);
+    setDisconnectingMicrosoft(false);
+    flash("Microsoft Calendar disconnected");
   }
 
   function flash(msg: string) {
@@ -571,6 +599,89 @@ export default function CalendarSettingsPage() {
                     <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                   </svg>
                   Connect Google Calendar
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Card: Microsoft Calendar two-way sync */}
+          <div style={{
+            flex: "1 1 280px", background: microsoftConnected ? "#F0F4FF" : "#fff", borderRadius: 16,
+            border: `1px solid ${microsoftConnected ? "#BFDBFE" : BORDER}`, padding: "20px 24px",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 8, background: "#fff", border: `1px solid ${BORDER}`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                {/* Microsoft logo */}
+                <svg width="18" height="18" viewBox="0 0 21 21" fill="none">
+                  <rect x="1"  y="1"  width="9" height="9" fill="#F25022"/>
+                  <rect x="11" y="1"  width="9" height="9" fill="#7FBA00"/>
+                  <rect x="1"  y="11" width="9" height="9" fill="#00A4EF"/>
+                  <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                </svg>
+              </div>
+              <div>
+                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700, color: N }}>
+                  Microsoft Calendar
+                </div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: SECONDARY }}>
+                  Two-way sync
+                </div>
+              </div>
+              {microsoftConnected && (
+                <div style={{ marginLeft: "auto", background: "#DBEAFE", color: "#1E40AF", padding: "3px 10px", borderRadius: 9999, fontSize: 11, fontWeight: 600, fontFamily: "Inter, sans-serif" }}>
+                  Connected
+                </div>
+              )}
+            </div>
+
+            {microsoftConnected ? (
+              <>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: SECONDARY, margin: "0 0 6px", lineHeight: 1.6 }}>
+                  ✓ New bookings automatically appear in your Microsoft Calendar.
+                </p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: SECONDARY, margin: "0 0 14px", lineHeight: 1.6 }}>
+                  ✓ Events you add to Microsoft Calendar block availability in Vomni.
+                </p>
+                {microsoftCalendarId && (
+                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED, margin: "0 0 14px" }}>
+                    Account: {microsoftCalendarId}
+                  </p>
+                )}
+                <button
+                  onClick={disconnectMicrosoft}
+                  disabled={disconnectingMicrosoft}
+                  style={{
+                    padding: "8px 18px", borderRadius: 9999, background: "#fff",
+                    border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif",
+                    fontSize: 13, fontWeight: 600, color: "#EF4444", cursor: "pointer",
+                  }}
+                >
+                  {disconnectingMicrosoft ? "Disconnecting..." : "Disconnect"}
+                </button>
+              </>
+            ) : (
+              <>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: SECONDARY, margin: "0 0 16px", lineHeight: 1.6 }}>
+                  Connect your Microsoft / Outlook Calendar for real two-way sync. Bookings appear in your calendar, and calendar events block your availability.
+                </p>
+                <button
+                  onClick={() => {
+                    window.location.href = `/api/auth/microsoft-calendar?business_id=${ctx?.businessId}`;
+                  }}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 8,
+                    padding: "10px 18px", borderRadius: 9999, background: N,
+                    border: "none", fontFamily: "Inter, sans-serif",
+                    fontSize: 13, fontWeight: 600, color: "#fff", cursor: "pointer",
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 21 21" fill="none">
+                    <rect x="1"  y="1"  width="9" height="9" fill="#F25022"/>
+                    <rect x="11" y="1"  width="9" height="9" fill="#7FBA00"/>
+                    <rect x="1"  y="11" width="9" height="9" fill="#00A4EF"/>
+                    <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+                  </svg>
+                  Connect Microsoft Calendar
                 </button>
               </>
             )}

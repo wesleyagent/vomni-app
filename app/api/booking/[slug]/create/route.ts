@@ -428,6 +428,13 @@ export async function POST(
     body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
   }).catch(err => console.error("[booking/create] google sync failed:", err));
 
+  // Push to Microsoft Calendar (non-blocking)
+  fetch(`${appUrl}/api/calendar/microsoft/sync`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
+  }).catch(err => console.error("[booking/create] microsoft sync failed:", err));
+
   return NextResponse.json({
     booking: {
       id: created?.id ?? bookingId,
