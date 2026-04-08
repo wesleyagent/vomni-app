@@ -17,10 +17,12 @@ export async function GET(req: NextRequest) {
   }
 
   const now           = new Date();
+  // Free-tier workaround: cron runs once daily so look back 24h to catch all of yesterday's appointments
+  // When upgraded to Vercel Pro (hourly crons), narrow this back to 1–3h
+  const oneDayAgo     = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
   const oneHourAgo    = new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString();
-  const threeHoursAgo = new Date(now.getTime() - 3 * 60 * 60 * 1000).toISOString();
 
-  // Find completed bookings in the 1-3h window that haven't had a review request sent
+  // Find completed bookings in the past 24h that haven't had a review request sent
   const { data: bookings, error } = await supabaseAdmin
     .from("bookings")
     .select(`
@@ -36,7 +38,7 @@ export async function GET(req: NextRequest) {
     .eq("status", "completed")
     .eq("review_request_sent", false)
     .eq("whatsapp_opt_in", true)
-    .gte("appointment_at", threeHoursAgo)
+    .gte("appointment_at", oneDayAgo)
     .lte("appointment_at", oneHourAgo);
 
   if (error) {

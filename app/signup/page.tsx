@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { saveBusiness, generateId, generateForwardingEmail, saveAdminSignup } from "@/lib/storage";
+import { localeFromCountry } from "@/lib/localeFromCountry";
 import type { Business } from "@/types";
 import type { Plan } from "@/types";
 
@@ -56,6 +57,357 @@ function getPasswordStrength(pw: string): { label: string; color: string; width:
   if (pw.length >= 12 && variety === 4)    return { label: "Strong",    color: G,         width: "100%" };
   if (pw.length >= 8 && variety >= 3)      return { label: "Medium",    color: "#F59E0B", width: "65%" };
   return { label: "Weak", color: "#F97316", width: "40%" };
+}
+
+// ── Countries list (ISO 3166-1 alpha-2, alphabetical by name) ────────────────
+const COUNTRIES: { code: string; name: string }[] = [
+  { code: "AF", name: "Afghanistan" },
+  { code: "AL", name: "Albania" },
+  { code: "DZ", name: "Algeria" },
+  { code: "AD", name: "Andorra" },
+  { code: "AO", name: "Angola" },
+  { code: "AG", name: "Antigua and Barbuda" },
+  { code: "AR", name: "Argentina" },
+  { code: "AM", name: "Armenia" },
+  { code: "AU", name: "Australia" },
+  { code: "AT", name: "Austria" },
+  { code: "AZ", name: "Azerbaijan" },
+  { code: "BS", name: "Bahamas" },
+  { code: "BH", name: "Bahrain" },
+  { code: "BD", name: "Bangladesh" },
+  { code: "BB", name: "Barbados" },
+  { code: "BY", name: "Belarus" },
+  { code: "BE", name: "Belgium" },
+  { code: "BZ", name: "Belize" },
+  { code: "BJ", name: "Benin" },
+  { code: "BT", name: "Bhutan" },
+  { code: "BO", name: "Bolivia" },
+  { code: "BA", name: "Bosnia and Herzegovina" },
+  { code: "BW", name: "Botswana" },
+  { code: "BR", name: "Brazil" },
+  { code: "BN", name: "Brunei" },
+  { code: "BG", name: "Bulgaria" },
+  { code: "BF", name: "Burkina Faso" },
+  { code: "BI", name: "Burundi" },
+  { code: "CV", name: "Cabo Verde" },
+  { code: "KH", name: "Cambodia" },
+  { code: "CM", name: "Cameroon" },
+  { code: "CA", name: "Canada" },
+  { code: "CF", name: "Central African Republic" },
+  { code: "TD", name: "Chad" },
+  { code: "CL", name: "Chile" },
+  { code: "CN", name: "China" },
+  { code: "CO", name: "Colombia" },
+  { code: "KM", name: "Comoros" },
+  { code: "CG", name: "Congo" },
+  { code: "CR", name: "Costa Rica" },
+  { code: "HR", name: "Croatia" },
+  { code: "CU", name: "Cuba" },
+  { code: "CY", name: "Cyprus" },
+  { code: "CZ", name: "Czech Republic" },
+  { code: "DK", name: "Denmark" },
+  { code: "DJ", name: "Djibouti" },
+  { code: "DO", name: "Dominican Republic" },
+  { code: "EC", name: "Ecuador" },
+  { code: "EG", name: "Egypt" },
+  { code: "SV", name: "El Salvador" },
+  { code: "GQ", name: "Equatorial Guinea" },
+  { code: "ER", name: "Eritrea" },
+  { code: "EE", name: "Estonia" },
+  { code: "SZ", name: "Eswatini" },
+  { code: "ET", name: "Ethiopia" },
+  { code: "FJ", name: "Fiji" },
+  { code: "FI", name: "Finland" },
+  { code: "FR", name: "France" },
+  { code: "GA", name: "Gabon" },
+  { code: "GM", name: "Gambia" },
+  { code: "GE", name: "Georgia" },
+  { code: "DE", name: "Germany" },
+  { code: "GH", name: "Ghana" },
+  { code: "GR", name: "Greece" },
+  { code: "GD", name: "Grenada" },
+  { code: "GT", name: "Guatemala" },
+  { code: "GN", name: "Guinea" },
+  { code: "GW", name: "Guinea-Bissau" },
+  { code: "GY", name: "Guyana" },
+  { code: "HT", name: "Haiti" },
+  { code: "HN", name: "Honduras" },
+  { code: "HU", name: "Hungary" },
+  { code: "IS", name: "Iceland" },
+  { code: "IN", name: "India" },
+  { code: "ID", name: "Indonesia" },
+  { code: "IR", name: "Iran" },
+  { code: "IQ", name: "Iraq" },
+  { code: "IE", name: "Ireland" },
+  { code: "IL", name: "Israel" },
+  { code: "IT", name: "Italy" },
+  { code: "JM", name: "Jamaica" },
+  { code: "JP", name: "Japan" },
+  { code: "JO", name: "Jordan" },
+  { code: "KZ", name: "Kazakhstan" },
+  { code: "KE", name: "Kenya" },
+  { code: "KI", name: "Kiribati" },
+  { code: "KW", name: "Kuwait" },
+  { code: "KG", name: "Kyrgyzstan" },
+  { code: "LA", name: "Laos" },
+  { code: "LV", name: "Latvia" },
+  { code: "LB", name: "Lebanon" },
+  { code: "LS", name: "Lesotho" },
+  { code: "LR", name: "Liberia" },
+  { code: "LY", name: "Libya" },
+  { code: "LI", name: "Liechtenstein" },
+  { code: "LT", name: "Lithuania" },
+  { code: "LU", name: "Luxembourg" },
+  { code: "MG", name: "Madagascar" },
+  { code: "MW", name: "Malawi" },
+  { code: "MY", name: "Malaysia" },
+  { code: "MV", name: "Maldives" },
+  { code: "ML", name: "Mali" },
+  { code: "MT", name: "Malta" },
+  { code: "MH", name: "Marshall Islands" },
+  { code: "MR", name: "Mauritania" },
+  { code: "MU", name: "Mauritius" },
+  { code: "MX", name: "Mexico" },
+  { code: "FM", name: "Micronesia" },
+  { code: "MD", name: "Moldova" },
+  { code: "MC", name: "Monaco" },
+  { code: "MN", name: "Mongolia" },
+  { code: "ME", name: "Montenegro" },
+  { code: "MA", name: "Morocco" },
+  { code: "MZ", name: "Mozambique" },
+  { code: "MM", name: "Myanmar" },
+  { code: "NA", name: "Namibia" },
+  { code: "NR", name: "Nauru" },
+  { code: "NP", name: "Nepal" },
+  { code: "NL", name: "Netherlands" },
+  { code: "NZ", name: "New Zealand" },
+  { code: "NI", name: "Nicaragua" },
+  { code: "NE", name: "Niger" },
+  { code: "NG", name: "Nigeria" },
+  { code: "NO", name: "Norway" },
+  { code: "OM", name: "Oman" },
+  { code: "PK", name: "Pakistan" },
+  { code: "PW", name: "Palau" },
+  { code: "PA", name: "Panama" },
+  { code: "PG", name: "Papua New Guinea" },
+  { code: "PY", name: "Paraguay" },
+  { code: "PE", name: "Peru" },
+  { code: "PH", name: "Philippines" },
+  { code: "PL", name: "Poland" },
+  { code: "PT", name: "Portugal" },
+  { code: "QA", name: "Qatar" },
+  { code: "RO", name: "Romania" },
+  { code: "RU", name: "Russia" },
+  { code: "RW", name: "Rwanda" },
+  { code: "KN", name: "Saint Kitts and Nevis" },
+  { code: "LC", name: "Saint Lucia" },
+  { code: "VC", name: "Saint Vincent and the Grenadines" },
+  { code: "WS", name: "Samoa" },
+  { code: "SM", name: "San Marino" },
+  { code: "ST", name: "São Tomé and Príncipe" },
+  { code: "SA", name: "Saudi Arabia" },
+  { code: "SN", name: "Senegal" },
+  { code: "RS", name: "Serbia" },
+  { code: "SC", name: "Seychelles" },
+  { code: "SL", name: "Sierra Leone" },
+  { code: "SG", name: "Singapore" },
+  { code: "SK", name: "Slovakia" },
+  { code: "SI", name: "Slovenia" },
+  { code: "SB", name: "Solomon Islands" },
+  { code: "SO", name: "Somalia" },
+  { code: "ZA", name: "South Africa" },
+  { code: "SS", name: "South Sudan" },
+  { code: "ES", name: "Spain" },
+  { code: "LK", name: "Sri Lanka" },
+  { code: "SD", name: "Sudan" },
+  { code: "SR", name: "Suriname" },
+  { code: "SE", name: "Sweden" },
+  { code: "CH", name: "Switzerland" },
+  { code: "SY", name: "Syria" },
+  { code: "TW", name: "Taiwan" },
+  { code: "TJ", name: "Tajikistan" },
+  { code: "TZ", name: "Tanzania" },
+  { code: "TH", name: "Thailand" },
+  { code: "TL", name: "Timor-Leste" },
+  { code: "TG", name: "Togo" },
+  { code: "TO", name: "Tonga" },
+  { code: "TT", name: "Trinidad and Tobago" },
+  { code: "TN", name: "Tunisia" },
+  { code: "TR", name: "Turkey" },
+  { code: "TM", name: "Turkmenistan" },
+  { code: "TV", name: "Tuvalu" },
+  { code: "UG", name: "Uganda" },
+  { code: "UA", name: "Ukraine" },
+  { code: "AE", name: "United Arab Emirates" },
+  { code: "GB", name: "United Kingdom" },
+  { code: "US", name: "United States" },
+  { code: "UY", name: "Uruguay" },
+  { code: "UZ", name: "Uzbekistan" },
+  { code: "VU", name: "Vanuatu" },
+  { code: "VE", name: "Venezuela" },
+  { code: "VN", name: "Vietnam" },
+  { code: "YE", name: "Yemen" },
+  { code: "ZM", name: "Zambia" },
+  { code: "ZW", name: "Zimbabwe" },
+];
+
+// ── Searchable country dropdown ───────────────────────────────────────────────
+function CountrySelect({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (code: string) => void;
+}) {
+  const [query, setQuery]     = useState("");
+  const [open, setOpen]       = useState(false);
+  const wrapperRef            = useRef<HTMLDivElement>(null);
+
+  const selected = COUNTRIES.find((c) => c.code === value);
+  const filtered = query
+    ? COUNTRIES.filter((c) =>
+        c.name.toLowerCase().includes(query.toLowerCase())
+      )
+    : COUNTRIES;
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setQuery("");
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  function handleSelect(code: string) {
+    onChange(code);
+    setOpen(false);
+    setQuery("");
+  }
+
+  return (
+    <div ref={wrapperRef} style={{ position: "relative" }}>
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          ...inputStyle,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          cursor: "pointer",
+          color: selected ? N : "#9CA3AF",
+          borderColor: open ? G : BD,
+          boxShadow: open ? "0 0 0 3px rgba(0,200,150,0.15)" : "none",
+        }}
+      >
+        <span>{selected ? selected.name : "Search for your country…"}</span>
+        <span style={{ fontSize: 10, color: "#9CA3AF" }}>{open ? "▲" : "▼"}</span>
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "calc(100% + 4px)",
+            left: 0,
+            right: 0,
+            background: "#fff",
+            border: `1px solid ${BD}`,
+            borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            zIndex: 100,
+            overflow: "hidden",
+          }}
+        >
+          {/* Search input */}
+          <div style={{ padding: "8px 8px 4px" }}>
+            <input
+              autoFocus
+              type="text"
+              placeholder="Search…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{
+                ...inputStyle,
+                padding: "10px 12px",
+                fontSize: 13,
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = G;
+                e.currentTarget.style.boxShadow = "0 0 0 3px rgba(0,200,150,0.15)";
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = BD;
+                e.currentTarget.style.boxShadow = "none";
+              }}
+            />
+          </div>
+          {/* Options list */}
+          <ul
+            style={{
+              listStyle: "none",
+              margin: 0,
+              padding: "4px 0 8px",
+              maxHeight: 220,
+              overflowY: "auto",
+            }}
+          >
+            {filtered.length === 0 ? (
+              <li
+                style={{
+                  padding: "10px 16px",
+                  fontFamily: "Inter, sans-serif",
+                  fontSize: 13,
+                  color: "#9CA3AF",
+                }}
+              >
+                No countries found
+              </li>
+            ) : (
+              filtered.map((c) => (
+                <li key={c.code}>
+                  <button
+                    type="button"
+                    onClick={() => handleSelect(c.code)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      padding: "9px 16px",
+                      textAlign: "left",
+                      background: c.code === value ? "rgba(0,200,150,0.08)" : "transparent",
+                      border: "none",
+                      fontFamily: "Inter, sans-serif",
+                      fontSize: 13,
+                      color: c.code === value ? G : N,
+                      fontWeight: c.code === value ? 600 : 400,
+                      cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => {
+                      if (c.code !== value)
+                        (e.currentTarget as HTMLElement).style.background = "#F9FAFB";
+                    }}
+                    onMouseLeave={(e) => {
+                      if (c.code !== value)
+                        (e.currentTarget as HTMLElement).style.background = "transparent";
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                </li>
+              ))
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ── Payment gate ─────────────────────────────────────────────────────────────
@@ -132,6 +484,7 @@ export default function SignupPage() {
   const [ownerName,        setOwnerName]        = useState("");
   const [email,            setEmail]            = useState("");
   const [phone,            setPhone]            = useState("");
+  const [country,          setCountry]          = useState("");
   const [password,         setPassword]         = useState("");
   const [confirmPassword,  setConfirmPassword]  = useState("");
   const [plan,             setPlan]             = useState<Plan>("growth");
@@ -146,6 +499,7 @@ export default function SignupPage() {
     setIsTrial(trial);
     if (trial) {
       setPlan("pro"); // Trial users get pro access
+      setCountry("IL"); // Trial link is Israel-specific
     } else {
       // Pre-select the plan the user chose on the pricing page
       const urlPlan = params.get("plan") as Plan | null;
@@ -177,6 +531,10 @@ export default function SignupPage() {
     e.preventDefault();
     setError("");
 
+    if (!country) {
+      setError("Please select your country.");
+      return;
+    }
     if (password !== confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -192,6 +550,9 @@ export default function SignupPage() {
     const trimmedEmail    = email.trim().toLowerCase();
     const trimmedBizName  = businessName.trim();
     const trimmedOwner    = ownerName.trim();
+
+    // Resolve locale + currency from selected country
+    const { locale, currency } = localeFromCountry(country);
 
     // 1. Create Supabase Auth user - embed metadata so the DB trigger can
     //    create a businesses row even if step 2 fails for any reason.
@@ -226,6 +587,9 @@ export default function SignupPage() {
       onboarding_step:  1,
       notification_email: trimmedEmail,
       created_at:       new Date().toISOString(),
+      country,
+      locale,
+      currency,
     };
     if (isTrial) {
       bizRow.trial_start_date = new Date().toISOString();
@@ -243,11 +607,14 @@ export default function SignupPage() {
     if (isTrial && userId) {
       await supabase
         .from("businesses")
-        .update({ trial_start_date: new Date().toISOString(), plan: "pro" })
+        .update({ trial_start_date: new Date().toISOString(), plan: "pro", country, locale, currency })
         .eq("id", userId);
     }
 
-    // 3. Legacy localStorage + admin tracking (keep for backward compat)
+    // 3. Set the locale cookie so the app immediately renders in the correct locale
+    document.cookie = `vomni_locale=${locale}; path=/; max-age=31536000; samesite=lax`;
+
+    // 4. Legacy localStorage + admin tracking (keep for backward compat)
     const business: Business = {
       id: authData.user?.id ?? generateId(),
       name: businessName.trim(),
@@ -278,7 +645,7 @@ export default function SignupPage() {
       fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ businessName, ownerName, email: trimmedEmail, phone, plan }),
+        body: JSON.stringify({ businessName, ownerName, email: trimmedEmail, phone, plan, country, locale, currency }),
       }).catch(() => {});
     } catch { /* ignore */ }
 
@@ -420,6 +787,14 @@ export default function SignupPage() {
               />
             </div>
 
+            {/* Country — new field */}
+            <div>
+              <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
+                Country
+              </label>
+              <CountrySelect value={country} onChange={setCountry} />
+            </div>
+
             {/* Password */}
             <div>
               <label style={{ display: "block", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>
@@ -491,7 +866,7 @@ export default function SignupPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Starter</div>
-                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Up to 100 review requests/month</div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>WhatsApp review requests after every visit</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>£35</span>
@@ -509,7 +884,7 @@ export default function SignupPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Growth</div>
-                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Up to 300 review requests/month, AI insights</div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Follow-ups, lapsed customer re-engagement, full analytics</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>£79</span>
@@ -524,7 +899,7 @@ export default function SignupPage() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Pro ★</div>
-                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Up to 3 locations, dedicated SMS number</div>
+                      <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#6B7280", marginTop: 2 }}>Dedicated WhatsApp number, same-day support</div>
                     </div>
                     <div style={{ textAlign: "right", flexShrink: 0 }}>
                       <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>£149</span>

@@ -1,64 +1,22 @@
-// Vomni Service Worker — PWA support
-// Caches the dashboard shell for offline access + handles push notifications
+// Vomni Service Worker v4 — cache-free, push-only
+// Previous versions aggressively cached pages causing stale content.
+// This version nukes all caches immediately and never caches anything.
 
-const CACHE_NAME = "vomni-v1";
-const SHELL_URLS = [
-  "/dashboard",
-  "/dashboard/calendar",
-  "/dashboard/calendar/settings",
-  "/dashboard/analytics",
-];
+const CACHE_NAME = "vomni-v4";
 
-// ── Install: cache app shell ──────────────────────────────────────────────────
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(SHELL_URLS).catch(() => {
-        // Non-fatal if some pages fail during install (e.g. redirect)
-      });
-    })
-  );
+self.addEventListener("install", () => {
   self.skipWaiting();
 });
 
-// ── Activate: remove old caches ───────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
-    )
-  );
-  self.clients.claim();
-});
-
-// ── Fetch: network-first for API, cache-first for static ─────────────────────
-self.addEventListener("fetch", (event) => {
-  const url = new URL(event.request.url);
-
-  // Skip non-GET and cross-origin
-  if (event.request.method !== "GET" || url.origin !== location.origin) return;
-
-  // Network-first for API routes
-  if (url.pathname.startsWith("/api/")) {
-    event.respondWith(
-      fetch(event.request).catch(() => caches.match(event.request))
-    );
-    return;
-  }
-
-  // Cache-first for everything else
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return cached ?? fetch(event.request).then((response) => {
-        if (response.ok && !url.pathname.startsWith("/_next/")) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((c) => c.put(event.request, clone));
-        }
-        return response;
-      });
-    })
+    caches.keys()
+      .then((keys) => Promise.all(keys.map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
+
+// No fetch handler — zero caching. Every request goes straight to the network.
 
 // ── Push notifications ────────────────────────────────────────────────────────
 self.addEventListener("push", (event) => {

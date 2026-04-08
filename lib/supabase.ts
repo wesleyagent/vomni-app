@@ -16,6 +16,7 @@ export type LeadStatus =
   | "new"
   | "approved"
   | "rejected"
+  | "outreach_written"
   | "contacted"
   | "replied"
   | "demo_booked"
@@ -24,9 +25,13 @@ export type LeadStatus =
 export type BusinessType =
   | "barber"
   | "salon"
-  | "restaurant"
+  | "nail_salon"
+  | "aesthetic_clinic"
+  | "lash_brow"
+  | "massage_spa"
   | "dentist"
   | "tattoo"
+  | "tattoo_laser"
   | "other";
 
 export type OutreachChannel = "instagram" | "email";
@@ -63,11 +68,16 @@ export interface Lead {
   last_bad_review_name: string;
   last_bad_review_date: string;
   last_bad_review_rating: number;
+  last_bad_review_days_ago?: number;
+  has_recent_bad_review?: boolean;
   // Worst review (lowest rated)
   worst_review_name: string;
   worst_review_rating: number;
   worst_review_text: string;
   worst_review_date: string;
+  // Prospector scoring
+  tier?: number;
+  booking_platform?: string;
   competitor_name?: string;
   competitor_rating?: number;
   created_at: string;

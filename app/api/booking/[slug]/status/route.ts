@@ -55,5 +55,40 @@ export async function PATCH(
     details: { internal_notes },
   });
 
+  // Trigger 4: no_show notification (non-blocking)
+  if (status === "no_show") {
+    try {
+      const { data: bk } = await supabaseAdmin
+        .from("bookings")
+        .select("customer_name, appointment_at, business_id")
+        .eq("id", booking_id)
+        .maybeSingle();
+      if (bk?.business_id) {
+        const name = bk.customer_name ?? "A customer";
+        const timeStr = bk.appointment_at?.split("T")[1]?.slice(0, 5) ?? "their";
+        const notifBody = `${name} did not show up for their ${timeStr} appointment.`;
+        const { data: existingNotif } = await supabaseAdmin
+          .from("notifications")
+          .select("id")
+          .eq("business_id", bk.business_id)
+          .eq("type", "no_show")
+          .ilike("body", `${name}%`)
+          .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+          .maybeSingle();
+        if (!existingNotif) {
+          void supabaseAdmin.from("notifications").insert({
+            business_id: bk.business_id,
+            type: "no_show",
+            title: "No-show recorded",
+            body: notifBody,
+            read: false,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("[booking/status] no_show notification failed:", e);
+    }
+  }
+
   return NextResponse.json({ success: true });
 }

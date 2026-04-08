@@ -10,6 +10,7 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
   new: "New",
   approved: "Approved",
   rejected: "Rejected",
+  outreach_written: "Copy Written",
   contacted: "Contacted",
   replied: "Replied",
   demo_booked: "Demo Booked",
@@ -20,13 +21,34 @@ const STATUS_COLORS: Record<LeadStatus, { bg: string; color: string }> = {
   new: { bg: "#F3F4F6", color: "#6B7280" },
   approved: { bg: "rgba(0,200,150,0.1)", color: G },
   rejected: { bg: "#FEF2F2", color: "#EF4444" },
+  outreach_written: { bg: "#EFF6FF", color: "#6366F1" },
   contacted: { bg: "#EFF6FF", color: "#3B82F6" },
   replied: { bg: "#FFF7ED", color: "#F59E0B" },
   demo_booked: { bg: "rgba(0,200,150,0.15)", color: "#059669" },
   customer: { bg: "rgba(0,200,150,0.2)", color: "#047857" },
 };
 
-const BUSINESS_TYPES: BusinessType[] = ["barber", "salon", "restaurant", "dentist", "tattoo", "other"];
+const BUSINESS_TYPES: BusinessType[] = ["barber", "salon", "nail_salon", "aesthetic_clinic", "lash_brow", "massage_spa", "dentist", "tattoo", "tattoo_laser", "other"];
+
+const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
+  barber: "Barber",
+  salon: "Hair Salon",
+  nail_salon: "Nail Salon",
+  aesthetic_clinic: "Aesthetic Clinic",
+  lash_brow: "Lash / Brow",
+  massage_spa: "Massage / Spa",
+  dentist: "Dentist",
+  tattoo: "Tattoo Studio",
+  tattoo_laser: "Tattoo Laser",
+  other: "Other",
+};
+
+const TIER_CONFIG: Record<number, { label: string; bg: string; color: string }> = {
+  1: { label: "Tier 1 — Hot", bg: "#FEF2F2", color: "#EF4444" },
+  2: { label: "Tier 2 — Warm", bg: "#FFF7ED", color: "#F59E0B" },
+  3: { label: "Tier 3 — Cool", bg: "#EFF6FF", color: "#3B82F6" },
+  4: { label: "Tier 4 — Cold", bg: "#F3F4F6", color: "#9CA3AF" },
+};
 
 const emptyForm = {
   business_name: "",
@@ -49,6 +71,8 @@ const emptyForm = {
   email: "",
   outreach_channel: "email" as OutreachChannel,
   score: "5",
+  tier: "",
+  booking_platform: "",
   notes: "",
   has_online_booking: false,
   booking_system: "",
@@ -121,11 +145,14 @@ export default function LeadPipelinePage() {
   const [editForm, setEditForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
+  const [sessionExpired, setSessionExpired] = useState(false);
+
   useEffect(() => { fetchLeads(); }, []);
 
   async function fetchLeads() {
     setLoading(true);
     const res = await fetch("/api/admin/db/leads?order=created_at.desc");
+    if (res.status === 401) { setSessionExpired(true); setLoading(false); return; }
     const data = await res.json();
     if (Array.isArray(data)) setLeads(data as Lead[]);
     setLoading(false);
@@ -157,6 +184,8 @@ export default function LeadPipelinePage() {
       email: form.email,
       outreach_channel: form.outreach_channel,
       score: parseInt(form.score) || 5,
+      tier: parseInt(form.tier) || undefined,
+      booking_platform: form.booking_platform || undefined,
       status: "new" as LeadStatus,
       notes: form.notes,
       instagram_handle: form.instagram_handle,
@@ -215,6 +244,8 @@ export default function LeadPipelinePage() {
       email: lead.email || "",
       outreach_channel: lead.outreach_channel,
       score: String(lead.score ?? "5"),
+      tier: String(lead.tier ?? ""),
+      booking_platform: lead.booking_platform || "",
       notes: lead.notes || "",
       has_online_booking: (lead as any).has_online_booking ?? false,
       booking_system: (lead as any).booking_system || "",
@@ -241,6 +272,8 @@ export default function LeadPipelinePage() {
       email: editForm.email,
       outreach_channel: editForm.outreach_channel,
       score: parseInt(editForm.score) || 5,
+      tier: parseInt(editForm.tier) || undefined,
+      booking_platform: editForm.booking_platform || undefined,
       notes: editForm.notes,
       instagram_handle: editForm.instagram_handle,
       has_online_booking: editForm.has_online_booking,
@@ -329,7 +362,7 @@ export default function LeadPipelinePage() {
         <label className="mb-1 block text-xs font-medium text-gray-600">Business type</label>
         <select value={formState.business_type} onChange={(e) => setFormState({ ...formState, business_type: e.target.value as BusinessType })}
           className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 outline-none">
-          {BUSINESS_TYPES.map((t) => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+          {BUSINESS_TYPES.map((t) => <option key={t} value={t}>{BUSINESS_TYPE_LABELS[t]}</option>)}
         </select>
       </div>
       <div>
@@ -340,7 +373,9 @@ export default function LeadPipelinePage() {
           <option value="instagram">Instagram DM</option>
         </select>
       </div>
-      <FormField label="Lead score (1-10)" fieldKey="score" placeholder="7" formState={formState} setFormState={setFormState} />
+      <FormField label="Lead score (0-100)" fieldKey="score" placeholder="75" formState={formState} setFormState={setFormState} />
+      <FormField label="Tier (1=Hot, 2=Warm, 3=Cool, 4=Cold)" fieldKey="tier" placeholder="1" formState={formState} setFormState={setFormState} />
+      <FormField label="Booking platform" fieldKey="booking_platform" placeholder="Fresha" formState={formState} setFormState={setFormState} />
       <FormField label="Instagram handle" fieldKey="instagram_handle" placeholder="@elitebarbers" formState={formState} setFormState={setFormState} />
 
       <div className="col-span-2 border-t border-gray-100 pt-4">
@@ -428,6 +463,21 @@ export default function LeadPipelinePage() {
     </div>
   );
 
+  if (sessionExpired) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{ background: "#F7F8FA" }}>
+        <div className="rounded-xl border border-red-100 bg-white p-8 text-center shadow-sm max-w-sm">
+          <p className="text-sm font-semibold text-red-600 mb-2">Session expired</p>
+          <p className="text-sm text-gray-500 mb-4">Your admin session has expired (8h limit). Please reload and log in again.</p>
+          <button onClick={() => { sessionStorage.removeItem("vomni_admin_authed"); window.location.reload(); }}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-white" style={{ background: "#00C896" }}>
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen" style={{ background: "#F7F8FA" }}>
       <div className="mx-auto max-w-full px-6 py-8">
@@ -514,7 +564,7 @@ export default function LeadPipelinePage() {
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/50">
-                    {["Business", "Location", "Contact", "Rating", "ICP", "Last Bad Review", "Status", "Added", "Actions"].map((h) => (
+                    {["Business", "Location", "Contact", "Rating", "Tier / Booking", "Last Bad Review", "Status", "Added", "Actions"].map((h) => (
                       <th key={h} className="px-4 py-3 text-xs font-medium text-gray-500">{h}</th>
                     ))}
                   </tr>
@@ -533,7 +583,7 @@ export default function LeadPipelinePage() {
                         <tr key={lead.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                           <td className="px-4 py-3">
                             <div className="font-medium text-gray-900">{lead.business_name}</div>
-                            <div className="text-xs text-gray-400 capitalize">{lead.business_type}</div>
+                            <div className="text-xs text-gray-400">{BUSINESS_TYPE_LABELS[lead.business_type] ?? lead.business_type}</div>
                           </td>
                           <td className="px-4 py-3">
                             <div className="text-gray-700">{lead.city || "-"}</div>
@@ -562,9 +612,16 @@ export default function LeadPipelinePage() {
                             <div className="text-xs text-gray-400">{reviews} reviews</div>
                           </td>
                           <td className="px-4 py-3">
-                            <IcpBadge score={(lead as any).icp_score} />
-                            {(lead as any).has_online_booking && (
-                              <div className="text-xs text-gray-400 mt-0.5">{(lead as any).booking_system || "Online booking ✓"}</div>
+                            {lead.tier != null && TIER_CONFIG[lead.tier] && (
+                              <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                                style={{ background: TIER_CONFIG[lead.tier].bg, color: TIER_CONFIG[lead.tier].color }}>
+                                {TIER_CONFIG[lead.tier].label}
+                              </span>
+                            )}
+                            {lead.booking_platform && (
+                              <div className="text-xs mt-0.5" style={{ color: ["fresha", "booksy"].includes((lead.booking_platform || "").toLowerCase()) ? "#F59E0B" : "#6B7280" }}>
+                                {lead.booking_platform}
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3">
@@ -654,9 +711,20 @@ export default function LeadPipelinePage() {
                                     <div className="flex items-center gap-2 pt-1">
                                       <span className="text-xs text-gray-500">Score:</span>
                                       <span className="inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold"
-                                        style={{ background: lead.score >= 7 ? "rgba(0,200,150,0.12)" : "#F3F4F6", color: lead.score >= 7 ? G : "#6B7280" }}>
+                                        style={{ background: lead.score >= 70 ? "rgba(0,200,150,0.12)" : "#F3F4F6", color: lead.score >= 70 ? G : "#6B7280" }}>
                                         {lead.score}
                                       </span>
+                                      {lead.tier != null && TIER_CONFIG[lead.tier] && (
+                                        <span className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+                                          style={{ background: TIER_CONFIG[lead.tier].bg, color: TIER_CONFIG[lead.tier].color }}>
+                                          {TIER_CONFIG[lead.tier].label}
+                                        </span>
+                                      )}
+                                    </div>
+                                  )}
+                                  {lead.booking_platform && (
+                                    <div className="text-xs text-gray-500 pt-1">
+                                      Booking: <span className="font-medium" style={{ color: ["fresha", "booksy"].includes((lead.booking_platform || "").toLowerCase()) ? "#F59E0B" : "#374151" }}>{lead.booking_platform}</span>
                                     </div>
                                   )}
                                   {lead.notes && <p className="text-xs text-gray-500 pt-1">{lead.notes}</p>}

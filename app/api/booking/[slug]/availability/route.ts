@@ -18,6 +18,7 @@ export async function GET(
   const serviceId = searchParams.get("service_id");
   const staffId = searchParams.get("staff_id") ?? null; // "any" or UUID
   const find = searchParams.get("find"); // "next_today" | "next_week"
+  const includeFull = searchParams.get("include_full") === "true"; // return booked slots too
 
   if (!serviceId) {
     return NextResponse.json({ error: "service_id is required" }, { status: 400 });
@@ -103,7 +104,19 @@ export async function GET(
     service.duration_minutes, bizHours, bufferMinutes, timezone, gcalToken
   );
 
-  return NextResponse.json({ slots: slots.map(t => ({ time: t, available: true })) });
+  if (!includeFull) {
+    return NextResponse.json({ slots: slots.map(t => ({ time: t, available: true })) });
+  }
+
+  // include_full=true: compute all possible times for the day, mark each as available or full
+  const allPossibleSlots = await getAllSlotsForDate(
+    date!, business.id, serviceId, staffId,
+    service.duration_minutes, bizHours, bufferMinutes, timezone
+  );
+  const availableSet = new Set(slots);
+  return NextResponse.json({
+    slots: allPossibleSlots.map(t => ({ time: t, available: availableSet.has(t) })),
+  });
 }
 
 async function getSlotsForDate(
@@ -206,4 +219,45 @@ async function getBlockedTimes(businessId: string, date: string, staffId: string
 
   const { data } = await query;
   return (data ?? []) as { start_at: string; end_at: string }[];
+}
+
+/**
+ * Return all theoretically possible time slots for a date (no booking/blocked filtering).
+ * Used for include_full=true to show booked slots as "Join Waitlist" in the UI.
+ */
+async function getAllSlotsForDate(
+  date: string,
+  businessId: string,
+  serviceId: string,
+  staffId: string | null,
+  durationMinutes: number,
+  bizHours: import("@/types/booking").BusinessHours[],
+  bufferMinutes: number,
+  timezone: string,
+): Promise<string[]> {
+  if (!staffId || staffId === "any") {
+    const { data: staffServicesRaw } = await supabaseAdmin
+      .from("staff_services")
+      .select("staff_id")
+      .eq("service_id", serviceId);
+    const eligibleStaffIds = (staffServicesRaw ?? []).map(ss => ss.staff_id);
+
+    if (eligibleStaffIds.length === 0) {
+      return computeAvailableSlots(date, durationMinutes, bufferMinutes, bizHours, [], [], [], timezone);
+    }
+
+    // Union of all possible slots across staff (empty bookings = all slots possible)
+    const allSlots = new Set<string>();
+    for (const sid of eligibleStaffIds) {
+      const { data: shRaw } = await supabaseAdmin.from("staff_hours").select("*").eq("staff_id", sid);
+      const staffHours = (shRaw ?? []) as import("@/types/booking").StaffHours[];
+      computeAvailableSlots(date, durationMinutes, bufferMinutes, bizHours, staffHours, [], [], timezone)
+        .forEach(s => allSlots.add(s));
+    }
+    return Array.from(allSlots).sort();
+  }
+
+  const { data: shRaw } = await supabaseAdmin.from("staff_hours").select("*").eq("staff_id", staffId);
+  const staffHours = (shRaw ?? []) as import("@/types/booking").StaffHours[];
+  return computeAvailableSlots(date, durationMinutes, bufferMinutes, bizHours, staffHours, [], [], timezone);
 }

@@ -205,9 +205,6 @@ export default function BlogIndex({ posts }: { posts: PostMeta[] }) {
                   borderTop: `1px solid ${BD}`,
                 }}
               >
-                <span style={{ fontSize: 13, color: TS }}>
-                  {formatDate(post.publishedAt)}
-                </span>
                 <span
                   style={{
                     fontSize: 13,

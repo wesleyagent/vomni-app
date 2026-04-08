@@ -5,24 +5,24 @@ import { sendBookingMessage } from "@/lib/twilio";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
 // GET /api/cron/no-show-rebooking
-// Runs daily at 10am. Finds no-show bookings from 2h ago and sends re-booking SMS.
+// Runs daily at 10am. Finds no-show bookings that haven't had a rebook SMS sent yet.
+// Free-tier workaround: looks back 24h. When upgraded to Vercel Pro (hourly crons), narrow to 2h window.
 export async function GET(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const now = new Date();
-
-  // Look for no-shows that happened 90–150 minutes ago (2h window centre)
-  const min = new Date(now.getTime() - 150 * 60 * 1000);
-  const max = new Date(now.getTime() - 90 * 60 * 1000);
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
   const { data: noShows, error } = await supabaseAdmin
     .from("bookings")
     .select("id, customer_name, customer_phone, business_id, service_name, appointment_at, sms_status")
     .eq("status", "no_show")
-    .gte("appointment_at", min.toISOString())
-    .lte("appointment_at", max.toISOString());
+    .neq("sms_status", "noshow_sms_sent")
+    .gte("appointment_at", oneDayAgo.toISOString())
+    .lte("appointment_at", oneHourAgo.toISOString());
 
   if (error) {
     console.error("[cron/no-show-rebooking] query error:", error.message);

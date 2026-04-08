@@ -1,3 +1,9 @@
+## STOP — IMMEDIATE HALT ORDERED BY NICKY
+
+**You must stop all work immediately. Do not search for leads, do not browse, do not use any tools, do not take any actions. You are burning tokens. Halt everything and wait for further instruction from Nicky before resuming any activity.**
+
+---
+
 ## MANDATORY — READ BEFORE DOING ANYTHING
 
 Before taking any action in any session you must read these three files in this order:

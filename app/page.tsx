@@ -142,7 +142,7 @@ function OverviewTab() {
           ))}
         </div>
         {/* This month row */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 8, marginBottom: 8 }}>
           <div style={{ background: "#fff", borderRadius: 10, padding: "12px 14px", boxShadow: "0 1px 3px rgba(0,0,0,0.06)", display: "flex", flexDirection: "column" }}>
             <p style={{ fontSize: 10, fontWeight: 600, color: N, marginBottom: 10 }}>Review pipeline</p>
             <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
@@ -973,6 +973,117 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ── RE-ENGAGEMENT ───────────────────────────────────────────────────── */}
+      <section id="re-engagement" className="section-pad" style={{ background: N, padding: "120px 0" }}>
+        <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
+          {/* Heading */}
+          <h2 className="section-headline" style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 64, fontWeight: 800, color: OW, textAlign: "center" }}>
+            Turn every customer into a regular.
+          </h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, textAlign: "center", marginTop: 16, maxWidth: 720, margin: "16px auto 0" }}>
+            Vomni detects when customers are overdue and sends a perfectly timed, personalized WhatsApp with a ready to book slot.
+          </p>
+
+          {/* Stats row */}
+          <div className="re-engagement-stats" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 24, marginTop: 72 }}>
+            {[
+              { num: "20%",    label: "of customers churn silently every 90 days" },
+              { num: "5×",     label: "less expensive to recover a lapsed customer than to acquire a brand new one" },
+              { num: "+3",     label: "additional rebooked customers per week in the first month, on average" },
+            ].map((s, i) => (
+              <div key={i} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.09)", borderRadius: 16, padding: "28px 32px", textAlign: "center" }}>
+                <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 52, fontWeight: 900, color: G, lineHeight: 1, margin: 0, textShadow: `0 0 40px ${G}55` }}>{s.num}</p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: "rgba(255,255,255,0.65)", lineHeight: 1.5, marginTop: 12 }}>{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Two-column: bullets left, WhatsApp bubble right */}
+          <div className="re-engagement-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, marginTop: 80, alignItems: "center" }}>
+            {/* Left — feature bullets */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 36 }}>
+              {[
+                {
+                  icon: (
+                    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                    </svg>
+                  ),
+                  title: "Knows your customers",
+                  desc: "Vomni builds a profile from every booking: service, frequency, preferred time. No guesswork.",
+                },
+                {
+                  icon: (
+                    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                  ),
+                  title: "Sends at the right moment",
+                  desc: "Not too early, not too late. Timing is calculated per customer, based on their actual pattern.",
+                },
+                {
+                  icon: (
+                    <svg width={24} height={24} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                  ),
+                  title: "Feels personal, runs automatically",
+                  desc: "Every message reads like it came from you. You do nothing.",
+                },
+              ].map((f, i) => (
+                <div key={i} style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+                  <div style={{ background: "rgba(0,200,150,0.12)", borderRadius: 12, padding: 12, flexShrink: 0 }}>
+                    {f.icon}
+                  </div>
+                  <div>
+                    <p style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: OW, margin: 0 }}>{f.title}</p>
+                    <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: TM, marginTop: 6, lineHeight: 1.6 }}>{f.desc}</p>
+                  </div>
+                </div>
+              ))}
+
+            </div>
+
+            {/* Right — WhatsApp bubble */}
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <div className="sms-mockup" style={{ background: "#fff", borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 420, width: "100%", padding: 32 }}>
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  <span style={{ background: "#f0fdf4", borderRadius: 9999, padding: "6px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
+                    WhatsApp · Kings Cuts
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
+                  <div style={{ background: "#dcf8c6", borderRadius: "18px 18px 4px 18px", padding: "14px 18px", maxWidth: "88%", fontFamily: "Inter, sans-serif", fontSize: 15, color: "#111", lineHeight: 1.5 }}>
+                    Hey Lior — it&apos;s been 7 weeks since your last cut at Kings Cuts. Your usual slot is free this Thursday at 4pm. Want it?
+                    <div style={{ textAlign: "right", marginTop: 6 }}>
+                      <span style={{ fontSize: 11, color: "#6b7280" }}>just now ✓✓</span>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ background: "#f0fdf4", borderRadius: 12, borderLeft: "3px solid #16a34a", padding: "12px 16px", display: "flex", alignItems: "center", gap: 12 }}>
+                  <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.43 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.95a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/>
+                  </svg>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#166534", fontWeight: 500 }}>Lior K. rebooked — 14 minutes later · via WhatsApp</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* CTA — centred */}
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 40 }}>
+            <a
+              href="#how-it-works"
+              style={{ display: "inline-flex", alignItems: "center", gap: 8, background: G, color: "#fff", borderRadius: 9999, padding: "14px 32px", fontFamily: "Inter, sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", transition: "background 0.2s", whiteSpace: "nowrap" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = GD; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = G; }}
+            >
+              See how re-engagement works →
+            </a>
+          </div>
+        </div>
+      </section>
+
       {/* ── TESTIMONIALS ────────────────────────────────────────────────────── */}
       <section className="testimonials-section section-pad" style={{ background: OW, padding: "120px 0" }}>
         <div className="container" style={{ maxWidth: 1200, margin: "0 auto", padding: "0 48px" }}>
@@ -1359,21 +1470,15 @@ export default function LandingPage() {
             <a href="/#pricing" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Pricing</a>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/contact" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Contact</a>
-            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
-            <a href="/privacy" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Privacy Policy</a>
-            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
-            <a href="/terms" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Terms of Service</a>
-            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
-            <a href="/dpa" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>DPA</a>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px 20px", marginBottom: 20 }}>
+            <a href="/privacy" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Privacy Policy</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/acceptable-use" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Acceptable Use</a>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/cookies" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Cookies</a>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/refunds" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Refunds</a>
-            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
-            <a href="/complaints" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Complaints</a>
           </div>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM, margin: 0 }}>Vomni - hello@vomni.io</p>
         </div>

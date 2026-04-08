@@ -71,9 +71,7 @@ export default function DpaPage() {
     <div style={{ background: "#fff", minHeight: "100vh" }}>
       <LegalHeader />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px 80px" }}>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", marginBottom: 16 }}>
-          Last updated: 4 April 2026
-        </p>
+
         <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 40, fontWeight: 800, color: N, marginBottom: 16 }}>
           Data Processing Agreement
         </h1>

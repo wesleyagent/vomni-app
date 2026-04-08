@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare } from "lucide-react";
+import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, XCircle, Clock, AlertCircle, UserCheck, MessageSquare, History, Download, Receipt, ListOrdered } from "lucide-react";
 import { useBusinessContext } from "../_context";
 import { db, getAuthToken } from "@/lib/db";
+import PaymentDrawer from "@/components/invoices/PaymentDrawer";
 
 const G     = "#00C896";
 const N     = "#0A0F1E";
@@ -44,6 +45,79 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 
+// ── Waitlist type ─────────────────────────────────────────────────────────────
+
+type WaitlistStatus = "waiting" | "notified" | "confirmed" | "expired" | "cancelled";
+
+interface WaitlistEntry {
+  id: string;
+  requested_date: string;
+  requested_time: string;
+  customer_name: string;
+  customer_phone: string;
+  position: number;
+  status: WaitlistStatus;
+  notified_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+  service_name: string | null;
+}
+
+const WAITLIST_STATUS: Record<WaitlistStatus, { label: string; color: string; bg: string }> = {
+  waiting:   { label: "Waiting",   color: "#92400E", bg: "#FEF3C7" },
+  notified:  { label: "Notified",  color: "#1D4ED8", bg: "#DBEAFE" },
+  confirmed: { label: "Confirmed", color: "#065F46", bg: "#D1FAE5" },
+  expired:   { label: "Expired",   color: "#6B7280", bg: "#F3F4F6" },
+  cancelled: { label: "Cancelled", color: "#991B1B", bg: "#FEE2E2" },
+};
+
+// ── Invoice type (for Invoices sub-tab) ──────────────────────────────────────
+
+interface FullInvoice {
+  id:                  string;
+  invoice_number:      string;
+  document_type:       "heshbonit_mas" | "kabala";
+  issued_at:           string;
+  customer_name:       string;
+  customer_phone:      string | null;
+  service_description: string;
+  subtotal:            number;
+  vat_amount:          number;
+  total:               number;
+  payment_method:      string;
+  pdf_storage_path:    string | null;
+}
+
+const PAYMENT_LABELS: Record<string, string> = {
+  cash: "Cash", credit: "Credit Card", bit: "Bit", paybox: "Paybox",
+};
+
+function exportInvoicesCSV(invoices: FullInvoice[], businessName: string, dateFrom?: string, dateTo?: string) {
+  const BOM = "\uFEFF";
+  const headers = ["Invoice #", "Type", "Date", "Customer", "Phone", "Service", "Pre-VAT Amount", "VAT", "Total", "Payment Method"];
+  const rows = invoices.map(inv => [
+    inv.invoice_number,
+    inv.document_type === "heshbonit_mas" ? "Tax Invoice" : "Receipt",
+    new Date(inv.issued_at).toLocaleDateString("en-GB"),
+    inv.customer_name,
+    inv.customer_phone ?? "",
+    inv.service_description,
+    Number(inv.subtotal).toFixed(2),
+    Number(inv.vat_amount).toFixed(2),
+    Number(inv.total).toFixed(2),
+    PAYMENT_LABELS[inv.payment_method] ?? inv.payment_method,
+  ]);
+  const csv = BOM + [headers, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(",")).join("\n");
+  const now    = new Date();
+  const month  = dateFrom ? dateFrom.substring(0, 7) : `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const suffix = dateTo && dateFrom ? `${dateFrom}_${dateTo}` : month;
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url; a.download = `invoices_${businessName}_${suffix}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── CRM Types ────────────────────────────────────────────────────────────────
 
 interface CrmCustomer {
@@ -73,6 +147,7 @@ interface Appointment {
   customer_email: string | null;
   customer_phone: string | null;
   service_name: string | null;
+  service_price: number | null;
   appointment_at: string | null;
   status: "confirmed" | "completed" | "no_show" | "cancelled" | "pending";
   cancellation_reason: string | null;
@@ -96,9 +171,9 @@ const APPT_BADGE: Record<string, { label: string; icon: React.ReactNode; style: 
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function CustomersPage() {
-  const { businessId, timezone } = useBusinessContext();
+  const { businessId, businessName, timezone } = useBusinessContext();
 
-  const [activeTab,  setActiveTab]  = useState<"schedule" | "clients">("schedule");
+  const [activeTab,  setActiveTab]  = useState<"schedule" | "clients" | "history" | "invoices" | "waitlist">("schedule");
 
   // CRM tab state
   const [crmFilter,    setCrmFilter]    = useState<"all"|"active"|"at_risk"|"lapsed"|"opted_out"|"imported">("all");
@@ -125,6 +200,31 @@ export default function CustomersPage() {
   const [apptStatus,     setApptStatus]     = useState("all");
   const [apptPage,       setApptPage]       = useState(1);
   const [markingNoShow,  setMarkingNoShow]  = useState<string | null>(null);
+
+  // History tab state
+  const [historyAppts,   setHistoryAppts]   = useState<Appointment[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyInvoices, setHistoryInvoices] = useState<Record<string, { invoice_number: string; id: string }>>({});
+  const [historySearch,  setHistorySearch]  = useState("");
+  const [paymentDrawerOpen, setPaymentDrawerOpen] = useState(false);
+  const [paymentDrawerBooking, setPaymentDrawerBooking] = useState<Appointment | null>(null);
+
+  // Invoices sub-tab state
+  const [allInvoices,   setAllInvoices]   = useState<FullInvoice[]>([]);
+  const [invLoading,    setInvLoading]    = useState(false);
+  const [invMonth,      setInvMonth]      = useState("");
+  const [invDateFrom,   setInvDateFrom]   = useState("");
+  const [invDateTo,     setInvDateTo]     = useState("");
+  const [invPM,         setInvPM]         = useState("all");
+  const [invDlId,       setInvDlId]       = useState<string | null>(null);
+  const [invSelected,   setInvSelected]   = useState<Set<string>>(new Set());
+  const [invBulkDl,     setInvBulkDl]     = useState(false);
+
+  // Waitlist sub-tab state
+  const [waitlistDate,       setWaitlistDate]       = useState(() => new Date().toISOString().substring(0, 10));
+  const [waitlistEntries,    setWaitlistEntries]    = useState<WaitlistEntry[]>([]);
+  const [waitlistLoading,    setWaitlistLoading]    = useState(false);
+  const [waitlistCancelling, setWaitlistCancelling] = useState<string | null>(null);
 
   useEffect(() => {
     if (!businessId) { setApptLoading(false); return; }
@@ -191,6 +291,90 @@ export default function CustomersPage() {
     if (activeTab === "clients") fetchCrm();
   }, [activeTab, fetchCrm]);
 
+  // Load past appointments + their invoices for history tab
+  const loadHistory = useCallback(async () => {
+    if (!businessId) return;
+    setHistoryLoading(true);
+    const { data: appts } = await db
+      .from("bookings")
+      .select("id, customer_name, customer_email, customer_phone, service_name, appointment_at, status, cancellation_reason, review_status, rating, notes, created_at, service_price")
+      .eq("business_id", businessId)
+      .in("status", ["completed", "cancelled", "no_show"])
+      .order("appointment_at", { ascending: false })
+      .limit(200);
+    setHistoryAppts((appts ?? []) as Appointment[]);
+
+    // Fetch invoices for this business to cross-reference
+    const { data: invs } = await db
+      .from("invoices")
+      .select("id, invoice_number, booking_id")
+      .eq("business_id", businessId);
+    const invMap: Record<string, { invoice_number: string; id: string }> = {};
+    for (const inv of invs ?? []) {
+      if (inv.booking_id) invMap[inv.booking_id] = { invoice_number: inv.invoice_number, id: inv.id };
+    }
+    setHistoryInvoices(invMap);
+    setHistoryLoading(false);
+  }, [businessId]);
+
+  useEffect(() => {
+    if (activeTab === "history") loadHistory();
+  }, [activeTab, loadHistory]);
+
+  // Load all invoices for the Invoices sub-tab
+  const loadInvoices = useCallback(async () => {
+    if (!businessId) return;
+    setInvLoading(true);
+    const { data } = await db
+      .from("invoices")
+      .select("id, invoice_number, document_type, issued_at, customer_name, customer_phone, service_description, subtotal, vat_amount, total, payment_method, pdf_storage_path")
+      .eq("business_id", businessId)
+      .order("issued_at", { ascending: false });
+    setAllInvoices((data ?? []) as FullInvoice[]);
+    setInvLoading(false);
+  }, [businessId]);
+
+  useEffect(() => {
+    if (activeTab === "invoices") loadInvoices();
+  }, [activeTab, loadInvoices]);
+
+  // Auto-set date range when month filter changes
+  useEffect(() => {
+    if (!invMonth) return;
+    const [y, m] = invMonth.split("-").map(Number);
+    setInvDateFrom(`${invMonth}-01`);
+    setInvDateTo(new Date(y, m, 0).toISOString().substring(0, 10));
+  }, [invMonth]);
+
+  // Load waitlist entries
+  const loadWaitlist = useCallback(async (d: string) => {
+    setWaitlistLoading(true);
+    try {
+      const res = await fetch(`/api/dashboard/waitlist?date=${d}`);
+      if (res.ok) {
+        const data = await res.json();
+        setWaitlistEntries(data.entries ?? []);
+      }
+    } catch { /* ignore */ } finally {
+      setWaitlistLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "waitlist") loadWaitlist(waitlistDate);
+  }, [activeTab, waitlistDate, loadWaitlist]);
+
+  async function cancelWaitlistEntry(id: string) {
+    if (!confirm("Remove this person from the waitlist?")) return;
+    setWaitlistCancelling(id);
+    try {
+      const res = await fetch(`/api/dashboard/waitlist?id=${id}`, { method: "DELETE" });
+      if (res.ok) setWaitlistEntries(prev => prev.map(e => e.id === id ? { ...e, status: "cancelled" as WaitlistStatus } : e));
+    } catch { /* ignore */ } finally {
+      setWaitlistCancelling(null);
+    }
+  }
+
   async function saveNotes(profileId: string) {
     if (!businessId) return;
     setSavingNotes(profileId);
@@ -248,14 +432,23 @@ export default function CustomersPage() {
 
   async function markNoShow(bookingId: string) {
     setMarkingNoShow(bookingId);
-    await db.from("bookings").update({ status: "no_show" }).eq("id", bookingId);
-    setAppointments(prev => prev.map(a => a.id === bookingId ? { ...a, status: "no_show" as const } : a));
-    setMarkingNoShow(null);
+    try {
+      const token = await getAuthToken();
+      await fetch(`/api/booking/x/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ booking_id: bookingId, status: "no_show" }),
+      });
+      setHistoryAppts(prev => prev.map(a => a.id === bookingId ? { ...a, status: "no_show" as const } : a));
+    } finally {
+      setMarkingNoShow(null);
+    }
   }
 
   // Appointment filtering
   const filteredAppts = useMemo(() => {
     return appointments.filter(a => {
+      if (a.status !== "confirmed" && a.status !== "pending") return false;
       const matchSearch = !apptSearch || [a.customer_name, a.customer_email, a.customer_phone, a.service_name]
         .some(v => v?.toLowerCase().includes(apptSearch.toLowerCase()));
       const matchStatus = apptStatus === "all" || a.status === apptStatus;
@@ -297,8 +490,11 @@ export default function CustomersPage() {
         {/* Sub-tabs */}
         <div style={{ display: "flex", gap: 4, borderBottom: "2px solid #F3F4F6" }}>
           {([
-            { key: "clients",  label: "Clients",  icon: <UserCheck size={15} />, count: crmStats.total },
-            { key: "schedule", label: "Schedule",  icon: <Calendar size={15} />,  count: appointments.length },
+            { key: "schedule",  label: "Upcoming Appointments", icon: <Calendar size={15} />,     count: appointments.filter(a => a.status === "confirmed" || a.status === "pending").length },
+            { key: "waitlist",  label: "Waitlist",              icon: <ListOrdered size={15} />,  count: waitlistEntries.filter(e => e.status === "waiting" || e.status === "notified").length },
+            { key: "history",   label: "Past Appointments",     icon: <History size={15} />,      count: historyAppts.length },
+            { key: "clients",   label: "Customers",             icon: <UserCheck size={15} />,    count: crmStats.total },
+            { key: "invoices",  label: "Invoices",              icon: <Receipt size={15} />,      count: allInvoices.length },
           ] as const).map(tab => (
             <button
               key={tab.key}
@@ -345,11 +541,8 @@ export default function CustomersPage() {
               onChange={e => { setApptStatus(e.target.value); setApptPage(1); }}
               style={{ padding: "10px 12px", border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", background: "#fff", minWidth: 160 }}
             >
-              <option value="all">All statuses</option>
+              <option value="all">All upcoming</option>
               <option value="confirmed">Confirmed</option>
-              <option value="completed">Completed</option>
-              <option value="no_show">No-Show</option>
-              <option value="cancelled">Cancelled</option>
               <option value="pending">Pending</option>
             </select>
           </div>
@@ -362,10 +555,10 @@ export default function CustomersPage() {
             <div style={{ textAlign: "center", padding: "64px 24px", background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB" }}>
               <Calendar size={36} style={{ color: "#D1D5DB", margin: "0 auto 16px" }} />
               <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 8px" }}>
-                {appointments.length === 0 ? "No appointments yet" : "No results match your filters"}
+                {filteredAppts.length === 0 && apptSearch === "" && apptStatus === "all" ? "No upcoming appointments" : "No results match your filters"}
               </h3>
               <p style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
-                {appointments.length === 0 ? "Appointments will appear here when customers book via your booking link." : "Try adjusting your filters."}
+                {filteredAppts.length === 0 && apptSearch === "" && apptStatus === "all" ? "Upcoming confirmed and pending appointments will appear here." : "Try adjusting your filters."}
               </p>
             </div>
           ) : (
@@ -374,7 +567,7 @@ export default function CustomersPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
                   <thead>
                     <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
-                      {["Customer", "Service", "Date & Time", "Status", "Review", "Rating", "Actions"].map(h => (
+                      {["Customer", "Service", "Date & Time", "Status", "Review", "Rating"].map(h => (
                         <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
                       ))}
                     </tr>
@@ -383,8 +576,6 @@ export default function CustomersPage() {
                     {apptPaged.map((a, idx) => {
                       const badgeKey = a.status === "cancelled" && a.cancellation_reason === "rescheduled" ? "rescheduled" : a.status;
                       const badge = APPT_BADGE[badgeKey] ?? APPT_BADGE.pending;
-                      const isPast = a.appointment_at ? new Date(a.appointment_at) < new Date() : false;
-                      const canMarkNoShow = (a.status === "confirmed" || a.status === "pending") && isPast;
                       return (
                         <tr key={a.id} style={{ borderTop: idx > 0 ? "1px solid #F3F4F6" : "none" }}>
                           <td style={{ padding: "14px 16px" }}>
@@ -419,24 +610,6 @@ export default function CustomersPage() {
                           </td>
                           <td style={{ padding: "14px 16px" }}>
                             {a.rating ? <StarRating rating={a.rating} /> : <span style={{ fontSize: 12, color: "#D1D5DB" }}>—</span>}
-                          </td>
-                          <td style={{ padding: "14px 16px" }}>
-                            {canMarkNoShow && (
-                              <button
-                                onClick={() => markNoShow(a.id)}
-                                disabled={markingNoShow === a.id}
-                                style={{
-                                  padding: "6px 12px", borderRadius: 8, border: "1px solid #FECACA",
-                                  background: markingNoShow === a.id ? "#F9FAFB" : "#FEF2F2",
-                                  color: "#DC2626", fontFamily: "Inter, sans-serif", fontSize: 12,
-                                  fontWeight: 600, cursor: markingNoShow === a.id ? "not-allowed" : "pointer",
-                                  display: "flex", alignItems: "center", gap: 5,
-                                }}
-                              >
-                                <AlertCircle size={12} />
-                                {markingNoShow === a.id ? "Saving…" : "Mark No-Show"}
-                              </button>
-                            )}
                           </td>
                         </tr>
                       );
@@ -790,6 +963,439 @@ export default function CustomersPage() {
 
         </>
       )} {/* end clients tab */}
+
+      {/* ── PAST APPOINTMENTS TAB ── */}
+      {activeTab === "history" && (
+        <>
+          <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
+            <div style={{ position: "relative", flex: "1 1 220px", minWidth: 200 }}>
+              <Search size={16} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "#9CA3AF" }} />
+              <input
+                value={historySearch}
+                onChange={e => setHistorySearch(e.target.value)}
+                placeholder="Search name, phone, service…"
+                style={{ width: "100%", paddingLeft: 36, paddingRight: 12, paddingTop: 10, paddingBottom: 10, border: "1px solid #E5E7EB", borderRadius: 10, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+              />
+            </div>
+          </div>
+
+          {historyLoading ? (
+            <div style={{ display: "flex", justifyContent: "center", padding: 64 }}>
+              <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+            </div>
+          ) : (() => {
+            const filtered = historyAppts.filter(a => {
+              if (!historySearch) return true;
+              const q = historySearch.toLowerCase();
+              return [a.customer_name, a.customer_phone, a.service_name].some(v => v?.toLowerCase().includes(q));
+            });
+            if (filtered.length === 0) return (
+              <div style={{ textAlign: "center", padding: "64px 24px", background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB" }}>
+                <History size={36} style={{ color: "#D1D5DB", margin: "0 auto 16px" }} />
+                <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, margin: "0 0 8px" }}>
+                  No past appointments yet
+                </h3>
+                <p style={{ fontSize: 14, color: "#6B7280", fontFamily: "Inter, sans-serif" }}>
+                  Past appointments will appear here once they've taken place.
+                </p>
+              </div>
+            );
+            return (
+              <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
+                  <thead>
+                    <tr style={{ background: "#F9FAFB", borderBottom: "1px solid #E5E7EB" }}>
+                      {["Customer", "Service", "Date", "Status", "Review", "Rating", "Invoice", ""].map(h => (
+                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.04em" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((a, idx) => {
+                      const badgeKey = a.status === "cancelled" && a.cancellation_reason === "rescheduled" ? "rescheduled" : a.status;
+                      const badge = APPT_BADGE[badgeKey] ?? APPT_BADGE.pending;
+                      const inv = historyInvoices[a.id];
+                      const canCharge = timezone === "Asia/Jerusalem" && !inv && a.status !== "cancelled" && a.status !== "no_show";
+                      return (
+                        <tr
+                          key={a.id}
+                          onClick={canCharge ? () => { setPaymentDrawerBooking(a); setPaymentDrawerOpen(true); } : undefined}
+                          style={{ borderTop: idx > 0 ? "1px solid #F3F4F6" : "none", cursor: canCharge ? "pointer" : "default" }}
+                          onMouseEnter={canCharge ? e => { (e.currentTarget as HTMLElement).style.background = "#F9FAFB"; } : undefined}
+                          onMouseLeave={canCharge ? e => { (e.currentTarget as HTMLElement).style.background = ""; } : undefined}
+                        >
+                          <td style={{ padding: "14px 16px" }}>
+                            <p style={{ fontWeight: 600, color: N, fontSize: 14, margin: 0 }}>{a.customer_name ?? "-"}</p>
+                            {a.customer_phone && <p style={{ fontSize: 12, color: "#9CA3AF", margin: "2px 0 0" }}>{a.customer_phone}</p>}
+                          </td>
+                          <td style={{ padding: "14px 16px", fontSize: 14, color: "#374151" }}>{a.service_name ?? "-"}</td>
+                          <td style={{ padding: "14px 16px", fontSize: 13, color: "#6B7280", whiteSpace: "nowrap" }}>
+                            {a.appointment_at
+                              ? new Date(a.appointment_at.substring(0, 10) + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+                              : "-"}
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 600, borderRadius: 9999, padding: "4px 10px", ...badge.style }}>
+                              {badge.icon}
+                              {badge.label}
+                            </span>
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            {a.review_status ? (() => {
+                              const rb = STATUS_BADGE[a.review_status] ?? STATUS_BADGE.pending;
+                              return (
+                                <span style={{ fontSize: 11, fontWeight: 600, borderRadius: 9999, padding: "3px 9px", ...rb.style }}>
+                                  {rb.label}
+                                </span>
+                              );
+                            })() : <span style={{ fontSize: 12, color: "#D1D5DB" }}>—</span>}
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            {a.rating ? <StarRating rating={a.rating} /> : <span style={{ fontSize: 12, color: "#D1D5DB" }}>—</span>}
+                          </td>
+                          <td style={{ padding: "14px 16px" }}>
+                            {inv ? (
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: G }}>{inv.invoice_number}</span>
+                                <span style={{ fontSize: 11, color: "#9CA3AF" }}>· Invoiced</span>
+                              </div>
+                            ) : canCharge ? (
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setPaymentDrawerBooking(a); setPaymentDrawerOpen(true); }}
+                                style={{
+                                  padding: "7px 14px", borderRadius: 10,
+                                  background: G, color: "#fff", border: "none",
+                                  fontSize: 13, fontWeight: 700, cursor: "pointer",
+                                  fontFamily: "'Bricolage Grotesque', sans-serif",
+                                }}
+                              >
+                                💳 Collect Payment
+                              </button>
+                            ) : (
+                              <span style={{ fontSize: 12, color: "#D1D5DB" }}>—</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "14px 16px" }} onClick={e => e.stopPropagation()}>
+                            {a.status === "completed" && (
+                              <button
+                                onClick={() => markNoShow(a.id)}
+                                disabled={markingNoShow === a.id}
+                                style={{
+                                  padding: "6px 12px", borderRadius: 8, border: "1px solid #FECACA",
+                                  background: markingNoShow === a.id ? "#F9FAFB" : "#FEF2F2",
+                                  color: "#DC2626", fontFamily: "Inter, sans-serif", fontSize: 12,
+                                  fontWeight: 600, cursor: markingNoShow === a.id ? "not-allowed" : "pointer",
+                                  display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap",
+                                }}
+                              >
+                                <AlertCircle size={12} />
+                                {markingNoShow === a.id ? "Saving…" : "Mark No-Show"}
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            );
+          })()}
+        </>
+      )}
+
+      {/* ── WAITLIST SUB-TAB ── */}
+      {activeTab === "waitlist" && (() => {
+        const activeCount = waitlistEntries.filter(e => e.status === "waiting" || e.status === "notified").length;
+        const byTime = waitlistEntries.reduce<Record<string, WaitlistEntry[]>>((acc, e) => {
+          if (!acc[e.requested_time]) acc[e.requested_time] = [];
+          acc[e.requested_time].push(e);
+          return acc;
+        }, {});
+        return (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24, flexWrap: "wrap" }}>
+              <input type="date" value={waitlistDate} onChange={e => setWaitlistDate(e.target.value)}
+                style={{ padding: "10px 14px", borderRadius: 10, border: "1px solid #E5E7EB", fontFamily: "Inter, sans-serif", fontSize: 14, color: N, background: "#fff", outline: "none", cursor: "pointer" }} />
+              <div style={{ background: activeCount > 0 ? `${G}15` : "#F7F8FA", color: activeCount > 0 ? G : "#9CA3AF", borderRadius: 9999, padding: "6px 14px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600 }}>
+                {activeCount > 0 ? `${activeCount} active` : "No active entries"}
+              </div>
+              <span style={{ fontSize: 13, color: "#6B7280" }}>Customers are automatically notified when a booking is cancelled.</span>
+            </div>
+
+            {waitlistLoading ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: 64 }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              </div>
+            ) : waitlistEntries.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", background: "#F7F8FA", borderRadius: 16, border: "1px dashed #E5E7EB" }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: "#9CA3AF", margin: 0 }}>No waitlist entries for this date.</p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {Object.entries(byTime).sort(([a], [b]) => a.localeCompare(b)).map(([time, slotEntries]) => (
+                  <div key={time} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16, overflow: "hidden", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
+                    <div style={{ padding: "14px 20px", borderBottom: "1px solid #E5E7EB", background: "#F7F8FA", display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 17, fontWeight: 700, color: N }}>{time}</span>
+                      <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF" }}>
+                        {slotEntries.filter(e => e.status === "waiting" || e.status === "notified").length} waiting
+                      </span>
+                    </div>
+                    <div>
+                      {slotEntries.map((entry, idx) => {
+                        const s = WAITLIST_STATUS[entry.status] ?? WAITLIST_STATUS.waiting;
+                        const isActive = entry.status === "waiting" || entry.status === "notified";
+                        const expiresAt = entry.expires_at ? new Date(entry.expires_at) : null;
+                        const windowExpired = expiresAt ? expiresAt < new Date() : false;
+                        return (
+                          <div key={entry.id} style={{ padding: "14px 20px", borderBottom: idx < slotEntries.length - 1 ? "1px solid #E5E7EB" : "none", display: "flex", alignItems: "center", gap: 14, opacity: isActive ? 1 : 0.6 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: "50%", background: isActive ? G : "#E5E7EB", color: isActive ? "#fff" : "#9CA3AF", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
+                              {entry.position}
+                            </div>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: N }}>{entry.customer_name}</div>
+                              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", display: "flex", gap: 8, marginTop: 2, flexWrap: "wrap" }}>
+                                <span>{entry.customer_phone}</span>
+                                {entry.service_name && <span>· {entry.service_name}</span>}
+                              </div>
+                            </div>
+                            {entry.status === "notified" && expiresAt && !windowExpired && (
+                              <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#D97706", background: "#FEF3C7", borderRadius: 8, padding: "4px 8px", flexShrink: 0 }}>
+                                ⏰ expires {expiresAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                              </div>
+                            )}
+                            <div style={{ background: s.bg, color: s.color, borderRadius: 8, padding: "4px 10px", fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{s.label}</div>
+                            {isActive && (
+                              <button onClick={() => cancelWaitlistEntry(entry.id)} disabled={waitlistCancelling === entry.id}
+                                style={{ background: "none", border: "1px solid #E5E7EB", borderRadius: 8, padding: "6px 10px", fontSize: 12, color: "#6B7280", cursor: "pointer", flexShrink: 0 }}>
+                                {waitlistCancelling === entry.id ? "…" : "Remove"}
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      {/* ── INVOICES SUB-TAB ── */}
+      {activeTab === "invoices" && (() => {
+        const now       = new Date();
+        const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+        const thisMonth  = allInvoices.filter(inv => inv.issued_at.substring(0, 10) >= monthStart);
+        const totalRev   = thisMonth.reduce((s, inv) => s + Number(inv.total), 0);
+        const byPM       = ["cash","credit","bit","paybox"].map(pm => ({
+          pm, label: PAYMENT_LABELS[pm],
+          amount: thisMonth.filter(i => i.payment_method === pm).reduce((s,i) => s + Number(i.total), 0),
+          count:  thisMonth.filter(i => i.payment_method === pm).length,
+        }));
+        const filtered = allInvoices.filter(inv => {
+          const d = inv.issued_at.substring(0, 10);
+          if (invDateFrom && d < invDateFrom) return false;
+          if (invDateTo   && d > invDateTo)   return false;
+          if (invPM !== "all" && inv.payment_method !== invPM) return false;
+          return true;
+        });
+        const hasFilters = invDateFrom || invDateTo || invPM !== "all";
+        const GREY = "#F7F8FA";
+        return (
+          <>
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24, flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, margin: 0 }}>Invoices & Receipts</h2>
+                <p style={{ fontSize: 13, color: "#9CA3AF", margin: "3px 0 0" }}>Financial document history</p>
+              </div>
+              <button onClick={() => exportInvoicesCSV(filtered, businessName, invDateFrom || undefined, invDateTo || undefined)} disabled={filtered.length === 0}
+                style={{ padding: "9px 18px", borderRadius: 10, background: filtered.length === 0 ? GREY : `${G}18`, color: filtered.length === 0 ? "#9CA3AF" : G, border: `1px solid ${filtered.length === 0 ? "#E5E7EB" : G}`, fontSize: 13, fontWeight: 600, cursor: filtered.length === 0 ? "not-allowed" : "pointer" }}>
+                ⬇ Export CSV
+              </button>
+            </div>
+
+            {/* Summary cards */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
+              <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderLeft: `4px solid ${G}`, borderRadius: 14, padding: "18px 22px", flex: 1, minWidth: 140 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Total Revenue (This Month)</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 700, color: G }}>₪{totalRev.toLocaleString()}</div>
+                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>{thisMonth.length} documents this month</div>
+              </div>
+              {byPM.map(({ pm, label, amount, count }) => (
+                <div key={pm} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "18px 22px", flex: 1, minWidth: 120 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{label}</div>
+                  <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>₪{amount.toLocaleString()}</div>
+                  <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>{count} documents</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Filters */}
+            <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <label style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 600 }}>Month:</label>
+                <input type="month" value={invMonth} onChange={e => setInvMonth(e.target.value)}
+                  style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13, color: N, outline: "none" }} />
+              </div>
+              <span style={{ fontSize: 12, color: "#9CA3AF" }}>or</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <label style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 600 }}>From:</label>
+                <input type="date" value={invDateFrom} onChange={e => { setInvDateFrom(e.target.value); setInvMonth(""); }}
+                  style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13, color: N, outline: "none" }} />
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <label style={{ fontSize: 12, color: "#9CA3AF", fontWeight: 600 }}>To:</label>
+                <input type="date" value={invDateTo} onChange={e => { setInvDateTo(e.target.value); setInvMonth(""); }}
+                  style={{ padding: "7px 10px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13, color: N, outline: "none" }} />
+              </div>
+              <select value={invPM} onChange={e => setInvPM(e.target.value)}
+                style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #E5E7EB", fontSize: 13, color: N, outline: "none", background: "#fff" }}>
+                <option value="all">All payment methods</option>
+                <option value="cash">Cash</option>
+                <option value="credit">Credit Card</option>
+                <option value="bit">Bit</option>
+                <option value="paybox">Paybox</option>
+              </select>
+              {hasFilters && (
+                <button onClick={() => { setInvMonth(""); setInvDateFrom(""); setInvDateTo(""); setInvPM("all"); }}
+                  style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", fontSize: 13, color: "#9CA3AF", cursor: "pointer" }}>
+                  Clear ✕
+                </button>
+              )}
+              <span style={{ fontSize: 12, color: "#9CA3AF", marginLeft: "auto" }}>{filtered.length} documents</span>
+            </div>
+
+            {/* Table */}
+            {invLoading ? (
+              <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
+                <div style={{ width: 32, height: 32, borderRadius: "50%", border: `3px solid ${G}`, borderTopColor: "transparent", animation: "spin 0.7s linear infinite" }} />
+              </div>
+            ) : filtered.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 24px", color: "#9CA3AF", background: "#fff", border: "1px solid #E5E7EB", borderRadius: 16 }}>
+                <div style={{ fontSize: 36, marginBottom: 12 }}>🧾</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, color: N, fontWeight: 600, marginBottom: 6 }}>No documents yet</div>
+                <div style={{ fontSize: 13 }}>Documents appear here after recording a payment in the History tab</div>
+              </div>
+            ) : (
+              <div style={{ background: "#fff", borderRadius: 16, border: "1px solid #E5E7EB", overflow: "hidden" }}>
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 680, fontFamily: "Inter, sans-serif" }}>
+                    <thead>
+                      <tr style={{ background: "#F9FAFB", borderBottom: "2px solid #E5E7EB" }}>
+                        <th style={{ padding: "11px 14px", width: 40 }}>
+                          <input type="checkbox" checked={filtered.length > 0 && filtered.filter(i => i.pdf_storage_path).every(i => invSelected.has(i.id))}
+                            onChange={() => {
+                              const withPdf = filtered.filter(i => i.pdf_storage_path).map(i => i.id);
+                              const allChk = withPdf.every(id => invSelected.has(id));
+                              setInvSelected(allChk ? new Set() : new Set(withPdf));
+                            }}
+                            style={{ cursor: "pointer", width: 15, height: 15 }} />
+                        </th>
+                        {["Invoice #","Type","Date","Customer","Service","Total","Payment",""].map(h => (
+                          <th key={h} style={{ padding: "11px 14px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "#6B7280", textTransform: "uppercase" as const, letterSpacing: "0.05em", whiteSpace: "nowrap" as const }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map((inv, i) => (
+                        <tr key={inv.id} style={{ borderTop: i > 0 ? "1px solid #F3F4F6" : "none" }}
+                          onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = GREY; }}
+                          onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ""; }}>
+                          <td style={{ padding: "12px 14px" }} onClick={e => e.stopPropagation()}>
+                            {inv.pdf_storage_path ? (
+                              <input type="checkbox" checked={invSelected.has(inv.id)} onChange={() => {
+                                const n = new Set(invSelected);
+                                if (n.has(inv.id)) n.delete(inv.id); else n.add(inv.id);
+                                setInvSelected(n);
+                              }} style={{ cursor: "pointer", width: 15, height: 15 }} />
+                            ) : <span style={{ display: "inline-block", width: 15 }} />}
+                          </td>
+                          <td style={{ padding: "12px 14px", fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 13, fontWeight: 700, color: N }}>{inv.invoice_number}</td>
+                          <td style={{ padding: "12px 14px" }}>
+                            <span style={{ padding: "3px 8px", borderRadius: 9999, fontSize: 11, fontWeight: 600, background: inv.document_type === "heshbonit_mas" ? `${G}15` : "#EEF2FF", color: inv.document_type === "heshbonit_mas" ? G : "#6366F1" }}>
+                              {inv.document_type === "heshbonit_mas" ? "Tax Invoice" : "Receipt"}
+                            </span>
+                          </td>
+                          <td style={{ padding: "12px 14px", fontSize: 13, color: "#374151", whiteSpace: "nowrap" as const }}>{new Date(inv.issued_at).toLocaleDateString("en-GB")}</td>
+                          <td style={{ padding: "12px 14px", fontSize: 13, color: N, fontWeight: 500 }}>{inv.customer_name}</td>
+                          <td style={{ padding: "12px 14px", fontSize: 12, color: "#9CA3AF", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{inv.service_description}</td>
+                          <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 700, color: N, whiteSpace: "nowrap" as const }}>₪{Number(inv.total).toFixed(2)}</td>
+                          <td style={{ padding: "12px 14px" }}>
+                            <span style={{ padding: "3px 8px", borderRadius: 9999, background: "#F3F4F6", color: "#374151", fontSize: 11, fontWeight: 600 }}>{PAYMENT_LABELS[inv.payment_method] ?? inv.payment_method}</span>
+                          </td>
+                          <td style={{ padding: "12px 14px" }}>
+                            {inv.pdf_storage_path ? (
+                              <button onClick={async () => {
+                                setInvDlId(inv.id);
+                                try {
+                                  const token = await getAuthToken();
+                                  const res = await fetch(`/api/invoices/${inv.id}/download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                                  if (res.ok) { const { url } = await res.json(); window.open(url, "_blank"); }
+                                } finally { setInvDlId(null); }
+                              }} disabled={invDlId === inv.id}
+                                style={{ padding: "6px 12px", borderRadius: 8, background: GREY, color: N, border: "1px solid #E5E7EB", fontSize: 12, fontWeight: 600, cursor: "pointer", whiteSpace: "nowrap" as const }}>
+                                {invDlId === inv.id ? "…" : "⬇ PDF"}
+                              </button>
+                            ) : <span style={{ fontSize: 11, color: "#9CA3AF" }}>No PDF</span>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {invSelected.size > 0 && (
+                  <div style={{ padding: "12px 20px", borderTop: "1px solid #E5E7EB", background: "#F9FAFB", display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 13, color: "#6B7280" }}>{invSelected.size} selected</span>
+                    <button disabled={invBulkDl} onClick={async () => {
+                      setInvBulkDl(true);
+                      try {
+                        const token = await getAuthToken();
+                        for (const id of invSelected) {
+                          const res = await fetch(`/api/invoices/${id}/download`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+                          if (res.ok) {
+                            const inv = allInvoices.find(i => i.id === id);
+                            const { url } = await res.json();
+                            const a = document.createElement("a");
+                            a.href = url; a.download = `${inv?.invoice_number ?? id}.pdf`; a.target = "_blank"; a.click();
+                            await new Promise(r => setTimeout(r, 400));
+                          }
+                        }
+                      } finally { setInvBulkDl(false); setInvSelected(new Set()); }
+                    }} style={{ padding: "7px 16px", borderRadius: 8, background: N, color: "#fff", border: "none", fontSize: 12, fontWeight: 600, cursor: invBulkDl ? "not-allowed" : "pointer" }}>
+                      {invBulkDl ? "Downloading…" : `⬇ Download PDFs (${invSelected.size})`}
+                    </button>
+                    <button onClick={() => setInvSelected(new Set())}
+                      style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #E5E7EB", background: "#fff", color: "#6B7280", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                      Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
+      {/* Payment Drawer */}
+      {paymentDrawerBooking && (
+        <PaymentDrawer
+          isOpen={paymentDrawerOpen}
+          booking={{
+            id:             paymentDrawerBooking.id,
+            customer_name:  paymentDrawerBooking.customer_name,
+            customer_phone: paymentDrawerBooking.customer_phone,
+            service_name:   paymentDrawerBooking.service_name,
+            service_price:  paymentDrawerBooking.service_price,
+          }}
+          businessId={businessId}
+          onClose={() => setPaymentDrawerOpen(false)}
+          onSuccess={() => { setPaymentDrawerOpen(false); loadHistory(); }}
+        />
+      )}
 
     </div>
   );

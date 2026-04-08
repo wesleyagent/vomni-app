@@ -327,7 +327,7 @@ export default function DashboardOverview() {
   ];
 
   return (
-    <div style={{ padding: "28px 32px", maxWidth: 1100, margin: "0 auto", background: "#F7F8F6" }}>
+    <div className="dash-page-outer" style={{ padding: "28px 32px", maxWidth: 1100, width: "100%", boxSizing: "border-box", margin: "0 auto", background: "#F7F8F6" }}>
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       {/* ── 1. TOP BAR ──────────────────────────────────────────────────────── */}
@@ -402,7 +402,7 @@ export default function DashboardOverview() {
       )}
 
       {/* ── 3. STATS ROW ──────────────────────────────────────────────────── */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginBottom: 28 }}>
+      <div className="dash-stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 12, marginBottom: 28 }}>
         {/* Today */}
         <div style={{ background: "#fff", borderRadius: 14, padding: "18px 20px", boxShadow: SHADOW }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: MUTED, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
@@ -585,7 +585,7 @@ export default function DashboardOverview() {
         <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
 
           {/* Left + Right columns */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div className="dash-content-grid" style={{ display: "grid", gridTemplateColumns: "minmax(0,1fr) minmax(0,1fr)", gap: 12 }}>
 
             {/* LEFT — Review pipeline */}
             <div style={{ background: "#fff", padding: "20px 22px", borderRadius: 14, boxShadow: SHADOW }}>
@@ -597,7 +597,7 @@ export default function DashboardOverview() {
               </div>
 
               {/* Horizontal funnel */}
-              <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
+              <div style={{ display: "flex", alignItems: "stretch", gap: 0, minWidth: 0, overflow: "hidden" }}>
                 {funnelSteps.map((step, i) => (
                   <div key={step.label} style={{ display: "flex", alignItems: "center", flex: 1 }}>
                     <div style={{
@@ -716,7 +716,7 @@ export default function DashboardOverview() {
             <div style={{ fontSize: 12, fontWeight: 600, color: "#085041", marginBottom: 12 }}>
               Vomni handled this month — automatically
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
+            <div className="dash-vomni-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 10 }}>
               {[
                 { label: "reminders sent",              value: d.vomniReminders     },
                 { label: "review requests",             value: d.vomniReviewReqs    },

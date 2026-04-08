@@ -205,8 +205,6 @@ export default async function PostPage({
         >
           <span>By Vomni</span>
           <span style={{ color: BD }}>·</span>
-          <span>{formatDate(post.publishedAt)}</span>
-          <span style={{ color: BD }}>·</span>
           <span
             style={{
               background: OW,

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { sendBusinessPushNotification } from "@/lib/push";
 
 // Server-side data loader for the /r/[id] rating page.
 // ALL writes go through here using the service role key so they bypass RLS.
@@ -224,6 +225,39 @@ export async function PATCH(
     }
   }
 
+  // ── Trigger 2: google_redirect notification (non-blocking) ───────────────
+  try {
+    const { data: bk } = await supabaseAdmin
+      .from("bookings")
+      .select("customer_name, business_id")
+      .eq("id", booking_id)
+      .maybeSingle();
+    const notifBusinessId = business_id ?? bk?.business_id;
+    if (notifBusinessId) {
+      const customerName = bk?.customer_name ?? "A customer";
+      const notifBody = `${customerName} was directed to leave a Google review.`;
+      const { data: existingNotif } = await supabaseAdmin
+        .from("notifications")
+        .select("id")
+        .eq("business_id", notifBusinessId)
+        .eq("type", "google_redirect")
+        .ilike("body", `${customerName}%`)
+        .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .maybeSingle();
+      if (!existingNotif) {
+        void supabaseAdmin.from("notifications").insert({
+          business_id: notifBusinessId,
+          type: "google_redirect",
+          title: "Customer sent to Google review",
+          body: notifBody,
+          read: false,
+        });
+      }
+    }
+  } catch (e) {
+    console.error("[/api/r PATCH] google_redirect notification failed:", e);
+  }
+
   return NextResponse.json({ ok: true });
 }
 
@@ -315,6 +349,39 @@ export async function PUT(
     else console.log("[/api/r PUT] booking update (status only): ok");
   } else {
     console.log("[/api/r PUT] booking update: ok");
+  }
+
+  // ── Trigger 1: complaint notification for rating <= 2 (non-blocking) ────
+  if (business_id && rating && rating <= 2) {
+    try {
+      const notifBody = trimmed
+        ? trimmed.slice(0, 80)
+        : "A customer left private feedback before their Google review.";
+      const { data: existingNotif } = await supabaseAdmin
+        .from("notifications")
+        .select("id")
+        .eq("business_id", business_id)
+        .eq("type", "complaint")
+        .ilike("body", `${notifBody.slice(0, 40)}%`)
+        .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .maybeSingle();
+      if (!existingNotif) {
+        void supabaseAdmin.from("notifications").insert({
+          business_id,
+          type: "complaint",
+          title: "Private complaint received",
+          body: notifBody,
+          read: false,
+        });
+        Promise.resolve().then(() => sendBusinessPushNotification(business_id, {
+          title: "Private complaint received",
+          body: notifBody,
+          data: { type: "complaint", id: feedback_id ?? booking_id },
+        })).catch(e => console.error("[/api/r PUT] complaint push failed:", e));
+      }
+    } catch (e) {
+      console.error("[/api/r PUT] complaint notification failed:", e);
+    }
   }
 
   return NextResponse.json({ ok: true });

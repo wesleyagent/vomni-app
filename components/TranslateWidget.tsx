@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useLocale } from "@/lib/localeContext";
 
 interface Language { code: string; name: string; flag: string; }
 interface Currency { code: string; symbol: string; name: string; flag: string; rate: number; }
@@ -51,17 +52,37 @@ function clearGoogTransCookie() {
 type PriceSnap = { node: Text; original: string };
 
 export default function TranslateWidget() {
+  const { locale } = useLocale();
+  const isHebrew = locale === "he";
+
   const [open,           setOpen]           = useState(false);
   const [tab,            setTab]            = useState<"lang" | "currency">("lang");
-  const [activeLang,     setActiveLang]     = useState("en");
-  const [activeCurrency, setActiveCurrency] = useState("GBP");
+  const [activeLang,     setActiveLang]     = useState(isHebrew ? "iw" : "en");
+  const [activeCurrency, setActiveCurrency] = useState(isHebrew ? "ILS" : "GBP");
   const panelRef  = useRef<HTMLDivElement>(null);
   const priceSnaps = useRef<PriceSnap[]>([]);
 
-  // ── On mount: ensure page always starts in English ───────────────────────
+  // ── On mount: reset to English on EN routes; trigger Hebrew on /he ────────
   useEffect(() => {
-    clearGoogTransCookie();
-    setActiveLang("en");
+    if (isHebrew) {
+      // googtrans cookie already set by layout; now fire the GT element
+      setActiveLang("iw");
+      setActiveCurrency("ILS");
+      const tryTrigger = (attempts = 0) => {
+        const sel = document.querySelector(".goog-te-combo") as HTMLSelectElement | null;
+        if (sel) {
+          sel.value = "iw";
+          sel.dispatchEvent(new Event("change", { bubbles: true }));
+        } else if (attempts < 30) {
+          setTimeout(() => tryTrigger(attempts + 1), 300);
+        }
+      };
+      setTimeout(() => tryTrigger(), 800);
+    } else {
+      clearGoogTransCookie();
+      setActiveLang("en");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Load Google Translate (hidden, no auto-display) ───────────────────────
@@ -84,8 +105,12 @@ export default function TranslateWidget() {
   }, []);
 
   // ── Snapshot £ price nodes for currency conversion ────────────────────────
+  // On /he we collect early (300 ms) so we beat Google Translate's DOM rewrites.
+  // On other routes we wait the normal 1800 ms for the page to settle.
   useEffect(() => {
     let tries = 0;
+    const delay = isHebrew ? 300 : 1800;
+
     function collect() {
       const found: PriceSnap[] = [];
       function walk(n: Node) {
@@ -99,10 +124,46 @@ export default function TranslateWidget() {
         } else { n.childNodes.forEach(walk); }
       }
       walk(document.body);
-      if (found.length > 0 || tries++ >= 10) priceSnaps.current = found;
-      else setTimeout(collect, 500);
+      if (found.length > 0 || tries++ >= 10) {
+        priceSnaps.current = found;
+      } else {
+        setTimeout(collect, 500);
+      }
     }
-    setTimeout(collect, 1800);
+
+    const timer = setTimeout(() => {
+      collect();
+      // On /he: apply ILS immediately after collecting, before GT rewrites the nodes
+      if (isHebrew) {
+        const ILS = CURRENCIES.find(c => c.code === "ILS")!;
+        // Re-run walk inline so we definitely have fresh nodes
+        const fresh: PriceSnap[] = [];
+        function walk2(n: Node) {
+          if (n.nodeType === Node.TEXT_NODE) {
+            const t = n.textContent ?? "";
+            if (/£\d/.test(t)) {
+              const p = (n as Text).parentElement;
+              if (p && !["SCRIPT","STYLE","NOSCRIPT","TEXTAREA"].includes(p.tagName))
+                fresh.push({ node: n as Text, original: t });
+            }
+          } else { n.childNodes.forEach(walk2); }
+        }
+        walk2(document.body);
+        if (fresh.length > 0) {
+          priceSnaps.current = fresh;
+          fresh.forEach(({ node, original }) => {
+            node.textContent = original.replace(/£([\d,]+)/g, (_, raw) => {
+              const gbp = parseInt(raw.replace(/,/g, ""), 10);
+              return ILS.symbol + " " + Math.round(gbp * ILS.rate).toLocaleString();
+            });
+          });
+          setActiveCurrency("ILS");
+        }
+      }
+    }, delay);
+
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Close on outside click ────────────────────────────────────────────────

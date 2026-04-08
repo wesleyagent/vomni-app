@@ -45,9 +45,6 @@ export default function AcceptableUsePage() {
     <div style={{ background: "#fff", minHeight: "100vh" }}>
       <LegalHeader />
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 24px" }}>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#9CA3AF", marginBottom: 32 }}>
-          Last updated March 2026.
-        </p>
         <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 40, fontWeight: 800, color: N, marginBottom: 8 }}>
           Acceptable Use Policy
         </h1>

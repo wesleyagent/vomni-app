@@ -148,32 +148,51 @@ export async function POST(
 
   await sendBookingMessage(booking.customer_phone, smsBody, business?.whatsapp_enabled ?? false);
 
-  // Notify waitlist — check if anyone is waiting for this slot
-  const appointmentDate = booking.appointment_at?.substring(0, 10);
-  if (appointmentDate && booking.staff_id) {
-    const { data: waitlisted } = await supabaseAdmin
-      .from("booking_waitlist")
-      .select("id, customer_name, customer_phone, business_id")
+  // Notify waitlist — find the first person waiting for this exact slot
+  const apptDateStr = date || undefined;
+  const apptTimeStr = time || undefined;
+  if (apptDateStr && apptTimeStr) {
+    // Query new waitlist table for this exact slot
+    let waitlistQuery = supabaseAdmin
+      .from("waitlist")
+      .select("id, customer_name, customer_phone, confirmation_token, cancellation_token")
       .eq("business_id", booking.business_id)
-      .eq("date", appointmentDate)
-      .eq("notified", false)
-      .eq("booked", false)
-      .order("created_at", { ascending: true })
-      .limit(3);
+      .eq("requested_date", apptDateStr)
+      .eq("requested_time", apptTimeStr)
+      .eq("status", "waiting")
+      .order("position", { ascending: true })
+      .limit(1);
 
-    if (waitlisted && waitlisted.length > 0) {
-      for (const w of waitlisted) {
-        const wFirstName = w.customer_name?.split(" ")[0] ?? "there";
-        const wMsg = rebookUrl
-          ? `Hi ${wFirstName}! 🎉 A spot just opened up at ${business?.name ?? "us"} on ${date}. Book now: ${rebookUrl}`
-          : `Hi ${wFirstName}! A spot just opened up at ${business?.name ?? "us"} on ${date}. Contact us to book!`;
+    if (booking.staff_id) {
+      waitlistQuery = waitlistQuery.eq("staff_id", booking.staff_id);
+    }
 
-        await sendBookingMessage(w.customer_phone, wMsg, false);
-        await supabaseAdmin
-          .from("booking_waitlist")
-          .update({ notified: true, notified_at: new Date().toISOString() })
-          .eq("id", w.id);
-      }
+    const { data: next } = await waitlistQuery.maybeSingle();
+
+    if (next) {
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+      await supabaseAdmin
+        .from("waitlist")
+        .update({
+          status:      "notified",
+          notified_at: new Date().toISOString(),
+          expires_at:  expiresAt,
+        })
+        .eq("id", next.id);
+
+      const wFirstName = next.customer_name?.split(" ")[0] ?? "there";
+      const confirmUrl = `${APP_URL}/waitlist/confirm/${next.confirmation_token}`;
+      const wCancelUrl  = `${APP_URL}/waitlist/cancel/${next.cancellation_token}`;
+
+      const wMsg = [
+        `Hi ${wFirstName}, a slot just opened at ${business?.name ?? "us"} on ${apptDateStr} at ${apptTimeStr}.`,
+        `Reply YES or confirm: ${confirmUrl}`,
+        `You have 15 minutes.`,
+        `Remove me: ${wCancelUrl}`,
+      ].join(" ");
+
+      await sendBookingMessage(next.customer_phone, wMsg, business?.whatsapp_enabled ?? false);
     }
   }
 

@@ -14,7 +14,7 @@ CREATE OR REPLACE FUNCTION reschedule_booking_atomic(
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
-AS $$
+AS $func$
 DECLARE
   v_booking        record;
   v_new_token      text;
@@ -136,4 +136,4 @@ BEGIN
     'new_appointment_at', p_new_appointment_at::text
   );
 END;
-$$;
+$func$;

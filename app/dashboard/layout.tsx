@@ -26,7 +26,9 @@ const TABS = [
 interface Notification {
   id: string;
   type: string;
-  message: string;
+  title?: string;
+  body?: string;
+  message?: string; // legacy
   link?: string;
   read: boolean;
   created_at: string;
@@ -45,6 +47,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [notifOpen,     setNotifOpen]     = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [trialInfo,     setTrialInfo]     = useState<{ isTrial: boolean; daysRemaining: number; trialExpired: boolean } | null>(null);
+
+  // IL invoice onboarding
+  const [showInvoiceBanner, setShowInvoiceBanner] = useState(false);
+  const [showInvoiceModal,  setShowInvoiceModal]  = useState(false);
+  const [invoiceLegalName,  setInvoiceLegalName]  = useState("");
+  const [invoiceAddress,    setInvoiceAddress]    = useState("");
+  const [invoiceOsekType,   setInvoiceOsekType]   = useState<"osek_patur" | "osek_murshe">("osek_patur");
+  const [invoiceMursheNum,  setInvoiceMursheNum]  = useState("");
+  const [invoiceSaving,     setInvoiceSaving]     = useState(false);
 
   // Review request modal
   const [showReviewModal,  setShowReviewModal]  = useState(false);
@@ -80,6 +91,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         if (step < 5) { router.replace("/onboarding"); return; }
         const tz = (biz as typeof biz & { booking_timezone?: string | null }).booking_timezone ?? "Asia/Jerusalem";
         setCtx({ businessId: biz.id, businessName: biz.name ?? "My Business", ownerName: biz.owner_name ?? "", email: user.email, timezone: tz });
+        // Show invoice onboarding banner for IL businesses that haven't set up their legal details
+        if (tz === "Asia/Jerusalem") {
+          const bizAny = biz as unknown as Record<string, unknown>;
+          const needsOnboarding = !bizAny.business_legal_name && !bizAny.osek_type;
+          setShowInvoiceBanner(needsOnboarding);
+        }
         const plan = (biz as typeof biz & { plan?: string }).plan ?? null;
         setBizPlan(plan);
         // Credit-based SMS limits removed — usage tracking deprecated
@@ -144,8 +161,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   const unread = notifications.filter(n => !n.read).length;
-  const feedbackAlerts = notifications.filter(n => !n.read && (n.type === "negative_review" || n.type === "low_rating" || n.type === "feedback")).length;
+  const feedbackAlerts = notifications.filter(n => !n.read && (n.type === "negative_review" || n.type === "low_rating" || n.type === "feedback" || n.type === "complaint")).length;
   const initials = ctx?.businessName ? ctx.businessName.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase() : "?";
+
+  function notifDotColor(type: string) {
+    if (type === "complaint") return "#EF4444";
+    if (type === "no_show") return "#F59E0B";
+    return "#22C55E"; // green for google_redirect, nudge_converted, new_booking, etc.
+  }
 
   function fmtAgo(ts: string) {
     const diff = Date.now() - new Date(ts).getTime();
@@ -178,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <BusinessContext.Provider value={ctx ?? { businessId: "", businessName: "My Business", ownerName: "", email: "", timezone: "Asia/Jerusalem" }}>
-      <div style={{ minHeight: "100vh", background: "#F7F8FA", display: "flex", flexDirection: "column" }}>
+      <div style={{ minHeight: "100vh", background: "#F7F8FA", display: "flex", flexDirection: "column", overflowX: "hidden" }}>
         <style>{`
           @keyframes spin { to { transform: rotate(360deg); } }
           @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
@@ -188,10 +211,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           .dash-tab-bar { padding: 0 40px; overflow-x: auto; scrollbar-width: none; }
           .dash-tab-bar::-webkit-scrollbar { display: none; }
           .dash-notif-panel { width: 380px; }
-          @media (max-width: 640px) {
+          @media (max-width: 768px) {
             .dash-header-inner { padding: 0 16px !important; }
             .dash-tab-bar { padding: 0 8px !important; }
             .dash-notif-panel { width: 100vw !important; }
+            .dash-page-outer   { padding: 16px !important; }
+            .dash-stats-grid   { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
+            .dash-content-grid { grid-template-columns: 1fr !important; }
+            .dash-vomni-grid   { grid-template-columns: repeat(2, minmax(0,1fr)) !important; }
           }
         `}</style>
 
@@ -390,6 +417,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         )}
 
+        {/* ── IL Invoice Onboarding Banner ── */}
+        {showInvoiceBanner && !trialInfo?.trialExpired && (
+          <div dir="rtl" style={{
+            background: "linear-gradient(90deg, #0A0F1E 0%, #0f1e2e 100%)",
+            padding: "12px 40px",
+            display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16,
+            borderTop: "1px solid rgba(0,200,150,0.2)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontSize: 18 }}>🧾</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: "#fff" }}>
+                השלם את פרטי העסק להנפקת מסמכים
+              </span>
+            </div>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button
+                onClick={() => setShowInvoiceModal(true)}
+                style={{
+                  background: G, color: "#fff", border: "none", borderRadius: 9999,
+                  padding: "8px 18px", fontFamily: "Inter, sans-serif", fontSize: 13,
+                  fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                השלם עכשיו
+              </button>
+              <button
+                onClick={() => setShowInvoiceBanner(false)}
+                style={{
+                  background: "transparent", color: "rgba(255,255,255,0.5)", border: "none",
+                  cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 4px",
+                }}
+                title="סגור"
+              >×</button>
+            </div>
+          </div>
+        )}
+
         {/* Trial Expired Overlay */}
         {trialInfo?.trialExpired && (
           <div style={{
@@ -469,14 +533,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       border: n.read ? "1px solid #F3F4F6" : "1px solid rgba(0,200,150,0.2)",
                     }}>
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: G, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                          {n.type.replace(/_/g, " ")}
-                        </span>
+                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", background: notifDotColor(n.type), flexShrink: 0 }} />
+                          <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: G, textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                            {n.type.replace(/_/g, " ")}
+                          </span>
+                        </div>
                         <span style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "#9CA3AF" }}>
                           {fmtAgo(n.created_at)}
                         </span>
                       </div>
-                      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, margin: 0, lineHeight: 1.5 }}>{n.message}</p>
+                      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, margin: 0, lineHeight: 1.5 }}>
+                        {n.title && <strong>{n.title}</strong>}
+                        {n.title && (n.body ?? n.message) ? <><br />{n.body ?? n.message}</> : (n.body ?? n.message)}
+                      </p>
                       {n.link && (
                         <Link href={n.link} style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: G, textDecoration: "none", marginTop: 6, display: "inline-block" }}>
                           View →
@@ -491,6 +561,149 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         )}
 
         <ChatWidget context="dashboard" business={ctx ? { id: ctx.businessId, name: ctx.businessName, ownerName: ctx.ownerName } : null} />
+
+        {/* ── IL Invoice Onboarding Modal ── */}
+        {showInvoiceModal && (
+          <>
+            <div
+              onClick={() => setShowInvoiceModal(false)}
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 200 }}
+            />
+            <div dir="rtl" style={{
+              position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+              width: "min(460px, calc(100vw - 32px))", background: "#fff", borderRadius: 20,
+              boxShadow: "0 20px 60px rgba(0,0,0,0.25)", zIndex: 210, padding: 28,
+              maxHeight: "90vh", overflowY: "auto", fontFamily: "Inter, sans-serif",
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+                <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 20, fontWeight: 700, color: N, margin: 0 }}>
+                  פרטי עסק להנפקת מסמכים
+                </h3>
+                <button
+                  onClick={() => setShowInvoiceModal(false)}
+                  style={{ background: "#F7F8FA", border: "none", borderRadius: "50%", width: 32, height: 32, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >
+                  <X size={16} color="#6B7280" />
+                </button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* שם משפטי */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    שם משפטי של העסק *
+                  </label>
+                  <input
+                    value={invoiceLegalName} onChange={e => setInvoiceLegalName(e.target.value)}
+                    placeholder="כפי שמופיע ברשומות רשם החברות"
+                    style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 14, color: N, outline: "none", boxSizing: "border-box", direction: "rtl" }}
+                  />
+                </div>
+
+                {/* כתובת */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    כתובת *
+                  </label>
+                  <input
+                    value={invoiceAddress} onChange={e => setInvoiceAddress(e.target.value)}
+                    placeholder="רחוב, עיר, מיקוד"
+                    style={{ width: "100%", padding: "11px 14px", borderRadius: 10, border: "1px solid #E5E7EB", fontSize: 14, color: N, outline: "none", boxSizing: "border-box", direction: "rtl" }}
+                  />
+                </div>
+
+                {/* סוג עוסק */}
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", display: "block", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                    סוג עוסק *
+                  </label>
+                  <div style={{ display: "flex", gap: 10 }}>
+                    {(["osek_patur", "osek_murshe"] as const).map(t => (
+                      <label key={t} style={{
+                        flex: 1, display: "flex", alignItems: "center", gap: 10,
+                        padding: "14px 16px", borderRadius: 12, cursor: "pointer",
+                        border: `2px solid ${invoiceOsekType === t ? G : "#E5E7EB"}`,
+                        background: invoiceOsekType === t ? `${G}10` : "#fff",
+                        transition: "border-color 0.15s",
+                      }}>
+                        <input
+                          type="radio"
+                          name="osek_type"
+                          value={t}
+                          checked={invoiceOsekType === t}
+                          onChange={() => setInvoiceOsekType(t)}
+                          style={{ accentColor: G }}
+                        />
+                        <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: invoiceOsekType === t ? G : N }}>
+                          {t === "osek_patur" ? "עוסק פטור" : "עוסק מורשה"}
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* מספר עוסק מורשה */}
+                {invoiceOsekType === "osek_murshe" && (
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", display: "block", marginBottom: 5, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                      מספר עוסק מורשה *
+                    </label>
+                    <input
+                      value={invoiceMursheNum}
+                      onChange={e => setInvoiceMursheNum(e.target.value.replace(/\D/g, "").slice(0, 9))}
+                      placeholder="9 ספרות"
+                      maxLength={9}
+                      style={{
+                        width: "100%", padding: "11px 14px", borderRadius: 10,
+                        border: `1px solid ${invoiceMursheNum.length > 0 && invoiceMursheNum.length !== 9 ? "#EF4444" : "#E5E7EB"}`,
+                        fontSize: 14, color: N, outline: "none", boxSizing: "border-box",
+                        direction: "ltr", textAlign: "right",
+                      }}
+                    />
+                    {invoiceMursheNum.length > 0 && invoiceMursheNum.length !== 9 && (
+                      <p style={{ fontSize: 12, color: "#EF4444", margin: "4px 0 0" }}>מספר עוסק מורשה חייב להכיל בדיוק 9 ספרות</p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <button
+                disabled={
+                  !invoiceLegalName.trim() || !invoiceAddress.trim() ||
+                  (invoiceOsekType === "osek_murshe" && invoiceMursheNum.length !== 9) ||
+                  invoiceSaving
+                }
+                onClick={async () => {
+                  if (!ctx?.businessId) return;
+                  setInvoiceSaving(true);
+                  const patch: Record<string, unknown> = {
+                    business_legal_name: invoiceLegalName.trim(),
+                    business_address:    invoiceAddress.trim(),
+                    osek_type:           invoiceOsekType,
+                  };
+                  if (invoiceOsekType === "osek_murshe") patch.osek_murshe_number = invoiceMursheNum;
+                  await db.from("businesses").update(patch).eq("id", ctx.businessId);
+                  setShowInvoiceBanner(false);
+                  setShowInvoiceModal(false);
+                  setInvoiceSaving(false);
+                }}
+                style={{
+                  width: "100%", marginTop: 20, padding: "13px 16px", borderRadius: 12,
+                  background: (!invoiceLegalName.trim() || !invoiceAddress.trim() ||
+                    (invoiceOsekType === "osek_murshe" && invoiceMursheNum.length !== 9) ||
+                    invoiceSaving) ? "#E5E7EB" : G,
+                  color: (!invoiceLegalName.trim() || !invoiceAddress.trim() ||
+                    (invoiceOsekType === "osek_murshe" && invoiceMursheNum.length !== 9) ||
+                    invoiceSaving) ? "#9CA3AF" : "#fff",
+                  border: "none", fontFamily: "Inter, sans-serif", fontSize: 15,
+                  fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                {invoiceSaving ? "שומר..." : "שמור פרטי עסק"}
+              </button>
+            </div>
+          </>
+        )}
 
         {/* ── Request Review Modal ── */}
         {showReviewModal && (

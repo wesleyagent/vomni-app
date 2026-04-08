@@ -158,7 +158,7 @@ export default function PricingPage() {
               )}
               <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Booking system included", "Up to 2 staff members", "Reputation management", "Up to 1 location", "Email support"].map(f => (
+                {["Booking page, live in 5 minutes", "Automated WhatsApp review requests after every visit", "Basic dashboard", "Email support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <circle cx="8" cy="8" r="7" fill="#E5E7EB"/>
@@ -212,7 +212,7 @@ export default function PricingPage() {
               )}
               <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Everything in Starter", "Up to 5 staff members", "Up to 3 locations", "AI insights and suggested replies", "Competitor benchmarking", "Weekly reports", "Priority support"].map(f => (
+                {["Everything in Starter", "Automated follow-ups after every visit", "Lapsed customer re-engagement via WhatsApp", "Full analytics + weekly email reports", "Priority support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <circle cx="8" cy="8" r="7" fill="rgba(0,200,150,0.15)"/>
@@ -263,7 +263,7 @@ export default function PricingPage() {
               )}
               <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Everything in Growth", "Unlimited staff", "Unlimited locations", "Dedicated SMS number", "White label — remove Vomni branding", "Monthly strategy call", "Same day support"].map(f => (
+                {["Everything in Growth", "Dedicated WhatsApp number", "Same-day support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
                       <circle cx="8" cy="8" r="7" fill="rgba(245,166,35,0.2)"/>

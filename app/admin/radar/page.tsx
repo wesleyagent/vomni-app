@@ -86,6 +86,7 @@ function SortIcon({ col, sortKey, sortDir }: { col: SortKey; sortKey: SortKey; s
 export default function RadarPage() {
   const [businesses, setBusinesses] = useState<RadarBusiness[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sessionExpired, setSessionExpired] = useState(false);
   const [search, setSearch] = useState("");
   const [filterSource, setFilterSource] = useState("all");
   const [filterType, setFilterType] = useState("targets"); // default: targets only
@@ -96,6 +97,7 @@ export default function RadarPage() {
     setLoading(true);
     try {
       const res = await fetch("/api/admin/db/radar_businesses?order=first_seen_at.desc&limit=500");
+      if (res.status === 401) { setSessionExpired(true); return; }
       if (res.ok) {
         const data = await res.json();
         setBusinesses(Array.isArray(data) ? data : []);
@@ -163,6 +165,21 @@ export default function RadarPage() {
     userSelect: "none",
     background: "transparent",
   });
+
+  if (sessionExpired) {
+    return (
+      <div className="flex min-h-screen items-center justify-center" style={{ background: "#F7F8FA" }}>
+        <div className="rounded-xl border border-red-100 bg-white p-8 text-center shadow-sm max-w-sm">
+          <p className="text-sm font-semibold text-red-600 mb-2">Session expired</p>
+          <p className="text-sm text-gray-500 mb-4">Your admin session has expired (8h limit). Please reload and log in again.</p>
+          <button onClick={() => { sessionStorage.removeItem("vomni_admin_authed"); window.location.reload(); }}
+            className="rounded-lg px-4 py-2 text-sm font-medium text-white" style={{ background: "#00C896" }}>
+            Go to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen" style={{ background: "#F7F8FA" }}>

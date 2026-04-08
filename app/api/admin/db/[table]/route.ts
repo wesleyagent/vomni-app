@@ -14,23 +14,10 @@ import { requireAdmin } from "@/lib/require-admin";
 
 const CONTROL_PARAMS = new Set(["select", "order", "limit"]);
 
-function checkIPAllowlist(req: NextRequest): NextResponse | null {
-  const allowlist = process.env.ADMIN_IP_ALLOWLIST;
-  if (!allowlist) return null; // not configured — skip check
-  const allowed = allowlist.split(",").map(ip => ip.trim()).filter(Boolean);
-  const clientIP = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim();
-  if (!allowed.includes(clientIP)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
-  return null;
-}
-
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ table: string }> }
 ) {
-  const ipDeny = checkIPAllowlist(req);
-  if (ipDeny) return ipDeny;
   const deny = requireAdmin(req);
   if (deny) return deny;
   const { table } = await params;
@@ -64,8 +51,6 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ table: string }> }
 ) {
-  const ipDeny = checkIPAllowlist(req);
-  if (ipDeny) return ipDeny;
   const deny = requireAdmin(req);
   if (deny) return deny;
   const { table } = await params;
@@ -83,8 +68,6 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ table: string }> }
 ) {
-  const ipDeny = checkIPAllowlist(req);
-  if (ipDeny) return ipDeny;
   const deny = requireAdmin(req);
   if (deny) return deny;
   const { table } = await params;
@@ -105,8 +88,6 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ table: string }> }
 ) {
-  const ipDeny = checkIPAllowlist(req);
-  if (ipDeny) return ipDeny;
   const deny = requireAdmin(req);
   if (deny) return deny;
   const { table } = await params;
