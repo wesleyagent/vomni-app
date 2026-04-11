@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { withCronMonitoring } from "@/lib/telegram";
 
 // GET /api/cron/auto-complete-appointments
 // Runs nightly at 11pm. Auto-marks confirmed/pending appointments as completed
 // if their appointment time was more than 30 minutes ago.
 // Free-tier workaround: runs once daily. When upgraded to Vercel Pro, switch to hourly.
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -54,3 +55,5 @@ export async function GET(req: NextRequest) {
   console.log(`[auto-complete] marked ${ids.length} appointments as completed`);
   return NextResponse.json({ completed: ids.length });
 }
+
+export const GET = withCronMonitoring("auto-complete-appointments", handler);

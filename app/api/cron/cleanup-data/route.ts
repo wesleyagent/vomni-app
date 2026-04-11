@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { withCronMonitoring } from "@/lib/telegram";
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -102,3 +103,5 @@ export async function GET(req: NextRequest) {
     leads_expired:    leadsExpired,
   });
 }
+
+export const GET = withCronMonitoring("cleanup-data", handler);

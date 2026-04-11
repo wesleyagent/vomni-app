@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useBusinessContext } from "./_context";
 import { db } from "@/lib/db";
+import { currencySymbol } from "@/lib/currencyUtils";
 
 // ── Palette ──────────────────────────────────────────────────────────────────
 const G       = "#1D9E75";
@@ -117,7 +118,8 @@ const PROFILE_BADGE: Record<CrmProfile["profileState"], { bg: string; color: str
 
 // ── Main component ────────────────────────────────────────────────────────────
 export default function DashboardOverview() {
-  const { businessId, businessName } = useBusinessContext();
+  const { businessId, businessName, currency } = useBusinessContext();
+  const sym = currencySymbol(currency);
   const [data,    setData]    = useState<DashData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -442,11 +444,11 @@ export default function DashboardOverview() {
             Est. revenue
           </div>
           <div style={{ fontSize: d.monthRevenue >= 10000 ? 28 : 36, fontWeight: 700, color: G, lineHeight: 1 }}>
-            {d.monthRevenue > 0 ? `₪${d.monthRevenue.toLocaleString()}` : "₪0"}
+            {d.monthRevenue > 0 ? `${sym}${d.monthRevenue.toLocaleString()}` : `${sym}0`}
           </div>
           {d.reEngagementRevenue > 0 && (
             <div style={{ fontSize: 12, color: G, marginTop: 6 }}>
-              +₪{d.reEngagementRevenue.toLocaleString()} re-engagements
+              +{sym}{d.reEngagementRevenue.toLocaleString()} re-engagements
             </div>
           )}
         </div>

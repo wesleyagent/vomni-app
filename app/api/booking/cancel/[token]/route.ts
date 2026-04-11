@@ -146,7 +146,7 @@ export async function POST(
     rebookUrl ? `Book again anytime: ${rebookUrl}` : null,
   ].filter(Boolean).join(" ");
 
-  await sendBookingMessage(booking.customer_phone, smsBody, business?.whatsapp_enabled ?? false);
+  await sendBookingMessage(booking.customer_phone, smsBody, business?.whatsapp_enabled ?? false, { businessId: booking.business_id, bookingId: booking.id, messageType: "cancellation" });
 
   // Notify waitlist — find the first person waiting for this exact slot
   const apptDateStr = date || undefined;
@@ -192,7 +192,7 @@ export async function POST(
         `Remove me: ${wCancelUrl}`,
       ].join(" ");
 
-      await sendBookingMessage(next.customer_phone, wMsg, business?.whatsapp_enabled ?? false);
+      await sendBookingMessage(next.customer_phone, wMsg, business?.whatsapp_enabled ?? false, { businessId: booking.business_id, messageType: "waitlist_notify" });
     }
   }
 

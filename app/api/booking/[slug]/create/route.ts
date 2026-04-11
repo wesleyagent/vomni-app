@@ -201,11 +201,12 @@ export async function POST(
     }
     bookingId = result.booking_id!;
 
-    // Immediately overwrite customer_phone with display value
+    // Immediately overwrite customer_phone with display value and store encrypted
     // (the RPC stored the raw phone — we replace it now)
     await supabaseAdmin.from("bookings").update({
-      customer_phone: phoneDisplay,
-      phone_display: phoneDisplay,
+      customer_phone:           phoneDisplay,
+      phone_display:            phoneDisplay,
+      customer_phone_encrypted: phoneEncrypted,
     }).eq("id", bookingId);
   } else {
     // No staff — direct insert
@@ -215,8 +216,9 @@ export async function POST(
         business_id: business.id,
         service_id: service.id,
         customer_name: customerName,
-        customer_phone: phoneDisplay,            // masked — not raw
-        phone_display: phoneDisplay,
+        customer_phone:           phoneDisplay,            // masked — not raw
+        phone_display:            phoneDisplay,
+        customer_phone_encrypted: phoneEncrypted,          // AES-256-GCM encrypted
         customer_email: email || null,
         service: service.name,
         service_name: service.name,
@@ -282,7 +284,7 @@ export async function POST(
       const smsBody = staffName
         ? `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time} with ${staffName}. Cancel: ${cancelUrl}`
         : `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time}. Cancel: ${cancelUrl}`;
-      const smsResult = await sendBookingMessage(safePhone, smsBody, false);
+      const smsResult = await sendBookingMessage(safePhone, smsBody, false, { businessId: business.id, bookingId, messageType: "confirmation" });
       if (smsResult.success) {
         await supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId);
       }
@@ -293,7 +295,7 @@ export async function POST(
     const smsBody = staffName
       ? `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time} with ${staffName}. Cancel: ${cancelUrl}`
       : `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time}. Cancel: ${cancelUrl}`;
-    const smsResult = await sendBookingMessage(safePhone, smsBody, false);
+    const smsResult = await sendBookingMessage(safePhone, smsBody, false, { businessId: business.id, bookingId, messageType: "confirmation" });
     if (smsResult.success) {
       await supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId);
     }

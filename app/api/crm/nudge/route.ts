@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
+import { requireAuth, requireBusinessOwnership, requirePlan } from "@/lib/require-auth";
 import { sendRebookingNudge } from "@/lib/whatsapp";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
 
   const ownership = await requireBusinessOwnership(auth.email, business_id, supabaseAdmin);
   if (ownership instanceof NextResponse) return ownership;
+
+  const planCheck = await requirePlan(business_id, "growth", supabaseAdmin);
+  if (planCheck instanceof NextResponse) return planCheck;
 
   // Rate limit: 10 nudges per hour per business
   if (!checkRateLimit(`crm-nudge:${business_id}`, 10, 60 * 60 * 1000)) {

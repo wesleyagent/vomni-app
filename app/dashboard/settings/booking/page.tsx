@@ -3,6 +3,7 @@
 import { useState, useEffect, useContext } from "react";
 import { BusinessContext } from "../../_context";
 import { db } from "@/lib/db";
+import { currencySymbol } from "@/lib/currencyUtils";
 import { DAY_NAMES_EN } from "@/types/booking";
 import { Plus, Trash2, GripVertical, Check, Copy, X } from "lucide-react";
 
@@ -30,6 +31,7 @@ const DEFAULT_HOURS = [
 
 export default function BookingSettingsPage() {
   const ctx = useContext(BusinessContext);
+  const sym = currencySymbol(ctx?.currency ?? "ILS");
   const [loading, setLoading] = useState(true);
 
   // Setup wizard state
@@ -490,7 +492,7 @@ export default function BookingSettingsPage() {
                     <div>
                       <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: N }}>{svc.name}</div>
                       <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED }}>
-                        {svc.duration_minutes} min{svc.price ? ` · ₪${svc.price}` : ""}
+                        {svc.duration_minutes} min{svc.price ? ` · ${sym}${svc.price}` : ""}
                       </div>
                     </div>
                     <button onClick={() => deleteService(svc.id)} style={{ background: "none", border: "none", cursor: "pointer", color: MUTED }}>
@@ -511,7 +513,7 @@ export default function BookingSettingsPage() {
                   <select value={svcDuration} onChange={e => setSvcDuration(Number(e.target.value))} style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none" }}>
                     {[15, 20, 30, 45, 60, 75, 90, 120].map(m => <option key={m} value={m}>{m} min</option>)}
                   </select>
-                  <input value={svcPrice} onChange={e => setSvcPrice(e.target.value)} placeholder="Price (₪)" type="number" style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none" }} />
+                  <input value={svcPrice} onChange={e => setSvcPrice(e.target.value)} placeholder={`Price (${sym})`} type="number" style={{ padding: "10px 14px", borderRadius: 10, border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 14, outline: "none" }} />
                 </div>
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={addService} disabled={!svcName || saving} style={{ padding: "10px 20px", borderRadius: 9999, background: G, color: "#fff", border: "none", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
@@ -787,7 +789,7 @@ export default function BookingSettingsPage() {
             }}>
               <div>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: N }}>{svc.name}</div>
-                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED }}>{svc.duration_minutes} min{svc.price ? ` · ₪${svc.price}` : ""}</div>
+                <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: MUTED }}>{svc.duration_minutes} min{svc.price ? ` · ${sym}${svc.price}` : ""}</div>
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => { setEditingSvcId(svc.id); setSvcName(svc.name); setSvcNameHe(svc.name_he ?? ""); setSvcDuration(svc.duration_minutes); setSvcPrice(svc.price?.toString() ?? ""); setShowServiceForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", color: SECONDARY, fontFamily: "Inter, sans-serif", fontSize: 12 }}>Edit</button>
@@ -805,7 +807,7 @@ export default function BookingSettingsPage() {
                 <select value={svcDuration} onChange={e => setSvcDuration(Number(e.target.value))} style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 13, outline: "none" }}>
                   {[15, 20, 30, 45, 60, 75, 90, 120].map(m => <option key={m} value={m}>{m} min</option>)}
                 </select>
-                <input value={svcPrice} onChange={e => setSvcPrice(e.target.value)} placeholder="Price (₪)" type="number" style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 13, outline: "none" }} />
+                <input value={svcPrice} onChange={e => setSvcPrice(e.target.value)} placeholder={`Price (${sym})`} type="number" style={{ padding: "8px 12px", borderRadius: 8, border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 13, outline: "none" }} />
               </div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={addService} disabled={!svcName} style={{ padding: "8px 16px", borderRadius: 9999, background: G, color: "#fff", border: "none", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{editingSvcId ? "Update" : "Add"}</button>

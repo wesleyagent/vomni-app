@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { withCronMonitoring } from "@/lib/telegram";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -13,7 +14,7 @@ function getWeeklyRedirectCap(accountAgeWeeks: number): number {
   return 50;
 }
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -54,3 +55,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ updated, timestamp: now.toISOString() });
 }
+
+export const GET = withCronMonitoring("update-velocity", handler);

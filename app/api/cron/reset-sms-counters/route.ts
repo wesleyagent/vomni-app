@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { withCronMonitoring } from "@/lib/telegram";
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -55,3 +56,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ success: true, reset_count: idsToReset.length, reset_at: now.toISOString() });
 }
+
+export const GET = withCronMonitoring("reset-sms-counters", handler);

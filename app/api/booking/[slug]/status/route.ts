@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAuth } from "@/lib/require-auth";
+import { sendBookingMessage } from "@/lib/twilio";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
 // PATCH /api/booking/[slug]/status — Update booking status (dashboard use only)
 export async function PATCH(
@@ -87,6 +90,31 @@ export async function PATCH(
       }
     } catch (e) {
       console.error("[booking/status] no_show notification failed:", e);
+    }
+  }
+
+  // Cancelled by business — notify customer via SMS (non-blocking)
+  if (status === "cancelled") {
+    try {
+      const { data: bk } = await supabaseAdmin
+        .from("bookings")
+        .select("customer_name, customer_phone, service_name, appointment_at, business_id, cancellation_token, businesses(name, booking_slug)")
+        .eq("id", booking_id)
+        .maybeSingle();
+
+      if (bk?.customer_phone) {
+        const bizData   = bk.businesses as unknown as { name: string | null; booking_slug: string | null } | null;
+        const bizName   = bizData?.name ?? "us";
+        const firstName = bk.customer_name?.split(" ")[0] ?? "there";
+        const date      = bk.appointment_at?.substring(0, 10) ?? "";
+        const time      = bk.appointment_at?.substring(11, 16) ?? "";
+        const rebookUrl = bizData?.booking_slug ? `${APP_URL}/book/${bizData.booking_slug}` : null;
+        const rebookLine = rebookUrl ? ` Book again: ${rebookUrl}` : "";
+        const smsBody   = `Hi ${firstName}, your ${bk.service_name ?? "appointment"} at ${bizName} on ${date} at ${time} has been cancelled.${rebookLine}`;
+        void sendBookingMessage(bk.customer_phone, smsBody, false, { businessId: bk.business_id, bookingId: booking_id, messageType: "business_cancellation" });
+      }
+    } catch (e) {
+      console.error("[booking/status] cancellation SMS failed:", e);
     }
   }
 

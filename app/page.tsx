@@ -2,6 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 declare global {
   interface Window {
@@ -361,6 +362,7 @@ function CustomerViewTab() {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function LandingPage() {
+  const router = useRouter();
   const [scrolled,  setScrolled]  = useState(false);
   const [menuOpen,  setMenuOpen]  = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -408,8 +410,11 @@ export default function LandingPage() {
       const ref = params.get("ref");
       if (ref) { sessionStorage.setItem("vomni_ref", ref); }
       if (params.get("demo") === "1") {
-        // Remove the query param from the URL without triggering a reload
-        window.history.replaceState({}, "", "/");
+        // Use router.replace instead of window.history.replaceState — the
+        // App Router monkey-patches the History API, so calling replaceState
+        // directly before hydration completes throws "Router action dispatched
+        // before init" (VONMI-1).
+        router.replace("/", { scroll: false });
         const t = setTimeout(() => {
           document.querySelector("#book-demo")?.scrollIntoView({ behavior: "smooth" });
         }, 400);

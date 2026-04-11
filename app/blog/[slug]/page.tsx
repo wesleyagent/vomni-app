@@ -19,12 +19,8 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  let post;
-  try {
-    post = getPost(slug);
-  } catch {
-    return {};
-  }
+  const post = getPost(slug);
+  if (!post) return {};
   return {
     title: post.title + " | Vomni",
     description: post.description,
@@ -56,12 +52,8 @@ export default async function PostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  let post;
-  try {
-    post = getPost(slug);
-  } catch {
-    notFound();
-  }
+  const post = getPost(slug);
+  if (!post) notFound();
 
   const articleSchema = {
     "@context": "https://schema.org",

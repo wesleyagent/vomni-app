@@ -3,6 +3,7 @@
 import { useState, useEffect, useContext, useRef } from "react";
 import { BusinessContext } from "../_context";
 import { db, getAuthToken } from "@/lib/db";
+import { currencySymbol } from "@/lib/currencyUtils";
 import { BOOKING_STATUS_LABELS, type BookingStatus, DAY_NAMES_SHORT_EN } from "@/types/booking";
 import { Plus, X, Phone, MessageCircle, ChevronLeft, ChevronRight } from "lucide-react";
 
@@ -49,6 +50,7 @@ function formatDateStr(d: Date): string {
 
 export default function CalendarPage() {
   const ctx = useContext(BusinessContext);
+  const sym = currencySymbol(ctx?.currency ?? "ILS");
   const [view, setView] = useState<ViewMode>("fiveday");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookings, setBookings] = useState<CalendarBooking[]>([]);
@@ -790,7 +792,7 @@ export default function CalendarPage() {
                 )}
                 {selectedBooking.service_price != null && (
                   <div style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: SECONDARY, marginTop: 4 }}>
-                    💰 ₪{selectedBooking.service_price}
+                    💰 {sym}{selectedBooking.service_price}
                   </div>
                 )}
                 {selectedBooking.staff_id && (

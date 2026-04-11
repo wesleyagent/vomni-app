@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendBookingMessage } from "@/lib/twilio";
+import { withCronMonitoring } from "@/lib/telegram";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
@@ -16,7 +17,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
  * If no one else is waiting, the slot reopens as available automatically
  * (no action needed — the bookings table is the source of truth).
  */
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -101,7 +102,7 @@ export async function GET(req: NextRequest) {
         `Remove me: ${cancelUrl}`,
       ].join(" ");
 
-      await sendBookingMessage(next.customer_phone, smsBody, biz?.whatsapp_enabled ?? false);
+      await sendBookingMessage(next.customer_phone, smsBody, biz?.whatsapp_enabled ?? false, { businessId: entry.business_id, messageType: "waitlist_notify" });
       notifiedCount++;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -116,3 +117,5 @@ export async function GET(req: NextRequest) {
     ...(errors.length > 0 ? { errors } : {}),
   });
 }
+
+export const GET = withCronMonitoring("waitlist-check", handler);

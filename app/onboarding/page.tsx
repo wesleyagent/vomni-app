@@ -8,9 +8,6 @@ import { Copy, Check, ChevronRight } from "lucide-react";
 const G    = "#00C896";
 const N    = "#0A0F1E";
 const BD   = "#E5E7EB";
-const FWD  = "forwarding@vomni.io";
-
-type EmailProvider = "gmail" | "outlook" | "office365" | "exchange" | "apple" | "other";
 
 const BIZ_TYPES = [
   "Barbershop", "Hair Salon", "Beauty Salon", "Restaurant",
@@ -69,342 +66,12 @@ function CopyBtn({ text, label }: { text: string; label?: string }) {
   );
 }
 
-function FwdBox() {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 18px", borderRadius: 12, border: `2px solid ${G}`, background: "rgba(0,200,150,0.05)", margin: "16px 0" }}>
-      <span style={{ flex: 1, fontFamily: "'Courier New', monospace", fontSize: 15, fontWeight: 700, color: N, letterSpacing: "-0.3px" }}>{FWD}</span>
-      <CopyBtn text={FWD} />
-    </div>
-  );
-}
-
 function StepCircle({ n, active, done }: { n: number; active: boolean; done: boolean }) {
   const bg = done ? G : active ? N : "#E5E7EB";
   const col = done || active ? "#fff" : "#9CA3AF";
   return (
     <div style={{ width: 32, height: 32, borderRadius: "50%", background: bg, color: col, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, flexShrink: 0 }}>
       {done ? <Check size={14} /> : n}
-    </div>
-  );
-}
-
-// ── SVG Diagrams ──────────────────────────────────────────────────────────
-
-function SvgGmailGear() {
-  return (
-    <svg viewBox="0 0 360 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", maxWidth: 360, display: "block" }}>
-      <rect width="360" height="100" rx="8" fill="white" stroke={BD}/>
-      <rect width="360" height="44" rx="8 8 0 0" fill="#F1F3F4"/>
-      <text x="14" y="27" fontSize="12" fontWeight="bold" fontFamily="sans-serif" fill="#4285F4">M</text>
-      <text x="24" y="27" fontSize="11" fontFamily="sans-serif" fill="#5F6368">Gmail</text>
-      <rect x="72" y="12" width="180" height="20" rx="10" fill="#E8F0FE"/>
-      <text x="162" y="25" textAnchor="middle" fontSize="10" fontFamily="sans-serif" fill="#9AA0A6">Search mail</text>
-      <circle cx="334" cy="22" r="16" fill="rgba(0,200,150,0.15)" stroke={G} strokeWidth="2"/>
-      <circle cx="334" cy="22" r="6" fill="none" stroke={G} strokeWidth="1.5"/>
-      <circle cx="334" cy="22" r="2.5" fill={G}/>
-      <text x="280" y="18" fontSize="9" fontFamily="sans-serif" fill={G} fontWeight="600">click here →</text>
-      <rect x="14" y="56" width="44" height="8" rx="3" fill="#F1F3F4"/>
-      <rect x="66" y="56" width="200" height="8" rx="3" fill="#F1F3F4"/>
-      <rect x="14" y="74" width="44" height="8" rx="3" fill="#F1F3F4"/>
-      <rect x="66" y="74" width="160" height="8" rx="3" fill="#F1F3F4"/>
-    </svg>
-  );
-}
-
-function SvgGmailTab() {
-  return (
-    <svg viewBox="0 0 360 90" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", maxWidth: 360, display: "block" }}>
-      <rect width="360" height="90" rx="8" fill="white" stroke={BD}/>
-      <text x="14" y="28" fontSize="14" fontWeight="bold" fontFamily="sans-serif" fill={N}>Settings</text>
-      <line x1="0" y1="38" x2="360" y2="38" stroke={BD}/>
-      <text x="10" y="56" fontSize="9" fontFamily="sans-serif" fill="#5F6368">General</text>
-      <text x="60" y="56" fontSize="9" fontFamily="sans-serif" fill="#5F6368">Labels</text>
-      <text x="100" y="56" fontSize="9" fontFamily="sans-serif" fill="#5F6368">Inbox</text>
-      <rect x="140" y="40" width="118" height="22" rx="4" fill="rgba(0,200,150,0.1)" stroke={G} strokeWidth="1.5"/>
-      <text x="199" y="55" textAnchor="middle" fontSize="9" fontFamily="sans-serif" fill={G} fontWeight="700">Forwarding &amp; POP/IMAP</text>
-      <text x="270" y="56" fontSize="9" fontFamily="sans-serif" fill="#5F6368">Add-ons</text>
-      <line x1="0" y1="64" x2="360" y2="64" stroke={BD}/>
-      <rect x="14" y="72" width="200" height="8" rx="3" fill="#F1F3F4"/>
-    </svg>
-  );
-}
-
-function SvgGmailAddBtn() {
-  return (
-    <svg viewBox="0 0 360 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", maxWidth: 360, display: "block" }}>
-      <rect width="360" height="100" rx="8" fill="white" stroke={BD}/>
-      <text x="14" y="26" fontSize="11" fontFamily="sans-serif" fill="#5F6368">Forwarding</text>
-      <rect x="14" y="36" width="320" height="1" fill={BD}/>
-      <text x="14" y="56" fontSize="10" fontFamily="sans-serif" fill="#5F6368">Add a forwarding address to automatically forward</text>
-      <text x="14" y="69" fontSize="10" fontFamily="sans-serif" fill="#5F6368">your mail to another email account.</text>
-      <rect x="14" y="78" width="160" height="16" rx="8" fill={G}/>
-      <text x="94" y="89" textAnchor="middle" fontSize="10" fontFamily="sans-serif" fill="white" fontWeight="600">Add a forwarding address</text>
-    </svg>
-  );
-}
-
-function SvgGmailRadio() {
-  return (
-    <svg viewBox="0 0 360 110" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", maxWidth: 360, display: "block" }}>
-      <rect width="360" height="110" rx="8" fill="white" stroke={BD}/>
-      <circle cx="20" cy="28" r="6" fill="none" stroke={G} strokeWidth="2"/>
-      <circle cx="20" cy="28" r="3" fill={G}/>
-      <text x="32" y="32" fontSize="10" fontFamily="sans-serif" fill={N}>Forward a copy of incoming mail to</text>
-      <rect x="14" y="42" width="200" height="20" rx="4" fill={`rgba(0,200,150,0.08)`} stroke={G} strokeWidth="1.5"/>
-      <text x="114" y="55" textAnchor="middle" fontSize="10" fontFamily="sans-serif" fill={G} fontWeight="600">{FWD}</text>
-      <circle cx="20" cy="80" r="6" fill="none" stroke={BD} strokeWidth="2"/>
-      <text x="32" y="84" fontSize="10" fontFamily="sans-serif" fill="#9CA3AF">Keep Gmail&apos;s copy in the Inbox</text>
-      <rect x="14" y="95" width="80" height="12" rx="6" fill={G}/>
-      <text x="54" y="104" textAnchor="middle" fontSize="9" fontFamily="sans-serif" fill="white" fontWeight="600">Save Changes</text>
-    </svg>
-  );
-}
-
-function SvgOutlookGear() {
-  return (
-    <svg viewBox="0 0 360 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", maxWidth: 360, display: "block" }}>
-      <rect width="360" height="100" rx="8" fill="white" stroke={BD}/>
-      <rect width="360" height="44" rx="8 8 0 0" fill="#0072C6"/>
-      <text x="14" y="27" fontSize="13" fontWeight="bold" fontFamily="sans-serif" fill="white">Outlook</text>
-      <rect x="100" y="12" width="200" height="20" rx="10" fill="rgba(255,255,255,0.2)"/>
-      <text x="200" y="25" textAnchor="middle" fontSize="10" fontFamily="sans-serif" fill="rgba(255,255,255,0.7)">Search</text>
-      <circle cx="334" cy="22" r="16" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.8)" strokeWidth="1.5"/>
-      <circle cx="334" cy="22" r="6" fill="none" stroke="white" strokeWidth="1.5"/>
-      <circle cx="334" cy="22" r="2.5" fill="white"/>
-      <text x="276" y="18" fontSize="9" fontFamily="sans-serif" fill="rgba(255,255,255,0.9)" fontWeight="600">Settings →</text>
-      <rect x="14" y="56" width="44" height="8" rx="3" fill="#F1F3F4"/>
-      <rect x="66" y="56" width="200" height="8" rx="3" fill="#F1F3F4"/>
-      <rect x="14" y="74" width="44" height="8" rx="3" fill="#F1F3F4"/>
-    </svg>
-  );
-}
-
-function SvgOutlookToggle() {
-  return (
-    <svg viewBox="0 0 360 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", maxWidth: 360, display: "block" }}>
-      <rect width="360" height="100" rx="8" fill="white" stroke={BD}/>
-      <text x="14" y="26" fontSize="13" fontWeight="600" fontFamily="sans-serif" fill={N}>Forwarding</text>
-      <line x1="14" y1="34" x2="346" y2="34" stroke={BD}/>
-      <text x="14" y="54" fontSize="11" fontFamily="sans-serif" fill="#374151">Enable forwarding</text>
-      <rect x="280" y="42" width="48" height="24" rx="12" fill={G}/>
-      <circle cx="316" cy="54" r="9" fill="white"/>
-      <text x="14" y="74" fontSize="10" fontFamily="sans-serif" fill="#5F6368">Forward to:</text>
-      <rect x="14" y="80" width="220" height="16" rx="4" fill={`rgba(0,200,150,0.08)`} stroke={G} strokeWidth="1.5"/>
-      <text x="124" y="91" textAnchor="middle" fontSize="10" fontFamily="sans-serif" fill={G} fontWeight="600">{FWD}</text>
-    </svg>
-  );
-}
-
-function SvgAppleMail() {
-  return (
-    <svg viewBox="0 0 360 100" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ width: "100%", maxWidth: 360, display: "block" }}>
-      <rect width="360" height="100" rx="8" fill="white" stroke={BD}/>
-      <rect width="360" height="28" rx="8 8 0 0" fill="#F7F7F7" stroke={BD}/>
-      <text x="40" y="18" fontSize="11" fontFamily="sans-serif" fill="#374151">Mail</text>
-      <text x="90" y="18" fontSize="11" fontFamily="sans-serif" fill="#374151">File</text>
-      <text x="134" y="18" fontSize="11" fontFamily="sans-serif" fill="#374151">Edit</text>
-      <rect x="26" y="7" width="36" height="16" rx="4" fill="rgba(0,200,150,0.1)" stroke={G} strokeWidth="1.5"/>
-      <text x="44" y="18" textAnchor="middle" fontSize="11" fontFamily="sans-serif" fill={G} fontWeight="700">Mail</text>
-      <line x1="0" y1="28" x2="360" y2="28" stroke={BD}/>
-      <rect x="60" y="38" width="240" height="52" rx="6" fill="white" stroke={BD}/>
-      <text x="180" y="56" textAnchor="middle" fontSize="10" fontFamily="sans-serif" fill="#5F6368">Preferences</text>
-      <rect x="80" y="62" width="200" height="1" fill={BD}/>
-      <text x="180" y="78" textAnchor="middle" fontSize="10" fontFamily="sans-serif" fill={G} fontWeight="600">Accounts</text>
-    </svg>
-  );
-}
-
-// ── Provider Instructions ─────────────────────────────────────────────────
-
-function InstructionStep({ n, text, diagram }: { n: number; text: string; diagram?: React.ReactNode }) {
-  return (
-    <div style={{ marginBottom: 20 }}>
-      <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-        <div style={{ width: 28, height: 28, borderRadius: "50%", background: G, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 700, flexShrink: 0, marginTop: 1 }}>{n}</div>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", lineHeight: 1.6, paddingTop: 4 }} dangerouslySetInnerHTML={{ __html: text }} />
-      </div>
-      {diagram && <div style={{ marginTop: 12, marginLeft: 40, borderRadius: 10, overflow: "hidden", border: `1px solid ${BD}` }}>{diagram}</div>}
-    </div>
-  );
-}
-
-function GmailInstructions() {
-  return (
-    <div>
-      <div style={{ padding: "12px 16px", borderRadius: 10, background: "#ECFDF5", border: "1px solid #6EE7B7", marginBottom: 20 }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#065F46", lineHeight: 1.6 }}>
-          <strong>Important:</strong> Only forward your booking confirmation emails — not all your emails. Use a Gmail filter (steps 1–4 below) so only booking emails reach Vomni.
-        </p>
-      </div>
-
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 700, color: N, margin: "0 0 12px" }}>Part A — Add Vomni as a forwarding address</p>
-      <InstructionStep n={1} text="Open Gmail and click the <strong>Settings gear icon</strong> in the top right corner." diagram={<SvgGmailGear />} />
-      <InstructionStep n={2} text='Click <strong>"See all settings"</strong> in the dropdown that appears.' />
-      <InstructionStep n={3} text='Click the <strong>"Forwarding and POP/IMAP"</strong> tab.' diagram={<SvgGmailTab />} />
-      <InstructionStep n={4} text='Click <strong>"Add a forwarding address"</strong>.' diagram={<SvgGmailAddBtn />} />
-      <InstructionStep n={5} text={`Enter <strong>${FWD}</strong> and click <strong>Next</strong>. Gmail will send a confirmation email.`} />
-      <div style={{ margin: "4px 0 16px 40px" }}><FwdBox /></div>
-      <InstructionStep n={6} text='Check your inbox for a confirmation email from Gmail and click the <strong>Confirm</strong> link. Then click <strong>Save Changes</strong>.' diagram={<SvgGmailRadio />} />
-
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 700, color: N, margin: "28px 0 12px" }}>Part B — Create a filter for booking emails only</p>
-      <InstructionStep n={7} text='In Gmail, click the <strong>search bar</strong> at the top and then click the <strong>filter icon</strong> (the small triangle on the right of the search bar) to open advanced search.' />
-      <InstructionStep n={8} text='In the <strong>"From"</strong> field, enter the email address or domain your booking system sends from — for example <strong>fresha.com</strong>, <strong>treatwell.co.uk</strong>, or <strong>booksy.com</strong>. Or use the <strong>"Subject"</strong> field and enter: <em>booking OR appointment OR confirmation OR reservation</em>' />
-      <InstructionStep n={9} text='Click <strong>"Create filter"</strong> at the bottom right of the search panel.' />
-      <InstructionStep n={10} text={`Check <strong>"Forward it to"</strong> and select <strong>${FWD}</strong> from the dropdown. Then click <strong>"Create filter"</strong>.`} />
-      <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 10, background: "#F9FAFB", border: `1px solid ${BD}` }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-          <strong>Not sure which address to filter by?</strong> Open a recent booking confirmation email, click the sender name to see the full address, and use that email address or its domain in the "From" field.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function OutlookInstructions() {
-  return (
-    <div>
-      <div style={{ padding: "12px 16px", borderRadius: 10, background: "#ECFDF5", border: "1px solid #6EE7B7", marginBottom: 20 }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#065F46", lineHeight: 1.6 }}>
-          <strong>Important:</strong> Only forward your booking confirmation emails — not all your emails. Use an Outlook rule with conditions (steps below) so only booking emails reach Vomni.
-        </p>
-      </div>
-      <InstructionStep n={1} text="Open Outlook and click the <strong>Settings gear icon</strong> in the top right." diagram={<SvgOutlookGear />} />
-      <InstructionStep n={2} text='Click <strong>"View all Outlook settings"</strong> at the bottom of the panel.' />
-      <InstructionStep n={3} text='Go to <strong>Mail → Rules</strong> and click <strong>"Add new rule"</strong>.' />
-      <InstructionStep n={4} text='Give the rule a name like <strong>"Forward booking emails to Vomni"</strong>.' />
-      <InstructionStep n={5} text='Under <strong>"Add a condition"</strong>, select <strong>"From"</strong> and enter the email address or domain your booking system sends from — for example <em>fresha.com</em>, <em>treatwell.co.uk</em>, or <em>booksy.com</em>. Alternatively select <strong>"Subject includes"</strong> and enter: <em>booking, appointment, confirmation</em>' />
-      <InstructionStep n={6} text='Under <strong>"Add an action"</strong>, select <strong>"Forward to"</strong> and enter the address below.' diagram={<SvgOutlookToggle />} />
-      <div style={{ margin: "4px 0 16px 40px" }}><FwdBox /></div>
-      <InstructionStep n={7} text='Click <strong>Save</strong>.' />
-      <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 10, background: "#F9FAFB", border: `1px solid ${BD}` }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-          <strong>Tip:</strong> Open a recent booking confirmation email in Outlook, hover over the sender name to see the full email address, and use that or its domain as your filter condition.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function Office365Instructions() {
-  return (
-    <div>
-      <div style={{ padding: "12px 16px", borderRadius: 10, background: "#ECFDF5", border: "1px solid #6EE7B7", marginBottom: 20 }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#065F46", lineHeight: 1.6 }}>
-          <strong>Important:</strong> Only forward your booking confirmation emails — not all your emails. Use a rule with conditions so only booking emails reach Vomni.
-        </p>
-      </div>
-      <InstructionStep n={1} text='Sign in at <strong>outlook.office.com</strong>' />
-      <InstructionStep n={2} text="Click the <strong>Settings gear icon</strong> in the top right." />
-      <InstructionStep n={3} text='Click <strong>"View all Outlook settings"</strong> at the bottom of the panel.' />
-      <InstructionStep n={4} text='Go to <strong>Mail → Rules</strong> and click <strong>"Add new rule"</strong>.' />
-      <InstructionStep n={5} text='Name it <strong>"Forward booking emails to Vomni"</strong>.' />
-      <InstructionStep n={6} text='Under <strong>"Add a condition"</strong>, choose <strong>"From"</strong> and enter your booking system&apos;s sender domain (e.g. <em>fresha.com</em>, <em>treatwell.co.uk</em>, <em>booksy.com</em>). Or choose <strong>"Subject includes"</strong> and enter: <em>booking, appointment, confirmation</em>' />
-      <InstructionStep n={7} text='Under <strong>"Add an action"</strong>, choose <strong>"Forward to"</strong> and enter the address below.' />
-      <div style={{ margin: "4px 0 16px 40px" }}><FwdBox /></div>
-      <InstructionStep n={8} text='Click <strong>Save</strong>.' />
-      <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 10, background: "#F9FAFB", border: `1px solid ${BD}` }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-          <strong>Tip:</strong> Open a recent booking confirmation email, hover the sender name to reveal the full address, and use that as your "From" condition.
-        </p>
-      </div>
-    </div>
-  );
-}
-
-function ExchangeInstructions() {
-  return (
-    <div>
-      <div style={{ padding: "12px 16px", borderRadius: 10, background: "#ECFDF5", border: "1px solid #6EE7B7", marginBottom: 12 }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#065F46", lineHeight: 1.6 }}>
-          <strong>Important:</strong> Only forward your booking confirmation emails — not all your emails. Use an inbox rule with a specific condition so only booking emails reach Vomni.
-        </p>
-      </div>
-      <div style={{ padding: "12px 16px", borderRadius: 10, background: "#FFF7ED", border: "1px solid #FED7AA", marginBottom: 20 }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#92400E" }}>
-          <strong>Note:</strong> Exchange forwarding is sometimes managed by your IT administrator. If these steps don&apos;t work, forward this page to your IT team using the message below.
-        </p>
-      </div>
-      <InstructionStep n={1} text="Log in to <strong>Outlook Web App</strong>." />
-      <InstructionStep n={2} text='Click the <strong>Settings gear</strong> and select <strong>"Options"</strong>.' />
-      <InstructionStep n={3} text='Go to <strong>Organise Email → Inbox Rules</strong>.' />
-      <InstructionStep n={4} text='Click the <strong>+ icon</strong> to create a new rule.' />
-      <InstructionStep n={5} text='Set the condition to <strong>"It was received from"</strong> and enter your booking system&apos;s sender domain (e.g. <em>fresha.com</em>, <em>treatwell.co.uk</em>). Or use <strong>"Subject contains"</strong> and enter: <em>booking, appointment, confirmation</em>. <em>Avoid "Apply to all messages" — only forward booking emails.</em>' />
-      <InstructionStep n={6} text='Set the action to <strong>"Forward to"</strong> and enter the address below.' />
-      <div style={{ margin: "4px 0 16px 40px" }}><FwdBox /></div>
-      <InstructionStep n={7} text='Click <strong>Save</strong>.' />
-      <div style={{ marginTop: 24 }}>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 8 }}>IT team message (tap to copy):</p>
-        <div style={{ position: "relative", padding: "14px 48px 14px 16px", borderRadius: 10, border: `1px solid ${BD}`, background: "#F9FAFB", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#374151", lineHeight: 1.6 }}>
-          Hi - please set up an inbox rule on my account to forward emails from our booking system (e.g. fresha.com / treatwell.co.uk) to <strong>{FWD}</strong> while keeping a copy in my inbox. This is for a review management service — only booking confirmation emails should be forwarded, not all mail. Thank you.
-          <span style={{ position: "absolute", top: 10, right: 10 }}>
-            <CopyBtn text={`Hi - please set up an inbox rule on my account to forward emails from our booking system to ${FWD} while keeping a copy in my inbox. This is for a review management service — only booking confirmation emails should be forwarded, not all mail. Thank you.`} />
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AppleMailInstructions() {
-  return (
-    <div>
-      <div style={{ padding: "12px 16px", borderRadius: 10, background: "#ECFDF5", border: "1px solid #6EE7B7", marginBottom: 12 }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#065F46", lineHeight: 1.6 }}>
-          <strong>Important:</strong> Only forward your booking confirmation emails — not all your emails. Use a rule with a specific sender or subject condition so only booking emails reach Vomni.
-        </p>
-      </div>
-      <div style={{ padding: "12px 16px", borderRadius: 10, background: "#EFF6FF", border: "1px solid #BFDBFE", marginBottom: 20 }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#1E40AF" }}>
-          <strong>Using iCloud email?</strong> Skip to the iCloud section below — iCloud uses a web-based rule system instead.
-        </p>
-      </div>
-
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 700, color: N, margin: "0 0 12px" }}>Mac Mail app (non-iCloud accounts):</p>
-      <InstructionStep n={1} text='Open the <strong>Mail app</strong> on your Mac. Click <strong>Mail</strong> in the top menu bar, then <strong>Preferences</strong>.' diagram={<SvgAppleMail />} />
-      <InstructionStep n={2} text='Click the <strong>Rules</strong> tab, then click <strong>"Add Rule"</strong>.' />
-      <InstructionStep n={3} text='Give the rule a name like <strong>"Forward booking emails to Vomni"</strong>.' />
-      <InstructionStep n={4} text='Set the condition to <strong>"From"</strong> and enter your booking system&apos;s sender domain (e.g. <em>fresha.com</em>, <em>treatwell.co.uk</em>). Or set condition to <strong>"Subject"</strong> <strong>"Contains"</strong> and enter: <em>booking</em>' />
-      <InstructionStep n={5} text={`Set the action to <strong>"Forward Message"</strong> and enter <strong>${FWD}</strong>.`} />
-      <div style={{ margin: "4px 0 16px 40px" }}><FwdBox /></div>
-      <InstructionStep n={6} text='Click <strong>OK</strong> and then <strong>"Apply"</strong> when prompted.' />
-
-      <div style={{ margin: "24px 0 16px 0", padding: "16px", borderRadius: 10, border: `1px solid ${BD}`, background: "#F9FAFB" }}>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 12 }}>For iCloud email (@icloud.com):</p>
-        <InstructionStep n={7} text='Go to <strong>icloud.com/mail</strong> → click the <strong>Settings gear icon</strong> → <strong>Rules</strong> → <strong>Add a Rule</strong>.' />
-        <InstructionStep n={8} text='Set condition to <strong>"From"</strong> and enter your booking system&apos;s sender domain (e.g. <em>fresha.com</em>). Or set <strong>"Subject"</strong> and enter <em>booking</em>. <em>Avoid "Every Message" — only forward booking emails.</em>' />
-        <InstructionStep n={9} text='Set action to <strong>"Forward to"</strong> the address below.' />
-        <div style={{ marginLeft: 40 }}><FwdBox /></div>
-        <InstructionStep n={10} text='Click <strong>Done</strong>.' />
-      </div>
-    </div>
-  );
-}
-
-function OtherInstructions() {
-  return (
-    <div>
-      <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", marginBottom: 20, lineHeight: 1.6 }}>
-        Not sure which email provider you use? Answer these questions:
-      </p>
-      {[
-        ["Does your email end in @gmail.com?", "Select Gmail above"],
-        ["Does your email end in @outlook.com or @hotmail.com?", "Select Outlook above"],
-        ["Does your email end in your company name?", "Probably Office 365 or Exchange - try Office 365 above"],
-      ].map(([q, a], i) => (
-        <div key={i} style={{ display: "flex", gap: 12, alignItems: "flex-start", marginBottom: 16, padding: "14px 16px", borderRadius: 10, border: `1px solid ${BD}`, background: "#F9FAFB" }}>
-          <ChevronRight size={16} style={{ color: G, flexShrink: 0, marginTop: 2 }} />
-          <div>
-            <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: N, fontWeight: 500 }}>{q}</p>
-            <p style={{ margin: "4px 0 0", fontFamily: "Inter, sans-serif", fontSize: 13, color: G, fontWeight: 600 }}>→ {a}</p>
-          </div>
-        </div>
-      ))}
-      <div style={{ marginTop: 24, padding: "16px 20px", borderRadius: 12, border: `1px solid ${BD}`, background: "#fff" }}>
-        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", lineHeight: 1.6 }}>
-          <strong>Still not sure?</strong><br/>
-          Email us at <a href="mailto:support@vomni.io" style={{ color: G, fontWeight: 600 }}>support@vomni.io</a> and we&apos;ll send you personalised setup instructions within 1 hour.
-        </p>
-      </div>
     </div>
   );
 }
@@ -565,15 +232,6 @@ function Step2Business({
     </div>
   );
 }
-
-const PROVIDERS: { id: EmailProvider; label: string; icon: string }[] = [
-  { id: "gmail",    label: "Gmail",          icon: "📧" },
-  { id: "outlook",  label: "Outlook",        icon: "🔵" },
-  { id: "office365",label: "Office 365",     icon: "🏢" },
-  { id: "exchange", label: "Exchange",       icon: "🖥" },
-  { id: "apple",    label: "Apple Mail",     icon: "🍎" },
-  { id: "other",    label: "Other / Not sure", icon: "❓" },
-];
 
 function Step3GDPR({ onNext, saving }: { onNext: () => void; saving: boolean }) {
   const [ticked, setTicked] = useState([false, false, false]);
@@ -884,163 +542,6 @@ function Step4BookingSetup({
   );
 }
 
-// ── Step 4 Legacy: Email Forwarding (kept for reference) ──────────────────────
-
-function Step4Forwarding({
-  selectedProvider, setSelectedProvider,
-  onComplete, saving,
-}: {
-  selectedProvider: EmailProvider | null;
-  setSelectedProvider: (p: EmailProvider) => void;
-  onComplete: () => void;
-  saving: boolean;
-}) {
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
-        <StepCircle n={4} active={true} done={false} />
-        <div>
-          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: N, margin: 0 }}>Set up email forwarding</h2>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "4px 0 0" }}>Step 4 of 7 - This is the most important step</p>
-        </div>
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 32 }}>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: "#374151", marginTop: 0, marginBottom: 16, lineHeight: 1.6 }}>
-          Forward your <strong>booking confirmation emails</strong> to Vomni so we can automatically send review requests to your customers. We only need booking emails — not all your mail.
-        </p>
-        <div style={{ padding: "12px 16px", borderRadius: 10, background: "#FFFBEB", border: "1px solid #FDE68A", marginBottom: 16 }}>
-          <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 13, color: "#92400E", lineHeight: 1.6 }}>
-            <strong>Only forward booking emails.</strong> The instructions below show you how to set up a filter so only your booking system's confirmation emails are forwarded — not everything in your inbox.
-          </p>
-        </div>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", marginBottom: 12, lineHeight: 1.5 }}>Your Vomni forwarding address:</p>
-        <FwdBox />
-
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: N, margin: "28px 0 16px" }}>
-          Which email app do you use?
-        </p>
-
-        {/* Provider grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 28 }}>
-          {PROVIDERS.map(p => (
-            <button
-              key={p.id}
-              onClick={() => setSelectedProvider(p.id as EmailProvider)}
-              style={{
-                padding: "14px 16px",
-                borderRadius: 12,
-                border: selectedProvider === p.id ? `2px solid ${G}` : `1px solid ${BD}`,
-                background: selectedProvider === p.id ? `rgba(0,200,150,0.05)` : "#fff",
-                display: "flex", alignItems: "center", gap: 10,
-                cursor: "pointer", transition: "all 0.15s",
-                fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 500, color: N,
-                textAlign: "left",
-              }}
-            >
-              <span style={{ fontSize: 18 }}>{p.icon}</span>
-              {p.label}
-              {selectedProvider === p.id && <Check size={15} style={{ color: G, marginLeft: "auto" }} />}
-            </button>
-          ))}
-        </div>
-
-        {/* Provider instructions */}
-        {selectedProvider && (
-          <div style={{ borderTop: `1px solid ${BD}`, paddingTop: 28 }}>
-            <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700, color: N, marginTop: 0, marginBottom: 24 }}>
-              {PROVIDERS.find(p => p.id === selectedProvider)?.label} - Step by step
-            </h3>
-            {selectedProvider === "gmail"     && <GmailInstructions />}
-            {selectedProvider === "outlook"   && <OutlookInstructions />}
-            {selectedProvider === "office365" && <Office365Instructions />}
-            {selectedProvider === "exchange"  && <ExchangeInstructions />}
-            {selectedProvider === "apple"     && <AppleMailInstructions />}
-            {selectedProvider === "other"     && <OtherInstructions />}
-          </div>
-        )}
-
-        <div style={{ marginTop: 28, paddingTop: 24, borderTop: `1px solid ${BD}` }}>
-          <Btn onClick={onComplete} disabled={saving}>
-            {saving ? "Saving…" : "I have set up email forwarding ✓"}
-          </Btn>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function Step5Booking({
-  businessId,
-  bookingReceived,
-  timedOut,
-  onSkip,
-  saving,
-}: {
-  businessId: string;
-  bookingReceived: boolean;
-  timedOut: boolean;
-  onSkip: () => void;
-  saving: boolean;
-}) {
-  return (
-    <div>
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
-        <StepCircle n={5} active={true} done={bookingReceived} />
-        <div>
-          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: N, margin: 0 }}>Send a test booking</h2>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "4px 0 0" }}>Step 5 of 7</p>
-        </div>
-      </div>
-
-      <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 32 }}>
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 15, color: "#374151", marginTop: 0, lineHeight: 1.6 }}>
-          Forward one of your recent booking confirmation emails to:
-        </p>
-        <FwdBox />
-        <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", marginBottom: 28, lineHeight: 1.6 }}>
-          We&apos;ll confirm when we receive it. This verifies your forwarding is working correctly.
-        </p>
-
-        {!bookingReceived && !timedOut && (
-          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", borderRadius: 12, border: `1px solid ${BD}`, background: "#F9FAFB" }}>
-            <div style={{ width: 12, height: 12, borderRadius: "50%", background: "#FCD34D", animation: "pulse 1.5s infinite", flexShrink: 0 }} />
-            <style>{`@keyframes pulse { 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:0.5; transform:scale(1.3); } }`}</style>
-            <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151", fontWeight: 500 }}>
-              Waiting for your first booking email…
-            </p>
-          </div>
-        )}
-
-        {bookingReceived && (
-          <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", borderRadius: 12, border: `1px solid rgba(0,200,150,0.3)`, background: "rgba(0,200,150,0.06)" }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: G, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-              <Check size={16} style={{ color: "#fff" }} />
-            </div>
-            <div>
-              <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: G }}>Booking received! Vomni is working.</p>
-              <p style={{ margin: "2px 0 0", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#374151" }}>Your first review request will go out 24 hours after the appointment.</p>
-            </div>
-          </div>
-        )}
-
-        {timedOut && !bookingReceived && (
-          <div style={{ padding: "16px 20px", borderRadius: 12, border: "1px solid #FED7AA", background: "#FFF7ED", marginBottom: 16 }}>
-            <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: "#92400E", lineHeight: 1.6 }}>
-              No email received yet - make sure you forwarded a booking confirmation email to <strong>{FWD}</strong>. Need help? Email <a href="mailto:support@vomni.io" style={{ color: "#B45309" }}>support@vomni.io</a>
-            </p>
-          </div>
-        )}
-
-        <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
-          {bookingReceived && <Btn onClick={onSkip} disabled={saving}>{saving ? "Saving…" : "Continue →"}</Btn>}
-          {!bookingReceived && <Btn onClick={onSkip} disabled={saving} secondary>{saving ? "Saving…" : "Skip for now"}</Btn>}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function Step6Done({ onDashboard }: { onDashboard: () => void }) {
   return (
     <div style={{ textAlign: "center", maxWidth: 520, margin: "0 auto", paddingTop: 40 }}>
@@ -1332,6 +833,96 @@ function Step5Discover({
   );
 }
 
+// ── Step 6: Connect Calendar ──────────────────────────────────────────────
+
+function Step6Calendar({
+  onNext, onSkip, saving,
+}: {
+  onNext: () => void;
+  onSkip: () => void;
+  saving: boolean;
+}) {
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
+        <StepCircle n={6} active={true} done={false} />
+        <div>
+          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: N, margin: 0 }}>Connect your calendar</h2>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "4px 0 0" }}>Step 6 of 7 — sync bookings to Google or Outlook</p>
+        </div>
+      </div>
+
+      <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(0,200,150,0.06)", border: "1px solid rgba(0,200,150,0.2)", marginBottom: 24 }}>
+        <p style={{ margin: 0, fontFamily: "Inter, sans-serif", fontSize: 14, color: N, lineHeight: 1.6 }}>
+          <strong>Keep your schedule in sync.</strong> When a customer books through Vomni, the appointment is automatically added to your calendar — no manual entry needed.
+        </p>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+        {/* Google Calendar */}
+        <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 24 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, fontSize: 24 }}>📅</div>
+          <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: N, margin: "0 0 6px" }}>Google Calendar</h3>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.5 }}>
+            Sync Vomni bookings directly to your Google Calendar.
+          </p>
+          <div style={{ background: "#F8FAFF", borderRadius: 10, padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#374151", lineHeight: 1.8 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: N }}>How to connect:</div>
+            {[
+              "Go to Dashboard → Settings → Calendar",
+              "Click \"Connect Google Calendar\"",
+              "Sign in with your Google account",
+              "Allow Vomni to create calendar events",
+              "New bookings will appear automatically",
+            ].map((step, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                <span style={{ minWidth: 18, height: 18, borderRadius: "50%", background: G, color: "#fff", fontWeight: 700, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
+                <span>{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Microsoft Calendar */}
+        <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 24 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, fontSize: 24 }}>🗓️</div>
+          <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: N, margin: "0 0 6px" }}>Microsoft / Outlook</h3>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.5 }}>
+            Sync Vomni bookings to Outlook or Microsoft 365.
+          </p>
+          <div style={{ background: "#F0F4FF", borderRadius: 10, padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#374151", lineHeight: 1.8 }}>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: N }}>How to connect:</div>
+            {[
+              "Go to Dashboard → Settings → Calendar",
+              "Click \"Connect Microsoft Calendar\"",
+              "Sign in with your Microsoft account",
+              "Allow Vomni to create calendar events",
+              "New bookings will appear automatically",
+            ].map((step, i) => (
+              <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                <span style={{ minWidth: 18, height: 18, borderRadius: "50%", background: "#0072C6", color: "#fff", fontWeight: 700, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
+                <span>{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+        <Btn onClick={onNext} disabled={saving}>
+          Continue <ChevronRight size={16} />
+        </Btn>
+        <button
+          onClick={onSkip}
+          style={{ background: "none", border: "none", fontFamily: "Inter, sans-serif", fontSize: 14, color: "#9CA3AF", cursor: "pointer", textDecoration: "underline" }}
+        >
+          Skip for now →
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────
 
 export default function OnboardingPage() {
@@ -1354,12 +945,6 @@ export default function OnboardingPage() {
   const [initialRating, setInitialRating] = useState("");
   const [reviewCount,   setReviewCount]   = useState("");
 
-  // Step 3
-  const [provider, setProvider] = useState<EmailProvider | null>(null);
-
-  // Step 4
-  const [bookingReceived, setBookingReceived] = useState(false);
-  const [bookingTimedOut, setBookingTimedOut] = useState(false);
 
   // Step 5 — get more bookings
   const [googleMapsUrl, setGoogleMapsUrl] = useState("");
@@ -1414,17 +999,6 @@ export default function OnboardingPage() {
       }
     })();
   }, [router]);
-
-  // Step 6: poll for first booking
-  useEffect(() => {
-    if (step !== 6 || !bizId) return;
-    const poll = setInterval(async () => {
-      const { data } = await db.from("bookings").select("id").eq("business_id", bizId).limit(1);
-      if (data && data.length > 0) { setBookingReceived(true); clearInterval(poll); }
-    }, 5000);
-    const to = setTimeout(() => setBookingTimedOut(true), 5 * 60 * 1000);
-    return () => { clearInterval(poll); clearTimeout(to); };
-  }, [step, bizId]);
 
   async function advance(nextStep: number, patch: Record<string, unknown> = {}) {
     setSaving(true);
@@ -1564,10 +1138,8 @@ export default function OnboardingPage() {
           />
         )}
         {step === 6 && (
-          <Step5Booking
-            businessId={bizId}
-            bookingReceived={bookingReceived}
-            timedOut={bookingTimedOut}
+          <Step6Calendar
+            onNext={() => advance(7)}
             onSkip={() => advance(7)}
             saving={saving}
           />

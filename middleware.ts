@@ -38,8 +38,42 @@ export function middleware(request: NextRequest) {
   // if they navigate back to the English site.
   const alreadyRedirected = request.cookies.get("vomni_il_visited")?.value;
   if (!alreadyRedirected) {
-    const country = request.headers.get("cf-ipcountry") ?? "";
-    if (country === "IL") {
+    const cfCountry = request.headers.get("cf-ipcountry");
+
+    // ── Cloudflare header missing — warn and fall back to Accept-Language ──
+    if (cfCountry === null) {
+      console.warn(
+        "[middleware] cf-ipcountry header absent — Cloudflare proxy may not be active. " +
+        "Falling back to Accept-Language for Hebrew detection."
+      );
+      // Fire-and-forget: log warning to DB + Telegram (rate-limited to once/hr)
+      const secret = process.env.CRON_SECRET ?? "";
+      if (secret) {
+        const origin = request.nextUrl.origin;
+        fetch(`${origin}/api/internal/system-warn`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${secret}`,
+          },
+          body: JSON.stringify({
+            name: "cf-ipcountry-missing",
+            detail: "cf-ipcountry header absent — Cloudflare proxy may not be active. Locale detection fell back to Accept-Language.",
+            path: pathname,
+          }),
+        }).catch(() => { /* never block the response */ });
+      }
+    }
+
+    // Determine if user is in Israel:
+    //   1. cf-ipcountry === "IL"  (Cloudflare — most reliable)
+    //   2. Accept-Language contains "he"  (browser locale fallback)
+    const acceptLang = request.headers.get("accept-language") ?? "";
+    const isIL =
+      cfCountry === "IL" ||
+      (cfCountry === null && /\bhe\b/.test(acceptLang));
+
+    if (isIL) {
       const url = request.nextUrl.clone();
       url.pathname = "/he";
       const response = NextResponse.redirect(url);
@@ -53,9 +87,10 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  // ── All other paths: English ────────────────────────────────────────────────
+  // ── All other paths: default locale (env-configurable, falls back to "en") ─
+  const defaultLocale = (process.env.DEFAULT_LOCALE ?? "en") as string;
   return NextResponse.next({
-    request: { headers: buildLocaleHeaders(request.headers, "en") },
+    request: { headers: buildLocaleHeaders(request.headers, defaultLocale) },
   });
 }
 

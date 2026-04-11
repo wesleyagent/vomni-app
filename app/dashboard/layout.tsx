@@ -38,7 +38,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router   = useRouter();
 
-  const [ctx,           setCtx]           = useState<{ businessId: string; businessName: string; ownerName: string; email: string; timezone: string } | null>(null);
+  const [ctx,           setCtx]           = useState<{ businessId: string; businessName: string; ownerName: string; email: string; timezone: string; currency: string } | null>(null);
   const [bizPlan,       setBizPlan]       = useState<string | null>(null);
   const [smsUsed,       setSmsUsed]       = useState<number>(0);
   const [smsLimit,      setSmsLimit]      = useState<number | null>(null);
@@ -89,11 +89,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (biz) {
         const step = biz.onboarding_step ?? 5;
         if (step < 5) { router.replace("/onboarding"); return; }
-        const tz = (biz as typeof biz & { booking_timezone?: string | null }).booking_timezone ?? "Asia/Jerusalem";
-        setCtx({ businessId: biz.id, businessName: biz.name ?? "My Business", ownerName: biz.owner_name ?? "", email: user.email, timezone: tz });
+        const bizAny = biz as unknown as Record<string, unknown>;
+        const tz = (bizAny.booking_timezone as string | null) ?? "Asia/Jerusalem";
+        const cur = (bizAny.booking_currency as string | null) ?? "ILS";
+        setCtx({ businessId: biz.id, businessName: biz.name ?? "My Business", ownerName: biz.owner_name ?? "", email: user.email, timezone: tz, currency: cur });
         // Show invoice onboarding banner for IL businesses that haven't set up their legal details
         if (tz === "Asia/Jerusalem") {
-          const bizAny = biz as unknown as Record<string, unknown>;
           const needsOnboarding = !bizAny.business_legal_name && !bizAny.osek_type;
           setShowInvoiceBanner(needsOnboarding);
         }
@@ -106,7 +107,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         loadNotifications(biz.id);
         loadTrialStatus(biz.id);
       } else {
-        setCtx({ businessId: user.id, businessName: "My Business", ownerName: "", email: user.email, timezone: "Asia/Jerusalem" });
+        setCtx({ businessId: user.id, businessName: "My Business", ownerName: "", email: user.email, timezone: "Asia/Jerusalem", currency: "ILS" });
       }
       setLoading(false);
     })();
@@ -200,7 +201,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }
 
   return (
-    <BusinessContext.Provider value={ctx ?? { businessId: "", businessName: "My Business", ownerName: "", email: "", timezone: "Asia/Jerusalem" }}>
+    <BusinessContext.Provider value={ctx ?? { businessId: "", businessName: "My Business", ownerName: "", email: "", timezone: "Asia/Jerusalem", currency: "ILS" }}>
       <div style={{ minHeight: "100vh", background: "#F7F8FA", display: "flex", flexDirection: "column", overflowX: "hidden" }}>
         <style>{`
           @keyframes spin { to { transform: rotate(360deg); } }

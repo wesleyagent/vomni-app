@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAuth } from "@/lib/require-auth";
+import { requireAuth, requirePlanByEmail } from "@/lib/require-auth";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 export async function POST(req: NextRequest) {
   const auth = await requireAuth(req);
   if (auth instanceof NextResponse) return auth;
+
+  const planErr = await requirePlanByEmail(auth.email, "growth", supabaseAdmin);
+  if (planErr) return planErr;
 
   try {
     const { feedbackText, rating, customerName, businessName, service, businessType, threeTones } = await req.json();

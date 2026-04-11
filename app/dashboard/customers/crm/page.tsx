@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import { hasFeature } from "@/lib/planFeatures";
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -48,6 +50,7 @@ function formatDate(iso: string | null): string {
 
 export default function CRMPage() {
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [bizPlan, setBizPlan] = useState<string | null>(null);
   const [tab, setTab] = useState<"at-risk" | "lapsed" | "history">("at-risk");
   const [profiles, setProfiles] = useState<CustomerProfile[]>([]);
   const [nudges, setNudges] = useState<CrmNudge[]>([]);
@@ -62,9 +65,12 @@ export default function CRMPage() {
       setToken(data.session.access_token);
       const email = data.session.user.email;
       if (!email) return;
-      supabase.from("businesses").select("id").eq("owner_email", email).single()
+      supabase.from("businesses").select("id, plan").eq("owner_email", email).single()
         .then(({ data: biz }) => {
-          if (biz) setBusinessId(biz.id);
+          if (biz) {
+            setBusinessId(biz.id);
+            setBizPlan((biz as typeof biz & { plan?: string | null }).plan ?? null);
+          }
         });
     });
   }, []);
@@ -142,6 +148,18 @@ export default function CRMPage() {
 
   if (loading) {
     return <div style={{ padding: 40, textAlign: "center", color: "#6B7280", fontFamily: "Inter, sans-serif" }}>Loading CRM data...</div>;
+  }
+
+  if (!hasFeature(bizPlan, "ai_replies")) {
+    return (
+      <div style={{ padding: "48px 24px", maxWidth: 560, margin: "0 auto" }}>
+        <UpgradePrompt
+          feature="CRM & Customer Retention"
+          description="Automated follow-ups, lapsed customer re-engagement via WhatsApp, and retention analytics are available on the Growth plan."
+          requiredPlan="growth"
+        />
+      </div>
+    );
   }
 
   return (

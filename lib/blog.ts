@@ -41,11 +41,15 @@ export function getAllPosts(): PostMeta[] {
   )
 }
 
-export function getPost(slug: string): Post {
-  const filePath = path.join(CONTENT_DIR, `${slug}.mdx`)
-  const raw = fs.readFileSync(filePath, 'utf8')
-  const { data, content } = matter(raw)
-  return { ...(data as PostMeta), content }
+export function getPost(slug: string): Post | null {
+  try {
+    const filePath = path.join(CONTENT_DIR, `${slug}.mdx`)
+    const raw = fs.readFileSync(filePath, 'utf8')
+    const { data, content } = matter(raw)
+    return { ...(data as PostMeta), content }
+  } catch {
+    return null
+  }
 }
 
 export function getAllSlugs(): string[] {

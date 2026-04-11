@@ -128,7 +128,8 @@ export async function POST(
     await sendBookingMessage(
       entry.customer_phone,
       `Hi ${firstName}, unfortunately the slot at ${business.name} on ${entry.requested_date} at ${entry.requested_time} was just taken. We'll check if the next slot is available for you.`,
-      business.whatsapp_enabled ?? false
+      business.whatsapp_enabled ?? false,
+      { businessId: entry.business_id, messageType: "waitlist_expired" }
     );
 
     // Notify next person in queue
@@ -179,7 +180,7 @@ export async function POST(
   const firstName = entry.customer_name?.split(" ")[0] ?? "there";
   const cancelUrl = `${APP_URL}/cancel/${cancellationToken}`;
   const smsBody = `Hi ${firstName}! ✅ Your booking at ${business.name} is confirmed for ${entry.requested_date} at ${entry.requested_time}. Cancel: ${cancelUrl}`;
-  await sendBookingMessage(entry.customer_phone, smsBody, business.whatsapp_enabled ?? false);
+  await sendBookingMessage(entry.customer_phone, smsBody, business.whatsapp_enabled ?? false, { businessId: entry.business_id, messageType: "waitlist_confirmation" });
 
   return NextResponse.json({
     success: true,

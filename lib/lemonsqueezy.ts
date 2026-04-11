@@ -20,12 +20,12 @@ export function setupLS() {
 // ── Variant → plan mapping ────────────────────────────────────────────────────
 
 export const VARIANT_PLAN_MAP: Record<number, { plan: string; period: string }> = {
-  1460262: { plan: "starter", period: "monthly" },
-  1460268: { plan: "starter", period: "yearly"  },
-  1460272: { plan: "growth",  period: "monthly" },
-  1460276: { plan: "growth",  period: "yearly"  },
-  1460277: { plan: "pro",     period: "monthly" },
-  1460278: { plan: "pro",     period: "yearly"  },
+  1516792: { plan: "starter", period: "monthly" },
+  1516801: { plan: "starter", period: "yearly"  },
+  1516802: { plan: "growth",  period: "monthly" },
+  1516809: { plan: "growth",  period: "yearly"  },
+  1516812: { plan: "pro",     period: "monthly" },
+  1516813: { plan: "pro",     period: "yearly"  },
 };
 
 export const VALID_VARIANT_IDS = new Set(Object.keys(VARIANT_PLAN_MAP).map(Number));

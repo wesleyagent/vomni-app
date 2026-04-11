@@ -3,6 +3,7 @@
 import { useState, useEffect, useContext, useMemo } from "react";
 import { BusinessContext } from "../_context";
 import { db, getAuthToken } from "@/lib/db";
+import { currencySymbol } from "@/lib/currencyUtils";
 
 const G      = "#00C896";
 const N      = "#0A0F1E";
@@ -78,6 +79,7 @@ function exportCSV(invoices: Invoice[], businessName: string, dateFrom?: string,
 
 export default function InvoicesPage() {
   const ctx = useContext(BusinessContext);
+  const sym = currencySymbol(ctx?.currency ?? "ILS");
 
   const [invoices,    setInvoices]    = useState<Invoice[]>([]);
   const [loading,     setLoading]     = useState(true);
@@ -215,7 +217,7 @@ export default function InvoicesPage() {
             Total Revenue (This Month)
           </div>
           <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 700, color: G }}>
-            ₪{totalRevenue.toLocaleString("en-IL", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            {sym}{totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
           </div>
           <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>{thisMonth.length} documents this month</div>
         </div>
@@ -223,7 +225,7 @@ export default function InvoicesPage() {
           <div key={pm} style={cardStyle}>
             <div style={{ fontSize: 11, fontWeight: 600, color: MUTED, marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.05em" }}>{label}</div>
             <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>
-              ₪{amount.toLocaleString("en-IL", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              {sym}{amount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </div>
             <div style={{ fontSize: 11, color: MUTED, marginTop: 4 }}>{count} documents</div>
           </div>
@@ -339,7 +341,7 @@ export default function InvoicesPage() {
                     {inv.service_description}
                   </td>
                   <td style={{ padding: "12px", fontSize: 14, fontWeight: 700, color: N, whiteSpace: "nowrap" }}>
-                    ₪{Number(inv.total).toFixed(2)}
+                    {sym}{Number(inv.total).toFixed(2)}
                   </td>
                   <td style={{ padding: "12px" }}>
                     <span style={{

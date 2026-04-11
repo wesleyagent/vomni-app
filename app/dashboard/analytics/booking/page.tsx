@@ -3,6 +3,7 @@
 import { useState, useEffect, useContext } from "react";
 import { BusinessContext } from "../../_context";
 import { db } from "@/lib/db";
+import { currencySymbol } from "@/lib/currencyUtils";
 
 const G = "#00C896";
 const N = "#0A0F1E";
@@ -38,6 +39,7 @@ const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function BookingAnalyticsPage() {
   const ctx = useContext(BusinessContext);
+  const sym = currencySymbol(ctx?.currency ?? "ILS");
   const [bookings, setBookings] = useState<BookingRow[]>([]);
   const [staff, setStaff] = useState<StaffRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -170,7 +172,7 @@ export default function BookingAnalyticsPage() {
         <StatCard label="Total Bookings" value={bookings.length} sub={`${confirmed.length} confirmed`} />
         <StatCard label="No-show Rate" value={`${noShowRate}%`} sub={`${noShows.length} no-shows`} color={noShowRate > 20 ? "#EF4444" : N} />
         <StatCard label="Avg Rating" value={avgRating} sub={`${rated.length} ratings`} color={G} />
-        <StatCard label="Revenue" value={`₪${revenue.toLocaleString()}`} sub="confirmed + completed" color={G} />
+        <StatCard label="Revenue" value={`${sym}${revenue.toLocaleString()}`} sub="confirmed + completed" color={G} />
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 24 }}>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendAppointmentConfirmation } from "@/lib/whatsapp";
+import { sendBookingMessage } from "@/lib/twilio";
 import { sendBusinessPushNotification } from "@/lib/push";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
@@ -117,13 +118,18 @@ export async function POST(req: NextRequest) {
     const date = new Date(newApptAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: tz });
     const time = new Date(newApptAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz });
 
-    // 3. Send WhatsApp confirmation to customer (non-blocking)
-    // NOTE: customer_phone is stored as a masked display value.
-    // WhatsApp delivery will succeed only if the phone resolves to a valid E.164.
-    // This mirrors the pattern used elsewhere for post-creation notifications.
+    // 3. Send confirmation to customer (WhatsApp or SMS fallback) — non-blocking
+    const cancelUrl = `${APP_URL}/cancel/${newToken}`;
+    const firstName = (newBooking.customer_name ?? "there").split(" ")[0];
+    const smsFallback = () => {
+      if (!newBooking.customer_phone) return;
+      const smsBody = `Hi ${firstName}! ✅ Your ${newBooking.service_name ?? "appointment"} at ${businessName} has been rescheduled to ${date} at ${time}. Cancel: ${cancelUrl}`;
+      void sendBookingMessage(newBooking.customer_phone!, smsBody, false, { businessId: newBooking.business_id, bookingId: newBooking.id, messageType: "reschedule" });
+    };
+
     if (newBooking.whatsapp_opt_in !== false) {
-      Promise.resolve().then(() =>
-        sendAppointmentConfirmation(
+      Promise.resolve().then(async () => {
+        const waResult = await sendAppointmentConfirmation(
           {
             id:                  newBooking.id,
             business_id:         newBooking.business_id,
@@ -139,8 +145,11 @@ export async function POST(req: NextRequest) {
             name:         businessName,
             booking_slug: business?.booking_slug ?? "",
           }
-        )
-      ).catch(e => console.error("[reschedule] WhatsApp send failed:", e));
+        );
+        if (!waResult.success) smsFallback();
+      }).catch(e => { console.error("[reschedule] WhatsApp send failed:", e); smsFallback(); });
+    } else {
+      smsFallback();
     }
 
     // 4. Owner notification (non-blocking)

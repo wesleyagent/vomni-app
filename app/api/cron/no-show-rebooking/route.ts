@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendBookingMessage } from "@/lib/twilio";
+import { decryptPhone } from "@/lib/phone";
+import { withCronMonitoring } from "@/lib/telegram";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
 // GET /api/cron/no-show-rebooking
 // Runs daily at 10am. Finds no-show bookings that haven't had a rebook SMS sent yet.
 // Free-tier workaround: looks back 24h. When upgraded to Vercel Pro (hourly crons), narrow to 2h window.
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest) {
 
   const { data: noShows, error } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_name, customer_phone, business_id, service_name, appointment_at, sms_status")
+    .select("id, customer_name, customer_phone, customer_phone_encrypted, business_id, service_name, appointment_at, sms_status")
     .eq("status", "no_show")
     .neq("sms_status", "noshow_sms_sent")
     .gte("appointment_at", oneDayAgo.toISOString())
@@ -52,10 +54,17 @@ export async function GET(req: NextRequest) {
       ? `Hi ${firstName}, we missed you today at ${biz?.name ?? "us"}! 😊 We'd love to see you — book your next ${booking.service_name ?? "appointment"} here: ${rebookUrl}`
       : `Hi ${firstName}, we missed you today at ${biz?.name ?? "us"}! We'd love to see you soon — please contact us to rebook your ${booking.service_name ?? "appointment"}.`;
 
+    // Decrypt phone — customer_phone stores masked display value
+    const enc = (booking as typeof booking & { customer_phone_encrypted?: string }).customer_phone_encrypted;
+    const sendPhone: string = enc
+      ? (() => { try { return decryptPhone(enc); } catch { return booking.customer_phone ?? ""; } })()
+      : (booking.customer_phone ?? "");
+
     const result = await sendBookingMessage(
-      booking.customer_phone,
+      sendPhone,
       body,
-      biz?.whatsapp_enabled ?? false
+      biz?.whatsapp_enabled ?? false,
+      { businessId: booking.business_id, bookingId: booking.id, messageType: "no_show" }
     );
 
     if (result.success || true) { // Always update to avoid re-sending
@@ -78,3 +87,5 @@ export async function GET(req: NextRequest) {
   console.log(`[cron/no-show-rebooking] processed=${processed}`);
   return NextResponse.json({ processed });
 }
+
+export const GET = withCronMonitoring("no-show-rebooking", handler);

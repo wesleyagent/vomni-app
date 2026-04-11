@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { requireAuth, requireBusinessOwnership } from "@/lib/require-auth";
+import { requireAuth, requireBusinessOwnership, requirePlan } from "@/lib/require-auth";
 import { sendManualReviewRequest } from "@/lib/whatsapp";
 
 // POST /api/crm/send-review-request
@@ -24,6 +24,9 @@ export async function POST(req: NextRequest) {
 
   const ownership = await requireBusinessOwnership(auth.email, business_id, supabaseAdmin);
   if (ownership instanceof NextResponse) return ownership;
+
+  const planCheck = await requirePlan(business_id, "growth", supabaseAdmin);
+  if (planCheck instanceof NextResponse) return planCheck;
 
   const { data: biz } = await supabaseAdmin
     .from("businesses")

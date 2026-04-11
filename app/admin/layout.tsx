@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Lock, LayoutDashboard, ArrowLeft,
-  Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones, CalendarCheck, Radar, Mail,
+  Target, PenLine, MessageSquare, BarChart3, ChevronDown, Headphones, CalendarCheck, Radar, Mail, Bell, Smartphone,
 } from "lucide-react";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 
@@ -198,6 +198,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Top nav items */}
           <NavLink href="/admin" label="Admin Dashboard" icon={LayoutDashboard} />
+          <NavLink href="/admin/alerts" label="System Alerts" icon={Bell} />
 
           {/* Support Inbox with badge */}
           <Link
@@ -238,6 +239,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {/* Demo Requests */}
           <NavLink href="/admin/demo-requests" label="Demo Requests" icon={CalendarCheck} />
+          <NavLink href="/admin/messaging" label="Messaging" icon={Smartphone} />
 
           {/* Contact Submissions */}
           <Link

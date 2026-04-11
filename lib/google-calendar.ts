@@ -3,8 +3,9 @@
  * Tokens are stored encrypted with AES-256-GCM (see lib/crypto.ts).
  */
 
-import { encrypt, decrypt } from "@/lib/crypto";
-import { supabaseAdmin }    from "@/lib/supabase-admin";
+import { encrypt, decrypt }       from "@/lib/crypto";
+import { supabaseAdmin }           from "@/lib/supabase-admin";
+import { logCalendarDisconnect }   from "@/lib/telegram";
 
 const CLIENT_ID     = process.env.GOOGLE_CLIENT_ID     ?? "";
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET ?? "";
@@ -94,31 +95,39 @@ export async function getAccessToken(
   }
 
   if (!tokens.refresh_token) {
-    if (businessId) await markDisconnected(businessId);
+    if (businessId) await markDisconnected(businessId, "No refresh token stored");
     return null;
   }
 
   // Attempt token refresh
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id:     CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      refresh_token: tokens.refresh_token,
-      grant_type:    "refresh_token",
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id:     CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        refresh_token: tokens.refresh_token,
+        grant_type:    "refresh_token",
+      }),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[gcal] Token refresh network error — disconnecting business", businessId, msg);
+    if (businessId) await markDisconnected(businessId, `Network error: ${msg}`);
+    return null;
+  }
 
   if (!res.ok) {
-    console.warn("[gcal] Token refresh failed — disconnecting business", businessId);
-    if (businessId) await markDisconnected(businessId);
+    console.warn("[gcal] Token refresh failed — disconnecting business", businessId, res.status);
+    if (businessId) await markDisconnected(businessId, `HTTP ${res.status}`);
     return null;
   }
 
   const data = await res.json() as { access_token: string; expires_in: number };
   if (!data.access_token) {
-    if (businessId) await markDisconnected(businessId);
+    if (businessId) await markDisconnected(businessId, "No access_token in refresh response");
     return null;
   }
 
@@ -139,11 +148,13 @@ export async function getAccessToken(
   return data.access_token;
 }
 
-async function markDisconnected(businessId: string) {
+async function markDisconnected(businessId: string, reason = "Token refresh failed") {
   await Promise.all([
     supabaseAdmin.from("businesses").update({ google_calendar_connected: false }).eq("id", businessId),
     supabaseAdmin.from("calendar_connections").update({ is_active: false }).eq("business_id", businessId).eq("provider", "google"),
   ]);
+  // Notify admin via Telegram + system_alerts (fire-and-forget)
+  logCalendarDisconnect("google", businessId, null, reason).catch(() => {});
 }
 
 // ── Unified access token retrieval ───────────────────────────────────────────
@@ -207,18 +218,29 @@ async function refreshAccessToken(
   businessId: string,
   target: "connection" | "legacy",
 ): Promise<string | null> {
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: CLIENT_ID,
-      client_secret: CLIENT_SECRET,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token",
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: CLIENT_ID,
+        client_secret: CLIENT_SECRET,
+        refresh_token: refreshToken,
+        grant_type: "refresh_token",
+      }),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.warn("[gcal] refreshAccessToken network error:", msg);
+    await markDisconnected(businessId, `Network error: ${msg}`);
+    return null;
+  }
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    await markDisconnected(businessId, `HTTP ${res.status}`);
+    return null;
+  }
 
   const data = await res.json() as { access_token: string; expires_in: number };
   if (!data.access_token) return null;

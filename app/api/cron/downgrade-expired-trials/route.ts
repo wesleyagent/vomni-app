@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { withCronMonitoring } from "@/lib/telegram";
 
 const TRIAL_DAYS = 14;
 
 // GET /api/cron/downgrade-expired-trials
 // Runs daily at 4am. Finds businesses on "pro" trial with no subscription
 // that have exceeded the trial period and downgrades them to "trial_expired".
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -48,3 +49,5 @@ export async function GET(req: NextRequest) {
   console.log(`[cron/downgrade-expired-trials] downgraded ${ids.length} businesses`);
   return NextResponse.json({ downgraded: ids.length, businesses: expired.map(b => b.name) });
 }
+
+export const GET = withCronMonitoring("downgrade-expired-trials", handler);

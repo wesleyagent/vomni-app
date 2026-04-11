@@ -10,8 +10,8 @@ const N = "#0A0F1E";
 const PLANS = [
   {
     name: "Starter",
-    monthlyVariant: 1460262,
-    yearlyVariant: 1460268,
+    monthlyVariant: 1516792,
+    yearlyVariant: 1516801,
     monthlyPrice: 35,
     yearlyPrice: 299,
     features: [
@@ -24,8 +24,8 @@ const PLANS = [
   },
   {
     name: "Growth",
-    monthlyVariant: 1460272,
-    yearlyVariant: 1460276,
+    monthlyVariant: 1516802,
+    yearlyVariant: 1516809,
     monthlyPrice: 79,
     yearlyPrice: 699,
     features: [
@@ -39,8 +39,8 @@ const PLANS = [
   },
   {
     name: "Pro",
-    monthlyVariant: 1460277,
-    yearlyVariant: 1460278,
+    monthlyVariant: 1516812,
+    yearlyVariant: 1516813,
     monthlyPrice: 149,
     yearlyPrice: 1499,
     features: [

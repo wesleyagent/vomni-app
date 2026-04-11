@@ -8,11 +8,11 @@ import { PLAN_FEATURES } from "@/lib/planFeatures";
 const N = "#0A0F1E";
 const G = "#00C896";
 
-// Variant IDs from Lemon Squeezy
+// Variant IDs from Lemon Squeezy (live)
 const VARIANTS = {
-  starter: { monthly: 1460262, yearly: 1460268 },
-  growth:  { monthly: 1460272, yearly: 1460276 },
-  pro:     { monthly: 1460277, yearly: 1460278 },
+  starter: { monthly: 1516792, yearly: 1516801 },
+  growth:  { monthly: 1516802, yearly: 1516809 },
+  pro:     { monthly: 1516812, yearly: 1516813 },
 } as const;
 
 const supabase = createClient(

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { withCronMonitoring } from "@/lib/telegram";
 
 // Allow up to 300s — needed at scale (50+ businesses)
 export const maxDuration = 300;
@@ -155,7 +156,7 @@ async function processBusiness(
   return false;
 }
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -214,3 +215,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ sent: sentCount, total: businesses.length });
 }
+
+export const GET = withCronMonitoring("weekly-report", handler);

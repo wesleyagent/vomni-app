@@ -6,8 +6,9 @@
  * active calendar_connections for a business/staff member.
  */
 
-import { encrypt, decrypt } from "@/lib/crypto";
-import { supabaseAdmin }    from "@/lib/supabase-admin";
+import { encrypt, decrypt }         from "@/lib/crypto";
+import { supabaseAdmin }             from "@/lib/supabase-admin";
+import { logCalendarDisconnect }     from "@/lib/telegram";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -68,19 +69,26 @@ async function refreshGoogleToken(conn: CalendarConnection): Promise<string | nu
 
   if (!tokens.refresh_token) return null;
 
-  const res = await fetch("https://oauth2.googleapis.com/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id:     process.env.GOOGLE_CLIENT_ID     ?? "",
-      client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-      refresh_token: tokens.refresh_token,
-      grant_type:    "refresh_token",
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id:     process.env.GOOGLE_CLIENT_ID     ?? "",
+        client_secret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+        refresh_token: tokens.refresh_token,
+        grant_type:    "refresh_token",
+      }),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await deactivateConnection(conn, `Network error: ${msg}`);
+    return null;
+  }
 
   if (!res.ok) {
-    await deactivateConnection(conn.id);
+    await deactivateConnection(conn, `HTTP ${res.status}`);
     return null;
   }
 
@@ -132,19 +140,26 @@ async function refreshOutlookToken(conn: CalendarConnection): Promise<string | n
   if (!tokens.refresh_token) return null;
 
   const tenantId = process.env.MICROSOFT_TENANT_ID ?? "common";
-  const res = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id:     process.env.MICROSOFT_CLIENT_ID     ?? "",
-      client_secret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
-      refresh_token: tokens.refresh_token,
-      grant_type:    "refresh_token",
-      scope:         "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id:     process.env.MICROSOFT_CLIENT_ID     ?? "",
+        client_secret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
+        refresh_token: tokens.refresh_token,
+        grant_type:    "refresh_token",
+        scope:         "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
+      }),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await deactivateConnection(conn, `Network error: ${msg}`);
+    return null;
+  }
 
-  if (!res.ok) { await deactivateConnection(conn.id); return null; }
+  if (!res.ok) { await deactivateConnection(conn, `HTTP ${res.status}`); return null; }
 
   const data = await res.json() as { access_token: string; expires_in: number };
   const updated: TokenData = { ...tokens, access_token: data.access_token, expires_at: Date.now() + data.expires_in * 1000 };
@@ -190,19 +205,26 @@ async function refreshMicrosoftToken(conn: CalendarConnection): Promise<string |
   if (!plainRefresh) return null;
 
   const tenantId = process.env.MICROSOFT_TENANT_ID ?? "common";
-  const res = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id:     process.env.MICROSOFT_CLIENT_ID     ?? "",
-      client_secret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
-      refresh_token: plainRefresh,
-      grant_type:    "refresh_token",
-      scope:         "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
-    }),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id:     process.env.MICROSOFT_CLIENT_ID     ?? "",
+        client_secret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
+        refresh_token: plainRefresh,
+        grant_type:    "refresh_token",
+        scope:         "https://graph.microsoft.com/Calendars.ReadWrite offline_access",
+      }),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    await deactivateConnection(conn, `Network error: ${msg}`);
+    return null;
+  }
 
-  if (!res.ok) { await deactivateConnection(conn.id); return null; }
+  if (!res.ok) { await deactivateConnection(conn, `HTTP ${res.status}`); return null; }
 
   const data = await res.json() as { access_token: string; expires_in: number };
   const newExpiry = new Date(Date.now() + data.expires_in * 1000).toISOString();
@@ -333,9 +355,27 @@ export async function getUnifiedBusyTimes(
   return results.flat();
 }
 
-async function deactivateConnection(id: string) {
-  await supabaseAdmin
-    .from("calendar_connections")
-    .update({ is_active: false })
-    .eq("id", id);
+async function deactivateConnection(conn: CalendarConnection, reason = "Token refresh failed") {
+  const ops: PromiseLike<unknown>[] = [
+    supabaseAdmin
+      .from("calendar_connections")
+      .update({ is_active: false })
+      .eq("id", conn.id),
+  ];
+
+  // For Google connections, clear the flag on the businesses row too so the
+  // dashboard reconnect prompt shows immediately.
+  if (conn.provider === "google") {
+    ops.push(
+      supabaseAdmin
+        .from("businesses")
+        .update({ google_calendar_connected: false })
+        .eq("id", conn.business_id)
+    );
+  }
+
+  await Promise.all(ops);
+
+  // Log to system_alerts + Telegram (fire-and-forget — never block availability)
+  logCalendarDisconnect(conn.provider, conn.business_id, conn.email, reason).catch(() => {});
 }

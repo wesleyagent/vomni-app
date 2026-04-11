@@ -3,6 +3,7 @@
 import { useState, useEffect, useContext } from "react";
 import { BusinessContext } from "../../_context";
 import { db } from "@/lib/db";
+import { currencySymbol } from "@/lib/currencyUtils";
 import { Plus, Trash2, Copy, Check, ExternalLink, Link as LinkIcon } from "lucide-react";
 
 const G = "#00C896";
@@ -74,6 +75,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
 
 export default function CalendarSettingsPage() {
   const ctx = useContext(BusinessContext);
+  const sym = currencySymbol(ctx?.currency ?? "ILS");
   const [loading, setLoading] = useState(true);
   const [saved, setSaved] = useState<string | null>(null);
 
@@ -878,7 +880,7 @@ export default function CalendarSettingsPage() {
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 14, fontWeight: 600, color: N }}>{svc.name}</div>
                 <div style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: SECONDARY, marginTop: 2 }}>
                   {svc.duration_minutes} min
-                  {svc.price != null && ` · ₪${svc.price}`}
+                  {svc.price != null && ` · ${sym}${svc.price}`}
                 </div>
               </div>
               <button
@@ -920,7 +922,7 @@ export default function CalendarSettingsPage() {
                 </select>
               </div>
               <div>
-                <label style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Price (₪)</label>
+                <label style={{ fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600, color: MUTED, display: "block", marginBottom: 6, textTransform: "uppercase" }}>Price ({sym})</label>
                 <input value={svcPrice} onChange={e => setSvcPrice(e.target.value)} placeholder="Optional" type="number" min="0" style={inputStyle()} />
               </div>
             </div>

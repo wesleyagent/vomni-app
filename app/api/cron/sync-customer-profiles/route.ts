@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { withCronMonitoring } from "@/lib/telegram";
 
 // GET /api/cron/sync-customer-profiles
 // Runs daily at 1am. Rebuilds customer_profiles from completed bookings.
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
     // Get all completed bookings for this business
     const { data: bookings } = await supabaseAdmin
       .from("bookings")
-      .select("customer_name, customer_phone, appointment_at, service_price, whatsapp_opt_in")
+      .select("customer_name, customer_phone, customer_phone_encrypted, appointment_at, service_price, whatsapp_opt_in")
       .eq("business_id", businessId)
       .eq("status", "completed")
       .not("customer_phone", "is", null)
@@ -46,6 +47,7 @@ export async function GET(req: NextRequest) {
     const upsertRows: {
       business_id: string;
       phone: string;
+      phone_encrypted: string | null;
       name: string | null;
       whatsapp_opt_in: boolean;
       total_visits: number;
@@ -87,10 +89,13 @@ export async function GET(req: NextRequest) {
       const mostRecent = visits[visits.length - 1];
       const name = (mostRecent.customer_name as string) ?? null;
       const waOptIn = (mostRecent.whatsapp_opt_in as boolean) !== false;
+      // Carry encrypted phone from most recent booking that has it
+      const phoneEncrypted = (visits.map(v => (v as typeof v & { customer_phone_encrypted?: string }).customer_phone_encrypted).filter(Boolean).pop()) ?? null;
 
       upsertRows.push({
         business_id: businessId,
         phone,
+        phone_encrypted: phoneEncrypted ?? null,
         name,
         whatsapp_opt_in: waOptIn,
         total_visits: totalVisits,
@@ -121,3 +126,5 @@ export async function GET(req: NextRequest) {
   console.log(`[cron/sync-customer-profiles] synced ${totalUpserted} profiles across ${uniqueBizIds.length} businesses`);
   return NextResponse.json({ synced: totalUpserted, businesses: uniqueBizIds.length });
 }
+
+export const GET = withCronMonitoring("sync-customer-profiles", handler);

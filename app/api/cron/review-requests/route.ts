@@ -1,15 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendReviewRequest } from "@/lib/whatsapp";
+import { sendBookingMessage } from "@/lib/twilio";
 import { canSendReviewRequest } from "@/lib/review-rules";
-import { fingerprintPhone } from "@/lib/phone";
+import { fingerprintPhone, decryptPhone } from "@/lib/phone";
+import { withCronMonitoring } from "@/lib/telegram";
 
 // GET /api/cron/review-requests
 // Runs hourly (schedule: "0 * * * *" in vercel.json)
 // Sends WhatsApp review requests for completed appointments 1-3 hours ago
 // Requires Authorization: Bearer ${CRON_SECRET}
 
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   const auth = req.headers.get("authorization");
   const secret = process.env.CRON_SECRET;
   if (!secret || auth !== `Bearer ${secret}`) {
@@ -30,6 +32,7 @@ export async function GET(req: NextRequest) {
       business_id,
       customer_name,
       customer_phone,
+      customer_phone_encrypted,
       appointment_at,
       service_name,
       cancellation_token,
@@ -37,7 +40,6 @@ export async function GET(req: NextRequest) {
     `)
     .eq("status", "completed")
     .eq("review_request_sent", false)
-    .eq("whatsapp_opt_in", true)
     .gte("appointment_at", oneDayAgo)
     .lte("appointment_at", oneHourAgo);
 
@@ -64,7 +66,11 @@ export async function GET(req: NextRequest) {
   let skipped = 0;
 
   for (const booking of bookings) {
-    const twilioPhone: string | null = booking.customer_phone ?? null;
+    // Resolve real E.164 phone — customer_phone stores masked display value
+    const enc = (booking as typeof booking & { customer_phone_encrypted?: string }).customer_phone_encrypted;
+    const twilioPhone: string | null = enc
+      ? (() => { try { return decryptPhone(enc); } catch { return booking.customer_phone ?? null; } })()
+      : (booking.customer_phone ?? null);
 
     if (!twilioPhone) {
       console.warn(`[review-requests] no phone for booking ${booking.id} — skipping`);
@@ -96,26 +102,43 @@ export async function GET(req: NextRequest) {
       continue;
     }
 
-    try {
-      const result = await sendReviewRequest(
-        { ...booking, customer_phone: twilioPhone },
-        business
-      );
+    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
+    const reviewUrl = `${appUrl}/r/${booking.id}`;
+    const firstName = booking.customer_name?.split(" ")[0] ?? "there";
 
-      if (result.success) {
-        sent++;
-        // Update last_review_request_at on customer profile
-        await supabaseAdmin
-          .from("customer_profiles")
-          .update({ last_review_request_at: new Date().toISOString() })
-          .eq("business_id", booking.business_id)
-          .eq("phone", twilioPhone);
-      } else {
-        if (result.reason === "opted_out") {
+    try {
+      const smsFallbackBody = `Hi ${firstName}! Hope your visit at ${business.name} was great 😊 We'd really appreciate a quick review: ${reviewUrl}`;
+
+      if (booking.whatsapp_opt_in !== false) {
+        // WhatsApp path (with SMS fallback if disabled/failed)
+        const result = await sendReviewRequest(
+          { ...booking, customer_phone: twilioPhone },
+          business
+        );
+
+        if (result.success) {
+          sent++;
+          // Match profiles by masked display phone (customer_profiles.phone stores the display value)
+          await supabaseAdmin
+            .from("customer_profiles")
+            .update({ last_review_request_at: new Date().toISOString() })
+            .eq("business_id", booking.business_id)
+            .eq("phone", booking.customer_phone ?? twilioPhone);
+        } else if (result.reason === "opted_out") {
           skipped++;
         } else {
+          // WhatsApp disabled or failed — try SMS
+          const smsResult = await sendBookingMessage(twilioPhone, smsFallbackBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "review_request" });
+          if (smsResult.success) { sent++; } else { failed++; }
+        }
+      } else {
+        // Opted out of WhatsApp — send SMS directly
+        const smsResult = await sendBookingMessage(twilioPhone, smsFallbackBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "review_request" });
+        if (smsResult.success) {
+          sent++;
+        } else {
           failed++;
-          console.warn(`[review-requests] send failed for booking ${booking.id}: ${result.error}`);
+          console.warn(`[review-requests] SMS failed for booking ${booking.id}: ${smsResult.error}`);
         }
       }
     } catch (err) {
@@ -133,3 +156,5 @@ export async function GET(req: NextRequest) {
   console.log(`[review-requests] processed=${bookings.length} sent=${sent} failed=${failed} skipped=${skipped}`);
   return NextResponse.json({ processed: bookings.length, sent, failed, skipped });
 }
+
+export const GET = withCronMonitoring("review-requests", handler);

@@ -24,7 +24,7 @@ export interface WhatsAppResult {
   success: boolean;
   messageSid?: string;
   error?: string;
-  reason?: string;
+  reason?: "opted_out" | "whatsapp_disabled" | string;
 }
 
 interface BookingLike {
@@ -71,13 +71,20 @@ function toE164(phone: string): string | null {
 
 function toWhatsAppNumber(phone: string): string {
   // Ensure E.164, prefix with "whatsapp:"
-  let e164 = phone;
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("972")) e164 = `+${digits}`;
-  else if (digits.startsWith("0")) e164 = `+972${digits.slice(1)}`;
-  else if (!phone.startsWith("+")) e164 = `+${digits}`;
+  // Reuse toE164 which already handles IL + UK; fall back to best-effort
+  const e164 = toE164(phone) ?? (() => {
+    const digits = phone.replace(/\D/g, "");
+    if (digits.startsWith("972")) return `+${digits}`;
+    if (digits.startsWith("44"))  return `+${digits}`;
+    if (digits.startsWith("0") && digits.length === 10) return `+972${digits.slice(1)}`;
+    if (digits.startsWith("0") && digits.length === 11) return `+44${digits.slice(1)}`;
+    return phone.startsWith("+") ? phone : `+${digits}`;
+  })();
   return `whatsapp:${e164}`;
 }
+
+// ── Feature flag — set WHATSAPP_ENABLED=true in Vercel once WhatsApp API is live ──
+const WHATSAPP_ENABLED = process.env.WHATSAPP_ENABLED === "true";
 
 // ── Core sender ─────────────────────────────────────────────────────────────
 
@@ -87,6 +94,11 @@ async function sendTemplate(
   variables: Record<string, string>,
   meta: { businessId?: string; bookingId?: string; templateName: string }
 ): Promise<WhatsAppResult> {
+  // ── WhatsApp not yet enabled — skip silently so SMS fallbacks take over ──
+  if (!WHATSAPP_ENABLED) {
+    return { success: false, reason: "whatsapp_disabled", error: "WhatsApp not enabled" };
+  }
+
   // ── Opt-out check — must run before any Twilio call ─────────────────────
   if (meta.businessId) {
     try {

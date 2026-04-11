@@ -5,6 +5,7 @@ import { Search, Star, Users, ChevronLeft, ChevronRight, Calendar, CheckCircle, 
 import { useBusinessContext } from "../_context";
 import { db, getAuthToken } from "@/lib/db";
 import PaymentDrawer from "@/components/invoices/PaymentDrawer";
+import { currencySymbol } from "@/lib/currencyUtils";
 
 const G     = "#00C896";
 const N     = "#0A0F1E";
@@ -171,7 +172,8 @@ const APPT_BADGE: Record<string, { label: string; icon: React.ReactNode; style: 
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function CustomersPage() {
-  const { businessId, businessName, timezone } = useBusinessContext();
+  const { businessId, businessName, timezone, currency } = useBusinessContext();
+  const sym = currencySymbol(currency);
 
   const [activeTab,  setActiveTab]  = useState<"schedule" | "clients" | "history" | "invoices" | "waitlist">("schedule");
 
@@ -1222,13 +1224,13 @@ export default function CustomersPage() {
             <div style={{ display: "flex", gap: 12, marginBottom: 24, flexWrap: "wrap" }}>
               <div style={{ background: "#fff", border: "1px solid #E5E7EB", borderLeft: `4px solid ${G}`, borderRadius: 14, padding: "18px 22px", flex: 1, minWidth: 140 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>Total Revenue (This Month)</div>
-                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 700, color: G }}>₪{totalRev.toLocaleString()}</div>
+                <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 700, color: G }}>{sym}{totalRev.toLocaleString()}</div>
                 <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>{thisMonth.length} documents this month</div>
               </div>
               {byPM.map(({ pm, label, amount, count }) => (
                 <div key={pm} style={{ background: "#fff", border: "1px solid #E5E7EB", borderRadius: 14, padding: "18px 22px", flex: 1, minWidth: 120 }}>
                   <div style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", marginBottom: 6, textTransform: "uppercase" as const, letterSpacing: "0.05em" }}>{label}</div>
-                  <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>₪{amount.toLocaleString()}</div>
+                  <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 700, color: N }}>{sym}{amount.toLocaleString()}</div>
                   <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>{count} documents</div>
                 </div>
               ))}
@@ -1323,7 +1325,7 @@ export default function CustomersPage() {
                           <td style={{ padding: "12px 14px", fontSize: 13, color: "#374151", whiteSpace: "nowrap" as const }}>{new Date(inv.issued_at).toLocaleDateString("en-GB")}</td>
                           <td style={{ padding: "12px 14px", fontSize: 13, color: N, fontWeight: 500 }}>{inv.customer_name}</td>
                           <td style={{ padding: "12px 14px", fontSize: 12, color: "#9CA3AF", maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const }}>{inv.service_description}</td>
-                          <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 700, color: N, whiteSpace: "nowrap" as const }}>₪{Number(inv.total).toFixed(2)}</td>
+                          <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 700, color: N, whiteSpace: "nowrap" as const }}>{sym}{Number(inv.total).toFixed(2)}</td>
                           <td style={{ padding: "12px 14px" }}>
                             <span style={{ padding: "3px 8px", borderRadius: 9999, background: "#F3F4F6", color: "#374151", fontSize: 11, fontWeight: 600 }}>{PAYMENT_LABELS[inv.payment_method] ?? inv.payment_method}</span>
                           </td>

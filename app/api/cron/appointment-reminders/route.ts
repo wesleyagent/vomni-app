@@ -2,10 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendEmail } from "@/lib/email";
 import { sendAppointmentReminder } from "@/lib/whatsapp";
+import { sendBookingMessage } from "@/lib/twilio";
+import { decryptPhone } from "@/lib/phone";
+import { withCronMonitoring } from "@/lib/telegram";
 
 // GET /api/cron/appointment-reminders
 // Runs hourly via Vercel cron. Finds bookings 23-25h away and sends reminder email.
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -18,7 +21,7 @@ export async function GET(req: NextRequest) {
 
   const { data: bookings, error } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_name, customer_email, customer_phone, appointment_at, service_name, staff_id, business_id, cancellation_token, whatsapp_opt_in")
+    .select("id, customer_name, customer_email, customer_phone, customer_phone_encrypted, appointment_at, service_name, staff_id, business_id, cancellation_token, whatsapp_opt_in")
     .eq("status", "confirmed")
     .eq("reminder_sent", false)
     .gte("appointment_at", min.toISOString())
@@ -60,18 +63,48 @@ export async function GET(req: NextRequest) {
       ? `${process.env.NEXT_PUBLIC_APP_URL}/cancel/${booking.cancellation_token}`
       : null;
 
-    // Send WhatsApp reminder if opted in
-    const waBooking = booking as typeof booking & { whatsapp_opt_in?: boolean };
+    // Resolve the real E.164 phone for Twilio/WhatsApp (customer_phone stores masked display value)
+    const enc = (booking as typeof booking & { customer_phone_encrypted?: string }).customer_phone_encrypted;
+    const sendPhone: string = enc ? (() => { try { return decryptPhone(enc); } catch { return booking.customer_phone ?? ""; } })() : (booking.customer_phone ?? "");
+
+    // Send reminder: WhatsApp if opted-in, SMS otherwise (or if WhatsApp disabled/failed)
+    const waBooking  = booking as typeof booking & { whatsapp_opt_in?: boolean };
+    const staffLine  = staffName ? ` with ${staffName}` : "";
+    const cancelLine = cancelUrl ? ` Cancel: ${cancelUrl}` : "";
+    const smsBody    = `Hi ${firstName}! 📅 Reminder: your ${serviceName} at ${bizName} is tomorrow at ${time}${staffLine}.${cancelLine}`;
+    let smsSent      = false;
+
     if (waBooking.whatsapp_opt_in !== false && biz) {
       try {
-        await sendAppointmentReminder(
-          { id: booking.id, business_id: booking.business_id, customer_name: booking.customer_name, customer_phone: booking.customer_phone ?? "", appointment_at: booking.appointment_at ?? "", whatsapp_opt_in: true },
+        const waResult = await sendAppointmentReminder(
+          { id: booking.id, business_id: booking.business_id, customer_name: booking.customer_name, customer_phone: sendPhone, appointment_at: booking.appointment_at ?? "", whatsapp_opt_in: true },
           { id: booking.business_id, name: biz.name }
         );
+        // Fall back to SMS if WhatsApp is disabled or failed
+        if (!waResult.success && sendPhone) {
+          await sendBookingMessage(sendPhone, smsBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "reminder" });
+          smsSent = true;
+        }
       } catch (e) {
         console.error(`[cron/reminders] WhatsApp reminder failed for ${booking.id}:`, e);
+        // Still try SMS
+        if (sendPhone) {
+          try {
+            await sendBookingMessage(sendPhone, smsBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "reminder" });
+            smsSent = true;
+          } catch {}
+        }
+      }
+    } else if (sendPhone) {
+      // Opted out of WhatsApp — send SMS directly
+      try {
+        await sendBookingMessage(sendPhone, smsBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "reminder" });
+        smsSent = true;
+      } catch (e) {
+        console.error(`[cron/reminders] SMS reminder failed for ${booking.id}:`, e);
       }
     }
+    void smsSent; // used for future logging if needed
 
     // Mark reminder_sent regardless of email presence to avoid retry loops
     if (!booking.customer_email) {
@@ -82,9 +115,6 @@ export async function GET(req: NextRequest) {
       errors.push(`${booking.id}: no customer email`);
       continue;
     }
-
-    const staffLine = staffName ? ` with ${staffName}` : "";
-    const cancelLine = cancelUrl ? ` Need to cancel? ${cancelUrl}` : "";
 
     const html = [
       `<p>Hi ${firstName},</p>`,
@@ -120,3 +150,5 @@ export async function GET(req: NextRequest) {
   console.log(`[cron/appointment-reminders] processed=${processed} errors=${errors.length}`);
   return NextResponse.json({ processed, errors: errors.length > 0 ? errors : undefined });
 }
+
+export const GET = withCronMonitoring("appointment-reminders", handler);

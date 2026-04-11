@@ -55,7 +55,7 @@ function ensureFont() {
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface InvoiceData {
-  document_type:       "heshbonit_mas" | "kabala";
+  document_type:       "heshbonit_mas" | "kabala" | "invoice" | "receipt";
   invoice_number:      string;
   issued_at:           string;  // ISO timestamp
   business_legal_name: string;
@@ -67,10 +67,11 @@ export interface InvoiceData {
   quantity:            number;
   unit_price:          number;
   subtotal:            number;
-  vat_rate:            number;  // 18 for osek_murshe, 0 for osek_patur
+  vat_rate:            number;  // 18 for osek_murshe, 0 for osek_patur, 20 for UK VAT
   vat_amount:          number;
   total:               number;
   payment_method:      string;
+  currency?:           string;  // "ILS" (default) | "GBP"
 }
 
 // ── Styles ───────────────────────────────────────────────────────────────────
@@ -226,13 +227,112 @@ function Kabala({ d }: { d: InvoiceData }) {
   );
 }
 
+// ── GBP / English Invoice ─────────────────────────────────────────────────────
+
+const SE = StyleSheet.create({
+  page:        { fontFamily: "Helvetica", fontSize: 10, padding: 40, backgroundColor: "#ffffff" },
+  headerRow:   { flexDirection: "row", justifyContent: "space-between", marginBottom: 24 },
+  bizBlock:    { textAlign: "left", flex: 1 },
+  docBlock:    { textAlign: "right" },
+  h1:          { fontSize: 18, fontWeight: 700, color: "#00C896", marginBottom: 4 },
+  h2:          { fontSize: 12, fontWeight: 700, color: "#0A0F1E", marginBottom: 2 },
+  small:       { fontSize: 9,  color: "#6B7280", marginBottom: 2 },
+  divider:     { borderBottomWidth: 1, borderBottomColor: "#E5E7EB", marginVertical: 12 },
+  label:       { fontSize: 9, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", marginBottom: 2 },
+  tableHeader: { flexDirection: "row", backgroundColor: "#F7F8FA", padding: "6px 8px", borderRadius: 4, marginBottom: 4 },
+  tableRow:    { flexDirection: "row", padding: "6px 8px", borderBottomWidth: 1, borderBottomColor: "#F3F4F6" },
+  col1:        { flex: 3, textAlign: "left" },
+  col2:        { flex: 1, textAlign: "center" },
+  col3:        { flex: 1, textAlign: "center" },
+  col4:        { flex: 1, textAlign: "right" },
+  totalsBlock: { marginTop: 12, alignItems: "flex-end" },
+  totalRow:    { flexDirection: "row", justifyContent: "space-between", width: 200, paddingVertical: 3 },
+  totalLabel:  { textAlign: "left",  color: "#374151" },
+  totalValue:  { textAlign: "right", color: "#374151" },
+  grandTotal:  { fontSize: 12, fontWeight: 700, color: "#0A0F1E" },
+  paymentLine: { marginTop: 20, fontSize: 9, color: "#6B7280" },
+  footer:      { position: "absolute", bottom: 30, left: 40, right: 40, textAlign: "center", fontSize: 8, color: "#D1D5DB" },
+});
+
+function GBPInvoice({ d }: { d: InvoiceData }) {
+  const sym  = d.currency === "GBP" ? "£" : "₪";
+  const date = new Date(d.issued_at).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+  const isInvoice = d.document_type !== "receipt";
+  return (
+    <Document>
+      <Page size="A4" style={SE.page}>
+        <View style={SE.headerRow}>
+          <View style={SE.bizBlock}>
+            <Text style={SE.h2}>{d.business_legal_name}</Text>
+            {d.business_address && <Text style={SE.small}>{d.business_address}</Text>}
+          </View>
+          <View style={SE.docBlock}>
+            <Text style={SE.h1}>{isInvoice ? "Invoice" : "Receipt"}</Text>
+            <Text style={SE.small}>{(isInvoice ? "Invoice" : "Receipt") + " #: " + d.invoice_number}</Text>
+            <Text style={SE.small}>{"Date: " + date}</Text>
+          </View>
+        </View>
+
+        <View style={SE.divider} />
+
+        <View style={{ marginBottom: 16 }}>
+          <Text style={SE.label}>Billed to</Text>
+          <Text style={SE.h2}>{d.customer_name}</Text>
+          {d.customer_phone && <Text style={SE.small}>{"Tel: " + d.customer_phone}</Text>}
+        </View>
+
+        <View style={SE.tableHeader}>
+          <Text style={[SE.col1, { fontWeight: 700 }]}>Description</Text>
+          <Text style={[SE.col2, { fontWeight: 700 }]}>Qty</Text>
+          <Text style={[SE.col3, { fontWeight: 700 }]}>Unit Price</Text>
+          <Text style={[SE.col4, { fontWeight: 700 }]}>Total</Text>
+        </View>
+        <View style={SE.tableRow}>
+          <Text style={SE.col1}>{d.service_description}</Text>
+          <Text style={SE.col2}>{d.quantity}</Text>
+          <Text style={SE.col3}>{sym + d.unit_price.toFixed(2)}</Text>
+          <Text style={SE.col4}>{sym + d.subtotal.toFixed(2)}</Text>
+        </View>
+
+        <View style={SE.totalsBlock}>
+          {d.vat_rate > 0 && (
+            <View style={SE.totalRow}>
+              <Text style={SE.totalLabel}>{"Subtotal"}</Text>
+              <Text style={SE.totalValue}>{sym + d.subtotal.toFixed(2)}</Text>
+            </View>
+          )}
+          {d.vat_rate > 0 && (
+            <View style={SE.totalRow}>
+              <Text style={SE.totalLabel}>{"VAT (" + d.vat_rate + "%)"}</Text>
+              <Text style={SE.totalValue}>{sym + d.vat_amount.toFixed(2)}</Text>
+            </View>
+          )}
+          <View style={[SE.totalRow, { borderTopWidth: 1, borderTopColor: "#E5E7EB", paddingTop: 6, marginTop: 4 }]}>
+            <Text style={[SE.totalLabel, SE.grandTotal]}>{"Total"}</Text>
+            <Text style={[SE.totalValue,  SE.grandTotal]}>{sym + d.total.toFixed(2)}</Text>
+          </View>
+        </View>
+
+        <Text style={SE.paymentLine}>{"Payment method: " + (d.payment_method || "—")}</Text>
+        <Text style={SE.footer}>{"Generated by Vomni · vomni.io"}</Text>
+      </Page>
+    </Document>
+  );
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 export async function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
-  ensureFont();
-  const doc = data.document_type === "heshbonit_mas"
-    ? React.createElement(HeshbonitMas, { d: data })
-    : React.createElement(Kabala,       { d: data });
+  const isGBP = data.currency === "GBP";
+  let doc: React.ReactElement<unknown>;
+  if (isGBP) {
+    doc = React.createElement(GBPInvoice, { d: data });
+  } else {
+    ensureFont();
+    doc = data.document_type === "heshbonit_mas"
+      ? React.createElement(HeshbonitMas, { d: data })
+      : React.createElement(Kabala,       { d: data });
+  }
   const instance = pdf(doc as React.ReactElement<any>);
   const stream = await instance.toBuffer();
   // toBuffer() returns ReadableStream in some @react-pdf/renderer versions;

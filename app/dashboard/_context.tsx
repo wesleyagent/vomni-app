@@ -7,6 +7,7 @@ export interface BusinessCtx {
   ownerName: string;
   email: string;
   timezone: string;  // IANA timezone from businesses.booking_timezone, e.g. "Asia/Jerusalem"
+  currency: string;  // ISO currency code from businesses.booking_currency, e.g. "ILS" | "GBP"
 }
 
 export const BusinessContext = createContext<BusinessCtx | null>(null);

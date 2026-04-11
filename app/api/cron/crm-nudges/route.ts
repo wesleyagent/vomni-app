@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendRebookingNudge } from "@/lib/whatsapp";
+import { sendBookingMessage } from "@/lib/twilio";
+import { decryptPhone } from "@/lib/phone";
+import { withCronMonitoring } from "@/lib/telegram";
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
 // GET /api/cron/crm-nudges
 // Runs daily at 10am. Two passes: pattern-based + lapsed nudges.
-export async function GET(req: NextRequest) {
+async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -18,10 +23,9 @@ export async function GET(req: NextRequest) {
   // haven't been nudged recently, and are not lapsed.
   const { data: patternCustomers } = await supabaseAdmin
     .from("customer_profiles")
-    .select("id, business_id, phone, name, predicted_next_visit_at, last_visit_at, nudge_count, nudge_sent_at, marketing_consent")
+    .select("id, business_id, phone, phone_encrypted, name, predicted_next_visit_at, last_visit_at, nudge_count, nudge_sent_at, marketing_consent")
     .lt("predicted_next_visit_at", new Date().toISOString())
     .gt("predicted_next_visit_at", new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
-    .eq("whatsapp_opt_in", true)
     .eq("marketing_consent", true)
     .eq("opted_out", false)
     .eq("is_lapsed", false)
@@ -44,19 +48,42 @@ export async function GET(req: NextRequest) {
         : 0;
 
       try {
-        const result = await sendRebookingNudge(
-          { phone: cp.phone, name: cp.name as string | null },
-          { id: biz.id, name: biz.name, booking_slug: biz.booking_slug },
-          "pattern",
-          weeksSince
-        );
+        const bookingUrl  = biz.booking_slug ? `${APP_URL}/book/${biz.booking_slug}` : APP_URL;
+        const firstName   = (cp.name as string | null)?.split(" ")[0] ?? "there";
+        const cpWa        = cp as typeof cp & { whatsapp_opt_in?: boolean };
+        let messageSid: string | null = null;
+
+        const cpEnc = (cp as typeof cp & { phone_encrypted?: string }).phone_encrypted;
+        const sendPhone: string = cpEnc
+          ? (() => { try { return decryptPhone(cpEnc); } catch { return cp.phone as string; } })()
+          : (cp.phone as string);
+
+        const patternSmsBody = `Hi ${firstName}! It's been a while since your last visit at ${biz.name}. Ready to book again? ${bookingUrl}`;
+        if (cpWa.whatsapp_opt_in !== false) {
+          const result = await sendRebookingNudge(
+            { phone: sendPhone, name: cp.name as string | null },
+            { id: biz.id, name: biz.name, booking_slug: biz.booking_slug },
+            "pattern",
+            weeksSince
+          );
+          if (result.success) {
+            messageSid = result.messageSid ?? null;
+          } else {
+            // WhatsApp disabled or failed — SMS fallback
+            const r = await sendBookingMessage(sendPhone, patternSmsBody, false, { businessId: cp.business_id, messageType: "nudge_pattern" });
+            messageSid = r.success ? r.sid : null;
+          }
+        } else {
+          const r = await sendBookingMessage(sendPhone, patternSmsBody, false, { businessId: cp.business_id, messageType: "nudge_pattern" });
+          messageSid = r.success ? r.sid : null;
+        }
 
         // Log to crm_nudges
         await supabaseAdmin.from("crm_nudges").insert({
           business_id: cp.business_id,
           customer_phone: cp.phone,
           nudge_type: "pattern",
-          message_sid: result.messageSid ?? null,
+          message_sid: messageSid,
           weeks_since_last_visit: weeksSince,
         });
 
@@ -78,11 +105,10 @@ export async function GET(req: NextRequest) {
   // and have never been nudged.
   const { data: lapsedCustomers } = await supabaseAdmin
     .from("customer_profiles")
-    .select("id, business_id, phone, name, last_visit_at, marketing_consent")
+    .select("id, business_id, phone, phone_encrypted, name, last_visit_at, marketing_consent")
     .eq("is_lapsed", true)
     .is("avg_days_between_visits", null)
     .is("nudge_sent_at", null)
-    .eq("whatsapp_opt_in", true)
     .eq("marketing_consent", true)
     .eq("opted_out", false);
 
@@ -102,19 +128,42 @@ export async function GET(req: NextRequest) {
         : 0;
 
       try {
-        const result = await sendRebookingNudge(
-          { phone: cp.phone, name: cp.name as string | null },
-          { id: biz.id, name: biz.name, booking_slug: biz.booking_slug },
-          "lapsed",
-          weeksSince
-        );
+        const bookingUrl  = biz.booking_slug ? `${APP_URL}/book/${biz.booking_slug}` : APP_URL;
+        const firstName   = (cp.name as string | null)?.split(" ")[0] ?? "there";
+        const cpWa        = cp as typeof cp & { whatsapp_opt_in?: boolean };
+        let messageSid: string | null = null;
+
+        const cpEnc2 = (cp as typeof cp & { phone_encrypted?: string }).phone_encrypted;
+        const sendPhone2: string = cpEnc2
+          ? (() => { try { return decryptPhone(cpEnc2); } catch { return cp.phone as string; } })()
+          : (cp.phone as string);
+
+        const lapsedSmsBody = `Hi ${firstName}! It's been ${weeksSince} week${weeksSince !== 1 ? "s" : ""} since you visited ${biz.name}. We'd love to see you again! ${bookingUrl}`;
+        if (cpWa.whatsapp_opt_in !== false) {
+          const result = await sendRebookingNudge(
+            { phone: sendPhone2, name: cp.name as string | null },
+            { id: biz.id, name: biz.name, booking_slug: biz.booking_slug },
+            "lapsed",
+            weeksSince
+          );
+          if (result.success) {
+            messageSid = result.messageSid ?? null;
+          } else {
+            // WhatsApp disabled or failed — SMS fallback
+            const r = await sendBookingMessage(sendPhone2, lapsedSmsBody, false, { businessId: cp.business_id, messageType: "nudge_lapsed" });
+            messageSid = r.success ? r.sid : null;
+          }
+        } else {
+          const r = await sendBookingMessage(sendPhone2, lapsedSmsBody, false, { businessId: cp.business_id, messageType: "nudge_lapsed" });
+          messageSid = r.success ? r.sid : null;
+        }
 
         // Log to crm_nudges
         await supabaseAdmin.from("crm_nudges").insert({
           business_id: cp.business_id,
           customer_phone: cp.phone,
           nudge_type: "lapsed",
-          message_sid: result.messageSid ?? null,
+          message_sid: messageSid,
           weeks_since_last_visit: weeksSince,
         });
 
@@ -137,3 +186,5 @@ export async function GET(req: NextRequest) {
     errors: errors.length > 0 ? errors : undefined,
   });
 }
+
+export const GET = withCronMonitoring("crm-nudges", handler);
