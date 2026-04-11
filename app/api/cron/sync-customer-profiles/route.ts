@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { decryptPhone, fingerprintPhone } from "@/lib/phone";
 import { withCronMonitoring } from "@/lib/telegram";
 
 // GET /api/cron/sync-customer-profiles
@@ -48,6 +49,7 @@ async function handler(req: NextRequest) {
       business_id: string;
       phone: string;
       phone_encrypted: string | null;
+      phone_fingerprint: string | null;
       name: string | null;
       whatsapp_opt_in: boolean;
       total_visits: number;
@@ -92,10 +94,23 @@ async function handler(req: NextRequest) {
       // Carry encrypted phone from most recent booking that has it
       const phoneEncrypted = (visits.map(v => (v as typeof v & { customer_phone_encrypted?: string }).customer_phone_encrypted).filter(Boolean).pop()) ?? null;
 
+      // Derive fingerprint from the encrypted phone — requires decryption in Node.js
+      // (SHA-256 of "${e164}:${businessId}" — cannot be computed in SQL)
+      let phoneFingerprint: string | null = null;
+      if (phoneEncrypted) {
+        try {
+          const e164 = decryptPhone(phoneEncrypted);
+          phoneFingerprint = fingerprintPhone(e164, businessId);
+        } catch {
+          // Decryption failed (wrong key, corrupted data) — leave fingerprint null
+        }
+      }
+
       upsertRows.push({
         business_id: businessId,
         phone,
         phone_encrypted: phoneEncrypted ?? null,
+        phone_fingerprint: phoneFingerprint,
         name,
         whatsapp_opt_in: waOptIn,
         total_visits: totalVisits,
