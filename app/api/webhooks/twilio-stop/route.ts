@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createHmac }                from "crypto";
 import { supabaseAdmin }             from "@/lib/supabase-admin";
-import { normaliseToE164 }           from "@/lib/phone";
+import { normaliseToE164, maskPhone, fingerprintPhone } from "@/lib/phone";
 
 const AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN ?? "";
 const APP_URL    = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
@@ -82,6 +82,44 @@ export async function POST(req: NextRequest) {
       return twimlResponse();
     }
 
+    // customer_profiles.phone stores masked display values — raw E.164 never matches.
+    // Fix: use maskPhone() to find candidate rows, then verify each row's
+    // business-scoped phone_fingerprint before updating. This correctly opts
+    // the customer out across ALL businesses they have a profile in.
+    const maskedPhone = maskPhone(e164);
+
+    // Step 1: find all customer_profile rows with a matching masked phone
+    const { data: candidates, error: fetchErr } = await supabaseAdmin
+      .from("customer_profiles")
+      .select("id, business_id, phone_fingerprint")
+      .eq("phone", maskedPhone);
+
+    if (fetchErr) {
+      console.error("[twilio-stop] candidate lookup error:", fetchErr.message);
+      return twimlResponse();
+    }
+
+    if (!candidates || candidates.length === 0) {
+      console.log(`[twilio-stop] No customer_profiles found for masked phone`);
+      return twimlResponse();
+    }
+
+    // Step 2: verify fingerprint for each candidate (business-scoped SHA-256)
+    // and collect IDs that truly belong to this E.164 number.
+    const verifiedIds: string[] = [];
+    for (const row of candidates) {
+      const expected = fingerprintPhone(e164, row.business_id);
+      if (expected === row.phone_fingerprint) {
+        verifiedIds.push(row.id);
+      }
+    }
+
+    if (verifiedIds.length === 0) {
+      console.warn("[twilio-stop] No fingerprint-verified rows found — possible mask collision");
+      return twimlResponse();
+    }
+
+    // Step 3: update all verified rows
     if (isStop) {
       const { error } = await supabaseAdmin
         .from("customer_profiles")
@@ -90,12 +128,12 @@ export async function POST(req: NextRequest) {
           opted_out_at:   new Date().toISOString(),
           opted_out_type: "all",
         })
-        .eq("phone", e164);
+        .in("id", verifiedIds);
 
       if (error) {
         console.error("[twilio-stop] opt-out update error:", error.message);
       } else {
-        console.log(`[twilio-stop] Opted out: ${e164}`);
+        console.log(`[twilio-stop] Opted out ${verifiedIds.length} profile(s)`);
       }
     } else {
       // isStart — customer opted back in
@@ -106,12 +144,12 @@ export async function POST(req: NextRequest) {
           opted_out_at:   null,
           opted_out_type: null,
         })
-        .eq("phone", e164);
+        .in("id", verifiedIds);
 
       if (error) {
         console.error("[twilio-stop] opt-in update error:", error.message);
       } else {
-        console.log(`[twilio-stop] Opted back in: ${e164}`);
+        console.log(`[twilio-stop] Opted back in ${verifiedIds.length} profile(s)`);
       }
     }
 

@@ -3,7 +3,8 @@
 import { useState, useEffect, useContext } from "react";
 import { BusinessContext } from "../_context";
 import { db } from "@/lib/db";
-import { Plus, Trash2, Check, X } from "lucide-react";
+import { Plus, Trash2, Check, X, Lock } from "lucide-react";
+import { getMaxStaff } from "@/lib/planFeatures";
 
 const G = "#00C896";
 const N = "#0A0F1E";
@@ -64,6 +65,7 @@ export default function TeamPage() {
   const ctx = useContext(BusinessContext);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+  const [bizPlan, setBizPlan] = useState<string | null>(null);
 
   // Staff
   const [staff, setStaff] = useState<StaffRow[]>([]);
@@ -101,14 +103,16 @@ export default function TeamPage() {
     setLoading(true);
     const bizId = ctx!.businessId;
 
-    const [staffRes, svcRes, ssRes, invRes] = await Promise.all([
+    const [staffRes, svcRes, ssRes, invRes, bizRes] = await Promise.all([
       db.from("staff").select("id, name, email, phone, color, is_active, display_order").eq("business_id", bizId).eq("is_active", true).order("display_order"),
       db.from("services").select("id, name").eq("business_id", bizId).eq("is_active", true).order("display_order"),
       db.from("staff_services").select("staff_id, service_id").eq("business_id", bizId),
       db.from("staff_invites").select("id, staff_id, email, status, created_at").eq("business_id", bizId).order("created_at", { ascending: false }),
+      db.from("businesses").select("plan").eq("id", bizId).single(),
     ]);
 
     setStaff((staffRes.data ?? []) as StaffRow[]);
+    setBizPlan((bizRes.data as { plan?: string } | null)?.plan ?? null);
     setServices((svcRes.data ?? []) as ServiceRow[]);
     setStaffServices((ssRes.data ?? []) as StaffService[]);
     setInvites((invRes.data ?? []) as StaffInvite[]);
@@ -121,6 +125,11 @@ export default function TeamPage() {
   }
 
   function openNewStaff() {
+    const maxStaff = getMaxStaff(bizPlan);
+    if (staff.length >= maxStaff) {
+      flash(`Your ${bizPlan ?? "current"} plan allows up to ${maxStaff} staff member${maxStaff === 1 ? "" : "s"}. Upgrade to add more.`);
+      return;
+    }
     setEditStaffId(null);
     setStaffName(""); setStaffEmail(""); setStaffPhone("");
     setStaffColor(STAFF_COLORS[staff.length % STAFF_COLORS.length]);
@@ -443,7 +452,8 @@ export default function TeamPage() {
               fontSize: 13, fontWeight: 600, cursor: "pointer",
             }}
           >
-            <Plus size={15} /> Add Team Member
+            {staff.length >= getMaxStaff(bizPlan) ? <Lock size={15} /> : <Plus size={15} />}
+            {staff.length >= getMaxStaff(bizPlan) ? "Upgrade to Add More Staff" : "Add Team Member"}
           </button>
         )}
       </SectionCard>

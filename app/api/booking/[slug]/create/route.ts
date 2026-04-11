@@ -5,7 +5,6 @@ import { sendBookingMessage } from "@/lib/twilio";
 import { sendAppointmentConfirmation } from "@/lib/whatsapp";
 import { checkRateLimitGlobal, getClientIP } from "@/lib/rate-limit";
 import { sendEmail, buildOwnerNotifyHtml, buildCustomerConfirmHtml } from "@/lib/email";
-import { shouldRouteToEmail } from "@/lib/messaging";
 import { upsertSingleCustomerProfile } from "@/lib/customer-profile-sync";
 import { sendBusinessPushNotification } from "@/lib/push";
 import { normaliseToE164, encryptPhone, maskPhone, fingerprintPhone } from "@/lib/phone";
@@ -99,25 +98,8 @@ export async function POST(
     return NextResponse.json({ error: "Business not found or booking disabled" }, { status: 404 });
   }
 
-  // Israeli businesses require a valid email — it is the primary communication channel
-  const isIsraeli = (business as typeof business & { booking_currency?: string }).booking_currency === "ILS";
-  if (isIsraeli) {
-    if (!email || !email.trim()) {
-      return NextResponse.json(
-        { error: "Email is required / כתובת אימייל נדרשת" },
-        { status: 400 }
-      );
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      return NextResponse.json(
-        { error: "Please enter a valid email address / כתובת אימייל אינה תקינה" },
-        { status: 400 }
-      );
-    }
-  }
-
-  // Determine channel routing early — needed for booking creation (sms_status) and sending
-  const useEmailChannel = shouldRouteToEmail(phoneE164, (business as typeof business & { booking_currency?: string }).booking_currency);
+  // All customers use SMS/WhatsApp — no email requirement
+  const useEmailChannel = false; // email routing deprecated; kept to avoid rewriting downstream refs
 
   // Now that we have the businessId, compute the dedup fingerprint
   phoneFingerprint = fingerprintPhone(phoneE164, business.id);

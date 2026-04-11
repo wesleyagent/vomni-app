@@ -2,12 +2,11 @@
  * Central message routing for Vomni.
  *
  * Routing rules:
- *   Israeli (ILS / +972)  → Resend email (WhatsApp Business number pending approval)
- *   UK      (GBP / +44)   → SMS via Twilio, gated by SMS_UK_ENABLED env var
+ *   Israeli (ILS / +972)  → SMS via Twilio IL number (TWILIO_IL_PHONE_NUMBER)
+ *   UK      (GBP / +44)   → SMS via Twilio UK number, gated by SMS_UK_ENABLED env var
  *
  * Usage:
- *   shouldRouteToEmail(phone, currency) → true if we should send email via Resend
- *   shouldSendSMS(phone, currency)      → true if we should send SMS via Twilio
+ *   shouldSendSMS(phone, currency) → true if SMS should be sent via Twilio
  */
 
 export function isIsraeliPhone(phone?: string | null): boolean {
@@ -22,20 +21,21 @@ export function smsUKEnabled(): boolean {
   return process.env.SMS_UK_ENABLED === "true";
 }
 
-/** Returns true if this customer should receive email via Resend instead of SMS/WhatsApp */
-export function shouldRouteToEmail(phone?: string | null, currency?: string | null): boolean {
-  if (currency === "ILS") return true;
-  if (isIsraeliPhone(phone)) return true;
+/**
+ * @deprecated All customer communications now use SMS/WhatsApp. Always returns false.
+ * Kept to avoid breaking callers — remove in a future cleanup.
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export function shouldRouteToEmail(_phone?: string | null, _currency?: string | null): boolean {
   return false;
 }
 
 /**
  * Returns true if SMS should be sent via Twilio.
- * Israeli customers → always false (use email).
+ * Israeli customers → true (via TWILIO_IL_PHONE_NUMBER).
  * UK customers     → only if SMS_UK_ENABLED=true.
  */
 export function shouldSendSMS(phone?: string | null, currency?: string | null): boolean {
-  if (shouldRouteToEmail(phone, currency)) return false;
   if (currency === "GBP" || isUKPhone(phone)) return smsUKEnabled();
   return true;
 }

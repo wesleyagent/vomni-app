@@ -211,8 +211,8 @@ export default function BookingFlow({ slug }: { slug: string }) {
   async function handleSubmit() {
     if (!selectedService || !selectedDate || !selectedTime || !firstName || !lastName || !phone) return;
 
-    // Email validation for ILS (Israeli) businesses
-    if (business?.booking_currency === "ILS" || business?.require_email) {
+    // Email validation — only if business has require_email enabled
+    if (business?.require_email) {
       if (!email.trim()) {
         setEmailError(t("Email is required", "כתובת אימייל נדרשת", lang));
         return;
@@ -1026,7 +1026,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
               {/* Email */}
               <div>
                 <label style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: SECONDARY, marginBottom: 6, display: "block" }}>
-                  {t("Email", "אימייל", lang)} {(business.require_email || business.booking_currency === "ILS") ? "*" : t("(optional)", "(אופציונלי)", lang)}
+                  {t("Email", "אימייל", lang)} {business.require_email ? "*" : t("(optional)", "(אופציונלי)", lang)}
                 </label>
                 <input
                   value={email} onChange={e => { setEmail(e.target.value); setEmailError(null); }}
@@ -1119,7 +1119,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
               {/* Submit button */}
               <button
                 onClick={handleSubmit}
-                disabled={submitting || !firstName || !lastName || !phone || ((business.require_email || business.booking_currency === "ILS") && !email)}
+                disabled={submitting || !firstName || !lastName || !phone || (business.require_email && !email)}
                 style={{
                   width: "100%", padding: "18px 24px", borderRadius: 9999,
                   background: (submitting || !firstName || !lastName || !phone)

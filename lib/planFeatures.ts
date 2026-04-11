@@ -10,7 +10,7 @@ export const PLAN_FEATURES = {
     weekly_reports: false,
     priority_support: false,
     booking_system: true,
-    max_staff: 2,
+    max_staff: 1,
     max_locations: 1,
     white_label: false,
     competitor_benchmarking: false,
@@ -26,7 +26,7 @@ export const PLAN_FEATURES = {
     weekly_reports: true,
     priority_support: false,
     booking_system: true,
-    max_staff: 5,
+    max_staff: 1,
     max_locations: 3,
     white_label: false,
     competitor_benchmarking: true,
@@ -42,7 +42,7 @@ export const PLAN_FEATURES = {
     weekly_reports: true,
     priority_support: true,
     booking_system: true,
-    max_staff: 999, // unlimited
+    max_staff: 3,
     max_locations: 999, // unlimited
     white_label: true,
     competitor_benchmarking: true,
@@ -71,7 +71,7 @@ export function getUpgradePlan(feature: PlanFeatureKey): PlanName {
 
 export function getMaxStaff(plan: string | null | undefined): number {
   const p = (plan ?? 'growth') as PlanName;
-  return PLAN_FEATURES[p]?.max_staff ?? 5;
+  return PLAN_FEATURES[p]?.max_staff ?? 1;
 }
 
 export function getMaxLocations(plan: string | null | undefined): number {

@@ -1,5 +1,5 @@
 # Vomni — Full Technical Specification
-**Version**: 1.2
+**Version**: 1.3
 **Branch**: `main`
 **Last Updated**: April 11, 2026
 **Stack**: Next.js 16 (App Router) · TypeScript · Supabase · Vercel
@@ -203,7 +203,7 @@ Central appointments table.
 | reminder_sent | bool | |
 | reminder_sent_at | timestamptz | |
 | confirmation_sent | bool | |
-| sms_status | text | `pending` / `sent` / `failed` / `suppressed` |
+| sms_status | text | `pending` / `sent` / `failed` / `cancelled` / `noshow_sms_sent` |
 | rating_submitted_at | timestamptz | When customer rated (post-appointment) |
 | redirected_at | timestamptz | When customer was redirected to Google |
 | reviewed_at | timestamptz | When review confirmed |
@@ -510,13 +510,12 @@ Creates a booking atomically.
 - Rate limited: 5/hr per IP, 3/hr per phone — enforced via **Supabase `check_rate_limit` RPC** (global across all instances)
 - Re-checks availability before inserting (race condition protection)
 - Uses Supabase RPC `create_booking_atomic()` when staff assigned
-- **Israeli businesses (ILS currency)**: email is mandatory — returns 400 if missing/invalid
+- Email field is optional for all businesses (required only if `businesses.require_email=true`)
 - Phone handling:
   - Raw E.164 input → `encryptPhone(e164)` → stored as `customer_phone_encrypted`
   - `maskPhone(e164)` → stored as `customer_phone` / `phone_display` (display only)
-- Channel routing via `shouldRouteToEmail(phone, currency)` from `lib/messaging.ts`:
-  - ILS / +972 → email channel: `sms_status=suppressed`, customer confirmation via Resend
-  - All others → WhatsApp/SMS: `sms_status=pending`
+- All customers (including Israeli ILS/+972) route to WhatsApp/SMS via Twilio. `sms_status=pending` for all bookings.
+- UK businesses (GBP/+44) gated by `SMS_UK_ENABLED=true` env var (default false). WhatsApp pending approval.
 - On success:
   - Generates `cancellation_token`
   - Fires confirmation email to customer (async)
@@ -651,11 +650,11 @@ All crons that send SMS/WhatsApp **decrypt** `customer_phone_encrypted` via `dec
 
 | Route | Schedule | Purpose |
 |-------|----------|---------|
-| `/api/cron/appointment-reminders` | Hourly¹ | Find bookings 23–25h from now, `reminder_sent=false`; ILS → Resend email; others → WhatsApp/SMS |
-| `/api/cron/review-requests` | Hourly¹ | Find completed bookings 1.5–2.5h ago; run `canSendReviewRequest` eligibility; ILS → Resend email; others → WhatsApp/SMS |
+| `/api/cron/appointment-reminders` | Hourly¹ | Find bookings 23–25h from now, `reminder_sent=false`; send via WhatsApp/SMS for all customers |
+| `/api/cron/review-requests` | Hourly¹ | Find completed bookings 1.5–2.5h ago; run `canSendReviewRequest` eligibility; send via WhatsApp/SMS for all customers |
 | `/api/cron/sync-customer-profiles` | Daily 1am | Full rebuild of `customer_profiles` from all completed bookings; source of truth nightly |
-| `/api/cron/crm-nudges` | Daily 10am | Two passes: (1) pattern-based nudge for customers whose `predicted_next_visit_at` has passed; (2) lapsed single-visit customers. ILS → email; others → SMS |
-| `/api/cron/no-show-rebooking` | Daily 10am | Find no-show bookings in last 24h; ILS → Resend email; others → SMS |
+| `/api/cron/crm-nudges` | Daily 10am | Two passes: (1) pattern-based nudge for customers whose `predicted_next_visit_at` has passed; (2) lapsed single-visit customers. All via WhatsApp/SMS |
+| `/api/cron/no-show-rebooking` | Daily 10am | Find no-show bookings in last 24h; send rebooking SMS for all customers |
 | `/api/cron/cleanup-pii` | Daily | Anonymize names/phones of customers whose SMS was sent 30+ days ago |
 | `/api/cron/cleanup-data` | Weekly | Delete old bookings per retention policy |
 | `/api/cron/waitlist-check` | Hourly | Check waitlist against newly available slots |
@@ -696,7 +695,7 @@ All admin routes verify TOTP session cookie via `requireAdmin()`.
 | `/api/admin/send-checkin` | POST | Send check-in email |
 | `/api/admin/update-rating` | POST | Manually update Google metrics |
 | `/api/admin/backfill-phone-fingerprints` | POST | One-time backfill: reads `customer_profiles` rows with `phone_encrypted` but null `phone_fingerprint`, decrypts, computes SHA-256 fingerprint, writes back. Safe to re-run. |
-| `/api/admin/messaging` | GET | SMS + WhatsApp spend dashboard. Query param `?days=30`. Returns totals, per-type breakdown, per-business breakdown, estimated cost USD. |
+| `/api/admin/messaging` | GET | SMS + WhatsApp spend dashboard. Query param `?days=30`. Returns totals, per-type breakdown, per-business breakdown, estimated cost USD using per-destination rates: Israeli SMS (ILS) $0.2575, UK SMS (GBP) $0.0079, WhatsApp marketing $0.025, WhatsApp utility $0.005. |
 
 ### 4.9 Email Unsubscribe
 
@@ -714,7 +713,7 @@ One-click unsubscribe for Resend email recipients (Israeli customers).
 | Route | Method | Purpose |
 |-------|--------|---------|
 | `/api/webhooks/lemonsqueezy` | POST | Subscription lifecycle events (HMAC-SHA256 verified) |
-| `/api/webhooks/twilio-stop` | POST | Twilio STOP/START/HELP keyword handler. HMAC-SHA1 verified. Sets `customer_profiles.opted_out=true` on STOP (matched by `phone_fingerprint`), clears on START. |
+| `/api/webhooks/twilio-stop` | POST | Twilio STOP/START keyword handler. HMAC-SHA1 verified (skipped only when `TWILIO_AUTH_TOKEN` not set). Lookup: `maskPhone(e164)` → candidate rows → verify each row's `fingerprintPhone(e164, businessId)` against stored `phone_fingerprint` → batch update `opted_out=true` (STOP) or `false` (START) across all verified rows. |
 
 ---
 
@@ -901,14 +900,16 @@ Google Calendar token lifecycle management.
 - `encryptToken(token)` / `decryptToken(encrypted)` — AES-256-GCM
 
 ### `lib/messaging.ts`
-Central channel routing helper. All send logic consults this before choosing SMS vs email.
+Central channel routing helper. All send logic consults this before choosing SMS/WhatsApp channel.
 
 ```typescript
-shouldRouteToEmail(phone?: string | null, currency?: string | null): boolean
-// Returns true for ILS currency or +972 phone prefix → use Resend email
+shouldRouteToEmail(phone?, currency?): boolean
+// Always returns false. Deprecated — kept to avoid breaking callers during cleanup.
 
 shouldSendSMS(phone?: string | null, currency?: string | null): boolean
-// Returns false for ILS/+972 (routed to email) and for UK unless SMS_UK_ENABLED=true
+// Israeli (+972 / ILS) → true (SMS via TWILIO_IL_PHONE_NUMBER)
+// UK (+44 / GBP) → only if SMS_UK_ENABLED=true
+// All others → true
 
 smsUKEnabled(): boolean
 // Reads process.env.SMS_UK_ENABLED === "true"
@@ -939,15 +940,15 @@ Email sending via Resend with logging.
 
 Email types: `booking_owner_notify`, `booking_customer_confirm`, `booking_reminder`, `booking_cancellation`, `limit_reached`, `weekly_report`, `review_request`, `no_show_follow_up`, `crm_nudge`
 
-**Customer email templates** (ILS businesses):
-| Function | Subject | Sends when |
-|----------|---------|------------|
-| `buildReminderEmailHtml(opts)` | `${firstName}, your ${service} is tomorrow at ${time} 📅` | Appointment reminder cron |
-| `buildReviewRequestEmailHtml(opts)` | `${firstName}, how was your visit at ${bizName}? ⭐` | Review request cron |
-| `buildNoShowEmailHtml(opts)` | `${firstName}, we missed you at ${bizName} today 😊` | No-show rebooking cron |
-| `buildNudgeEmailHtml(opts)` | `${firstName}, it's been a while — we'd love to see you again 💇` | CRM nudges cron |
+**Customer email templates** (available but not used for customer-facing comms — customer communications use SMS/WhatsApp):
+| Function | Purpose |
+|----------|---------|
+| `buildReminderEmailHtml(opts)` | Appointment reminder (available if needed) |
+| `buildReviewRequestEmailHtml(opts)` | Review request (available if needed) |
+| `buildNoShowEmailHtml(opts)` | No-show follow-up (available if needed) |
+| `buildNudgeEmailHtml(opts)` | CRM re-engagement (available if needed) |
 
-All templates: `#0B2D2A` teal header, bilingual EN/HE footer, unsubscribe link.
+All templates: `#0B2D2A` teal header, bilingual EN/HE footer, unsubscribe link. Currently used only for business owner notifications and weekly reports.
 
 ### `lib/csv-parser.ts`
 Fuzzy CSV column detection and phone normalisation.
@@ -985,12 +986,13 @@ Feature matrix per plan.
 
 ```typescript
 PLAN_FEATURES: {
-  trial:   { ai_insights: false, ai_replies: false, analytics: false, ... }
-  starter: { ai_insights: true,  ai_replies: false, analytics: true,  ... }
-  growth:  { ai_insights: true,  ai_replies: true,  analytics: true,  ... }
-  pro:     { ai_insights: true,  ai_replies: true,  analytics: true, white_label: true, ... }
+  starter: { max_staff: 1,  ai_insights: false, ai_replies: false, analytics: false, weekly_reports: false, ... }
+  growth:  { max_staff: 1,  ai_insights: true,  ai_replies: true,  analytics: true,  weekly_reports: true,  ... }
+  pro:     { max_staff: 3,  ai_insights: true,  ai_replies: true,  analytics: true,  white_label: true,     ... }
 }
 ```
+
+Staff limits: Starter=1, Growth=1, Pro=3. `getMaxStaff(plan)` defaults to 1 for unknown plans. Team page enforces the limit — "Add Team Member" button shows a lock icon and toast when at the plan max.
 
 ### `lib/rate-limit.ts`
 Distributed rate limiter backed by Supabase (global across all serverless instances).
