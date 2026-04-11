@@ -1,8 +1,8 @@
 # Vomni — Full Technical Specification
-**Version**: 1.0
-**Branch**: `booking-platform`
-**Last Updated**: April 2026
-**Stack**: Next.js 15 (App Router) · TypeScript · Supabase · Vercel
+**Version**: 1.2
+**Branch**: `main`
+**Last Updated**: April 11, 2026
+**Stack**: Next.js 16 (App Router) · TypeScript · Supabase · Vercel
 
 ---
 
@@ -13,7 +13,7 @@ Vomni is a multi-tenant SaaS platform for service businesses (salons, clinics, s
 1. **Reputation Management** — Automated post-appointment review requests via SMS, feedback inbox, smart Google redirect (4★+ → Google, 1–3★ → private inbox)
 2. **Booking System** — Native online booking page, calendar management, staff scheduling, and Google Calendar sync
 
-The two pillars are unified: bookings automatically trigger review requests 24 hours after each appointment, eliminating the need for third-party automation tools.
+The two pillars are unified: bookings automatically trigger review requests 1.5–2.5 hours after each appointment completes, eliminating the need for third-party automation tools.
 
 **Target markets**: Israeli and UK service businesses. Full Hebrew/English bilingual support throughout.
 
@@ -187,8 +187,11 @@ Central appointments table.
 | service_duration_minutes | int | Snapshot |
 | service_price | numeric | Snapshot |
 | customer_name | text | |
-| customer_phone | text | E.164 format |
+| customer_phone | text | Masked display value e.g. `+972 *** *** 567` |
+| phone_display | text | Alias of `customer_phone` (masked) |
+| customer_phone_encrypted | text | AES-256-GCM encrypted E.164 — used by all crons for actual sending |
 | customer_email | text | |
+| whatsapp_opt_in | bool | Whether customer opted in to WhatsApp messages |
 | appointment_at | timestamptz | UTC |
 | status | text | `confirmed` / `completed` / `no_show` / `cancelled` |
 | booking_source | text | `vomni` / `manual` / `import` |
@@ -236,6 +239,61 @@ Immutable record of all booking state changes.
 | new_status | text |
 | note | text |
 | created_at | timestamptz |
+
+#### `customer_profiles`
+Per-business customer CRM profile. Rebuilt nightly by `sync-customer-profiles` cron from completed bookings.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| business_id | uuid FK → businesses | |
+| phone | text | Masked display value (matches `bookings.customer_phone`) |
+| phone_encrypted | text | AES-256-GCM encrypted E.164 — populated by sync cron |
+| phone_fingerprint | text | SHA-256 hex of `"${e164}:${businessId}"` — used for opt-out / dedup checks |
+| name | text | From most recent booking |
+| whatsapp_opt_in | bool | |
+| marketing_consent | bool | |
+| opted_out | bool | Set when customer sends STOP |
+| opted_out_at | timestamptz | |
+| total_visits | int | Count of completed bookings |
+| first_visit_at | timestamptz | |
+| last_visit_at | timestamptz | |
+| avg_days_between_visits | numeric | Null if only 1 visit |
+| predicted_next_visit_at | timestamptz | `last_visit_at + avg_days_between_visits` |
+| is_lapsed | bool | True if overdue by >2× avg interval |
+| nudge_count | int | How many rebooking nudges sent |
+| nudge_sent_at | timestamptz | When last nudge was sent |
+| updated_at | timestamptz | |
+
+Unique constraint on `(business_id, phone)`.
+Partial index on `(business_id, phone_fingerprint) WHERE phone_fingerprint IS NOT NULL` (migration 029).
+
+#### `crm_nudges`
+Log of all CRM rebooking nudge messages sent.
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| business_id | uuid FK | |
+| customer_phone | text | Masked display value |
+| nudge_type | text | `pattern` / `lapsed` |
+| message_sid | text | Twilio/WhatsApp message SID |
+| weeks_since_last_visit | int | |
+| created_at | timestamptz | |
+
+#### `whatsapp_log`
+Log of all outbound WhatsApp messages (used for dedup in review eligibility checks).
+
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid PK | |
+| business_id | uuid FK | |
+| phone_fingerprint | text | SHA-256 fingerprint of recipient |
+| message_type | text | `review_request` / `nudge` / etc. |
+| message_sid | text | Twilio message SID |
+| created_at | timestamptz | |
+
+---
 
 #### `calendar_connections`
 OAuth tokens for calendar integrations.
@@ -449,16 +507,29 @@ Computes available time slots for a given date/service/staff combination.
 
 #### `POST /api/booking/[slug]/create`
 Creates a booking atomically.
-- Rate limited: 5/hr per IP, 3/hr per phone number
+- Rate limited: 5/hr per IP, 3/hr per phone — enforced via **Supabase `check_rate_limit` RPC** (global across all instances)
 - Re-checks availability before inserting (race condition protection)
 - Uses Supabase RPC `create_booking_atomic()` when staff assigned
+- **Israeli businesses (ILS currency)**: email is mandatory — returns 400 if missing/invalid
+- Phone handling:
+  - Raw E.164 input → `encryptPhone(e164)` → stored as `customer_phone_encrypted`
+  - `maskPhone(e164)` → stored as `customer_phone` / `phone_display` (display only)
+- Channel routing via `shouldRouteToEmail(phone, currency)` from `lib/messaging.ts`:
+  - ILS / +972 → email channel: `sms_status=suppressed`, customer confirmation via Resend
+  - All others → WhatsApp/SMS: `sms_status=pending`
 - On success:
-  - Sets `sms_status=pending`, `booking_source=vomni`
   - Generates `cancellation_token`
   - Fires confirmation email to customer (async)
   - Fires notification email to business owner (async)
   - Pushes event to Google Calendar (async, non-blocking)
   - Creates audit log entry
+  - **Non-blocking upsert** to `customer_profiles` via `upsertSingleCustomerProfile()` so customer appears in dashboard CRM immediately
+
+#### `PATCH /api/booking/[slug]/status`
+Dashboard-only endpoint for updating booking status (confirmed/completed/no_show/cancelled).
+- Auth required (business JWT)
+- No-show / cancelled: sets `sms_status=cancelled` to suppress review SMS
+- **Completed**: triggers non-blocking `upsertSingleCustomerProfile()` to update CRM stats immediately
 
 #### `GET /api/booking/cancel/[token]`
 Cancels a booking via the secret cancellation token from the confirmation SMS/email.
@@ -507,7 +578,7 @@ Receives Google push notifications when calendar changes.
 - Triggers incremental sync
 
 #### `POST /api/calendar/disconnect`
-Revokes OAuth tokens, sets `is_active=false`.
+Revokes OAuth tokens, sets `is_active=false` in `calendar_connections`, sets `businesses.google_calendar_connected=false`, and writes a `calendar_disconnect` audit log entry via `logCalendarDisconnect()`.
 
 ---
 
@@ -575,17 +646,24 @@ Generates a win-back message for a customer who gave low rating.
 ### 4.6 Cron Jobs (Vercel Scheduled)
 
 All cron endpoints verify `Authorization: Bearer {CRON_SECRET}` header.
+All handlers are wrapped in `withCronMonitoring(name, handler)` (Telegram alerting on failure).
+All crons that send SMS/WhatsApp **decrypt** `customer_phone_encrypted` via `decryptPhone()` before passing to Twilio — `customer_phone` (masked) is never used for sending.
 
 | Route | Schedule | Purpose |
 |-------|----------|---------|
-| `/api/cron/appointment-reminders` | Hourly | Find bookings 23–25h from now, `reminder_sent=false`, send SMS reminder |
+| `/api/cron/appointment-reminders` | Hourly¹ | Find bookings 23–25h from now, `reminder_sent=false`; ILS → Resend email; others → WhatsApp/SMS |
+| `/api/cron/review-requests` | Hourly¹ | Find completed bookings 1.5–2.5h ago; run `canSendReviewRequest` eligibility; ILS → Resend email; others → WhatsApp/SMS |
+| `/api/cron/sync-customer-profiles` | Daily 1am | Full rebuild of `customer_profiles` from all completed bookings; source of truth nightly |
+| `/api/cron/crm-nudges` | Daily 10am | Two passes: (1) pattern-based nudge for customers whose `predicted_next_visit_at` has passed; (2) lapsed single-visit customers. ILS → email; others → SMS |
+| `/api/cron/no-show-rebooking` | Daily 10am | Find no-show bookings in last 24h; ILS → Resend email; others → SMS |
 | `/api/cron/cleanup-pii` | Daily | Anonymize names/phones of customers whose SMS was sent 30+ days ago |
 | `/api/cron/cleanup-data` | Weekly | Delete old bookings per retention policy |
-| `/api/cron/no-show-rebooking` | Daily | Send rebooking offer to no-shows |
 | `/api/cron/waitlist-check` | Hourly | Check waitlist against newly available slots |
-| `/api/cron/reset-sms-counters` | Daily | Reset `sms_sent_this_period` on billing anchor day |
+| `/api/cron/reset-sms-counters` | Daily | Reset `top_up_credits` on billing anchor day |
 | `/api/cron/update-velocity` | Weekly | Recalculate lead velocity metrics |
-| `/api/cron/weekly-report` | Weekly (Mon 8am) | Generate and email weekly summary to business |
+| `/api/cron/weekly-report` | Weekly (Mon 9am) | Generate and email weekly summary to business |
+
+**¹** Requires Vercel Pro for hourly cadence. On Hobby plan these fire once daily — review timing will be approximate.
 
 ---
 
@@ -617,6 +695,26 @@ All admin routes verify TOTP session cookie via `requireAdmin()`.
 | `/api/admin/db/[table]` | GET | Generic table browser |
 | `/api/admin/send-checkin` | POST | Send check-in email |
 | `/api/admin/update-rating` | POST | Manually update Google metrics |
+| `/api/admin/backfill-phone-fingerprints` | POST | One-time backfill: reads `customer_profiles` rows with `phone_encrypted` but null `phone_fingerprint`, decrypts, computes SHA-256 fingerprint, writes back. Safe to re-run. |
+| `/api/admin/messaging` | GET | SMS + WhatsApp spend dashboard. Query param `?days=30`. Returns totals, per-type breakdown, per-business breakdown, estimated cost USD. |
+
+### 4.9 Email Unsubscribe
+
+#### `GET /api/email/unsubscribe?token=...`
+One-click unsubscribe for Resend email recipients (Israeli customers).
+- Token is `base64url(email|businessId)` — no secret needed, decodable server-side
+- Sets `customer_profiles.opted_out=true`, `opted_out_at=now()` on the matching row
+- Returns bilingual HTML confirmation page (EN + HE)
+- All outbound customer emails include RFC-compliant `List-Unsubscribe` + `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers so Gmail/Outlook show a native unsubscribe button
+
+---
+
+### 4.10 Webhooks
+
+| Route | Method | Purpose |
+|-------|--------|---------|
+| `/api/webhooks/lemonsqueezy` | POST | Subscription lifecycle events (HMAC-SHA256 verified) |
+| `/api/webhooks/twilio-stop` | POST | Twilio STOP/START/HELP keyword handler. HMAC-SHA1 verified. Sets `customer_profiles.opted_out=true` on STOP (matched by `phone_fingerprint`), clears on START. |
 
 ---
 
@@ -802,15 +900,54 @@ Google Calendar token lifecycle management.
 - `markDisconnected(businessId)` — Sets `is_active=false`
 - `encryptToken(token)` / `decryptToken(encrypted)` — AES-256-GCM
 
+### `lib/messaging.ts`
+Central channel routing helper. All send logic consults this before choosing SMS vs email.
+
+```typescript
+shouldRouteToEmail(phone?: string | null, currency?: string | null): boolean
+// Returns true for ILS currency or +972 phone prefix → use Resend email
+
+shouldSendSMS(phone?: string | null, currency?: string | null): boolean
+// Returns false for ILS/+972 (routed to email) and for UK unless SMS_UK_ENABLED=true
+
+smsUKEnabled(): boolean
+// Reads process.env.SMS_UK_ENABLED === "true"
+```
+
+### `lib/customer-profile-sync.ts`
+Lightweight real-time customer profile upsert. Called non-blocking after booking creation and status→completed.
+
+```typescript
+upsertSingleCustomerProfile(bookingId: string): Promise<void>
+// Fetches the booking's phone + business, loads all completed bookings for that
+// customer+business, computes visit stats (total, first/last, avg cadence, predicted next),
+// and upserts one row into customer_profiles with onConflict: "business_id,phone".
+// Falls back to the trigger booking itself if no completed bookings yet (new customer).
+// Never throws — all errors are logged and swallowed.
+```
+
 ### `lib/email.ts`
 Email sending via Resend with logging.
 
+- FROM: `Vomni <hello@mail.vomni.io>` · REPLY-TO: `hello@vomni.io`
 - Writes to `email_log` before sending (status: `pending`)
 - Calls Resend API
 - Updates status to `sent` or `failed`
 - Non-blocking — failures don't propagate to caller
+- All customer-facing emails include `List-Unsubscribe` + `List-Unsubscribe-Post` headers
+- `buildUnsubscribeUrl(email, businessId)` — generates `base64url(email|businessId)` token
 
-Email types: `booking_owner_notify`, `booking_customer_confirm`, `booking_reminder`, `booking_cancellation`, `limit_reached`, `weekly_report`
+Email types: `booking_owner_notify`, `booking_customer_confirm`, `booking_reminder`, `booking_cancellation`, `limit_reached`, `weekly_report`, `review_request`, `no_show_follow_up`, `crm_nudge`
+
+**Customer email templates** (ILS businesses):
+| Function | Subject | Sends when |
+|----------|---------|------------|
+| `buildReminderEmailHtml(opts)` | `${firstName}, your ${service} is tomorrow at ${time} 📅` | Appointment reminder cron |
+| `buildReviewRequestEmailHtml(opts)` | `${firstName}, how was your visit at ${bizName}? ⭐` | Review request cron |
+| `buildNoShowEmailHtml(opts)` | `${firstName}, we missed you at ${bizName} today 😊` | No-show rebooking cron |
+| `buildNudgeEmailHtml(opts)` | `${firstName}, it's been a while — we'd love to see you again 💇` | CRM nudges cron |
+
+All templates: `#0B2D2A` teal header, bilingual EN/HE footer, unsubscribe link.
 
 ### `lib/csv-parser.ts`
 Fuzzy CSV column detection and phone normalisation.
@@ -856,18 +993,75 @@ PLAN_FEATURES: {
 ```
 
 ### `lib/rate-limit.ts`
-In-memory sliding-window rate limiter.
+Distributed rate limiter backed by Supabase (global across all serverless instances).
 
 ```typescript
-rateLimit(key: string, limit: number, windowMs: number): { allowed: boolean; remaining: number }
+checkRateLimitGlobal(key: string, limit: number, windowSeconds: number): Promise<boolean>
+// Calls the check_rate_limit(p_key, p_limit, p_window_seconds) Supabase RPC.
+// Atomic fixed-window counter with FOR UPDATE lock — safe under concurrent load.
+// On Supabase error: fail-open in production (logs error, allows request).
+// Falls back to in-memory in development.
 ```
 
 Default limits:
-- Booking creation: 5/hr per IP, 3/hr per phone
-- Chat: 20/hr per IP
+- Booking creation: 5/hr per IP (`booking:ip:{ip}`), 3/hr per phone (`booking:phone:{masked}`)
+- Chat: 20/hr per IP (still Upstash/in-memory via `checkRateLimitAsync`)
 - Waitlist: 5/hr per IP
 
-Auto-cleanup every 10 minutes. Note: not distributed — resets per Vercel instance.
+Also retains `checkRateLimitAsync` (Upstash Redis) and in-memory `checkInMemory` for non-booking routes.
+
+### `lib/phone.ts`
+Phone encryption, masking, and fingerprinting.
+
+```typescript
+encryptPhone(e164: string): string
+// AES-256-GCM encrypt raw E.164. Stored in bookings.customer_phone_encrypted
+// and customer_profiles.phone_encrypted.
+
+decryptPhone(encrypted: string): string
+// Decrypt AES-256-GCM ciphertext back to E.164.
+// Used by all crons before passing to Twilio/WhatsApp.
+
+maskPhone(e164: string): string
+// Returns display value e.g. "+972 *** *** 567".
+// Stored in bookings.customer_phone (never sent to Twilio).
+
+fingerprintPhone(e164: string, businessId: string): string
+// SHA-256 hex of "${e164}:${businessId}".
+// Stored in customer_profiles.phone_fingerprint.
+// Used by canSendReviewRequest for opt-out / dedup lookups.
+```
+
+Key: `PHONE_ENCRYPTION_KEY` env var (32-byte hex).
+
+### `lib/review-rules.ts`
+Review request eligibility engine.
+
+```typescript
+canSendReviewRequest(
+  bookingId: string,
+  businessId: string,
+  customerPhoneFingerprint: string | null
+): Promise<{ eligible: boolean; reason?: string }>
+```
+
+Four eligibility rules checked in order:
+1. **Opted out** — `customer_profiles.opted_out = true` (requires `phone_fingerprint`)
+2. **Already reviewed** — `customer_profiles` has `reviewed_at` set (requires `phone_fingerprint`)
+3. **Requested too recently** — another review request sent < 30 days ago (checks `whatsapp_log` by fingerprint)
+4. **SMS limit** — `businesses.sms_sent_this_period >= sms_limit`
+
+Rules 1–2 are skipped (not enforced) if `phone_fingerprint` is null — safe fallthrough.
+
+### `lib/telegram.ts`
+Telegram alerting for cron monitoring.
+
+```typescript
+withCronMonitoring(name: string, handler: CronHandler): CronHandler
+// Wraps a cron handler. On unhandled exception, sends Telegram alert to ops chat.
+```
+
+Env vars: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 
 ### `lib/crypto.ts`
 AES-256-GCM encryption for sensitive tokens (Google OAuth).
@@ -923,32 +1117,38 @@ Customer visits /book/[slug]
   → GET /api/booking/[slug] (business + services + staff + hours)
   → Customer selects service, staff, date
   → GET /api/booking/[slug]/availability?date=&service_id=&staff_id=
-  → Customer fills form, submits
+  → Customer fills form (email required if ILS business), submits
   → POST /api/booking/[slug]/create
-      Rate limit check
+      Global rate limit check (Supabase RPC)
+      ILS: validate email present + valid format
       Re-validate availability
       create_booking_atomic() RPC
-      → INSERT bookings (status=confirmed, sms_status=pending)
+      shouldRouteToEmail(phone, currency) → channel decision
+      → INSERT bookings
+          ILS: status=confirmed, sms_status=suppressed
+          Others: status=confirmed, sms_status=pending
       → INSERT booking_audit_log
-      → Send confirmation email (async)
+      → ILS: send Resend confirmation email immediately (marks confirmation_sent=true)
+      → Others: send WhatsApp/SMS confirmation
       → Send business notification email (async)
       → Push to Google Calendar (async)
+      → void upsertSingleCustomerProfile(bookingId) — non-blocking CRM update
   → Customer sees confirmation screen
-  → Customer gets SMS confirmation (cron picks up sms_status=pending)
 ```
 
 ### 8.2 Post-Appointment Review Flow
 
 ```
-24h after appointment_at:
-  cron/appointment-reminders fires
-  → Find bookings where appointment_at BETWEEN now()-25h AND now()-23h
-    AND reminder_sent = false AND status = confirmed
-  → Send SMS with review link /r/[booking_id]
-  → UPDATE bookings SET reminder_sent=true, reminder_sent_at=now()
+1.5–2.5h after appointment_at (hourly cron on Pro):
+  cron/review-requests fires
+  → Find bookings where appointment_at BETWEEN now()-2.5h AND now()-1.5h
+    AND status = completed AND review_request_sent = false
+  → Run canSendReviewRequest() eligibility (opted_out, already reviewed, 30-day dedup, SMS limit)
+  → ILS: send Resend review email with /r/[booking_id] link
+  → Others: send WhatsApp/SMS with review link
+  → UPDATE bookings SET review_request_sent=true
 
-Customer clicks SMS link → /r/[booking_id]
-  → Redirect to /review/[id]
+Customer clicks link → /r/[booking_id] → /review/[id]
   → Customer rates 1-5 stars
   → 4-5★: redirect to google_review_link
   → 1-3★: show feedback form → INSERT feedback
@@ -1013,6 +1213,19 @@ Business clicks Upgrade
 ### Token Storage
 - Google OAuth tokens: AES-256-GCM encrypted before storing in `calendar_connections`
 - Cancellation tokens: UUID v4 (unguessable), stored in `bookings.cancellation_token`
+- Customer phone numbers: AES-256-GCM encrypted via `encryptPhone()`, stored as `customer_phone_encrypted` in `bookings` and `phone_encrypted` in `customer_profiles`. The plaintext E.164 number is **never persisted** — only the ciphertext and a masked display value.
+
+### Phone Privacy
+- `bookings.customer_phone` / `customer_profiles.phone` — masked display value only (e.g. `+972 *** *** 567`). Never used for sending.
+- `bookings.customer_phone_encrypted` / `customer_profiles.phone_encrypted` — AES-256-GCM ciphertext. Decrypted at send-time in crons.
+- `customer_profiles.phone_fingerprint` — SHA-256 of `"${e164}:${businessId}"`. Used for opt-out / dedup lookups without storing PII.
+- CTIA STOP compliance (SMS): `POST /api/webhooks/twilio-stop` handles STOP/START/HELP keywords, updates `customer_profiles.opted_out` by matching `phone_fingerprint`.
+- Email unsubscribe: `GET /api/email/unsubscribe?token=...` handles one-click unsubscribe for Resend emails, sets `customer_profiles.opted_out=true` matched by decoded `email|businessId` token.
+
+### Error Monitoring (Sentry)
+Custom `beforeSend` filter applied:
+- **VONMI-1 (router init noise)**: Errors from `window.history.replaceState` → fixed by replacing with `router.replace()` in the affected component.
+- **VONMI-2/3/4 (blog notFound())**: Next.js `notFound()` throws `{ digest: "NEXT_NOT_FOUND" }` — not a standard `Error`. Filtered in `beforeSend` via hint check to avoid noise from expected 404s on blog routes.
 
 ### API Security
 - Business API routes: Supabase JWT (`requireAuth`)
@@ -1021,9 +1234,9 @@ Business clicks Upgrade
 - Cron routes: `CRON_SECRET` bearer token
 
 ### Rate Limiting
-- In-memory sliding window per IP and per phone
-- Booking: 5/hr per IP, 3/hr per phone
-- Chat: 20/hr per IP
+- **Booking routes**: Supabase-backed global fixed-window (`check_rate_limit` RPC, migration 030). Works across all Vercel instances. Booking: 5/hr per IP, 3/hr per phone.
+- **Chat**: Upstash Redis sliding window — 20/hr per IP
+- Fail-open on Supabase errors in production to avoid blocking legitimate users on transient DB issues
 
 ### HTTP Security Headers
 Set in `next.config.ts`:
@@ -1050,35 +1263,44 @@ All dashboard tables require `business_id IN (SELECT id FROM businesses WHERE ow
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role (server-only) |
 | `GOOGLE_CLIENT_ID` | Google OAuth app client ID |
 | `GOOGLE_CLIENT_SECRET` | Google OAuth app client secret |
-| `ENCRYPTION_KEY` | 32-byte key for AES-256-GCM token encryption |
+| `ENCRYPTION_KEY` | 32-byte key for AES-256-GCM Google OAuth token encryption |
+| `PHONE_ENCRYPTION_KEY` | 32-byte hex key for AES-256-GCM phone number encryption |
 | `ANTHROPIC_API_KEY` | Claude API key |
 | `TWILIO_ACCOUNT_SID` | Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 | `TWILIO_FROM_NUMBER` | Twilio sender phone number |
 | `RESEND_API_KEY` | Resend email API key |
+| `RESEND_FROM_ADDRESS` | Resend sender — `Vomni <hello@mail.vomni.io>` |
+| `RESEND_REPLY_TO` | Reply-to address — `hello@vomni.io` |
+| `SMS_UK_ENABLED` | `true` / `false` — gate UK SMS sending (default `false`, pending WhatsApp Business approval) |
 | `LEMON_SQUEEZY_API_KEY` | Lemon Squeezy API key |
 | `LEMON_SQUEEZY_WEBHOOK_SECRET` | HMAC secret for webhook verification |
 | `CRON_SECRET` | Bearer token for cron job endpoints |
 | `ADMIN_TOTP_SECRET` | Base32-encoded TOTP secret for admin 2FA |
 | `ADMIN_PASSWORD_HASH` | Bcrypt hash of admin password |
+| `ADMIN_SESSION_SECRET` | Secret for signing the HttpOnly admin session cookie |
+| `TELEGRAM_BOT_TOKEN` | Telegram bot token for cron failure alerts |
+| `TELEGRAM_CHAT_ID` | Telegram chat ID for cron failure alerts |
 
 ---
 
 ## 12. Plan Feature Matrix
 
-| Feature | Trial | Starter | Growth | Pro |
-|---------|-------|---------|--------|-----|
+| Feature | Trial¹ | Starter | Growth | Pro |
+|---------|--------|---------|--------|-----|
 | Booking system | ✓ | ✓ | ✓ | ✓ |
-| Review requests (SMS) | ✓ | ✓ | ✓ | ✓ |
-| Feedback inbox | ✓ | ✓ | ✓ | ✓ |
-| AI insights | — | ✓ | ✓ | ✓ |
-| Analytics | — | ✓ | ✓ | ✓ |
-| AI reply suggestions | — | — | ✓ | ✓ |
-| Custom sender number | — | — | ✓ | ✓ |
-| Priority support | — | — | — | ✓ |
-| White label | — | — | — | ✓ |
-| Max staff | 2 | 2 | 5 | Unlimited |
-| Max locations | 1 | 1 | 3 | Unlimited |
+| Review requests (SMS) | ✓ | — | ✓ | ✓ |
+| Feedback inbox | ✓ | — | ✓ | ✓ |
+| AI insights | ✓ | — | ✓ | ✓ |
+| Analytics | ✓ | — | ✓ | ✓ |
+| AI reply suggestions | ✓ | — | ✓ | ✓ |
+| Custom sender number | ✓ | — | ✓ | ✓ |
+| Priority support | ✓ | — | — | ✓ |
+| Max staff | 1 | 1 | 1 | 3 |
+
+**¹ Trial behaviour:**
+- **Free trial (no plan purchased)**: full access to all features so the business can evaluate the product.
+- **14-day trial on a paid plan**: feature set mirrors the purchased plan (e.g. a business who bought Starter and is in their free trial period sees Starter features only, not the full set).
 
 ---
 
@@ -1097,14 +1319,54 @@ PATH="/Users/nickyleslie/node/bin:$PATH" vercel alias set <preview-url> vomni-ap
 
 ---
 
-## 14. Outstanding Setup Steps
+## 14. Migrations Applied (Supabase)
+
+| Migration | Status | Description |
+|-----------|--------|-------------|
+| `001`–`028` | ✅ Done | Core schema, booking platform, phone encryption columns |
+| `029_phone_fingerprint.sql` | ✅ Done | Adds `phone_fingerprint` column + partial index to `customer_profiles` |
+| `030_rate_limits.sql` | ✅ Done | `rate_limits` table + `check_rate_limit(key, limit, window_seconds)` RPC for global distributed rate limiting |
+
+> After running 029: call `POST /api/admin/backfill-phone-fingerprints` once to populate fingerprints for any existing rows that already have `phone_encrypted`. Returns `{ processed, updated, skipped }`.
+
+---
+
+## 15. E2E Testing Status (April 2026)
+
+All 15 test areas confirmed passing:
+
+| Area | Status |
+|------|--------|
+| Booking widget (end-to-end) | ✅ |
+| Confirmation SMS/email | ✅ |
+| Phone encryption (create route writes `customer_phone_encrypted`) | ✅ |
+| Appointment reminder cron (decrypts before sending) | ✅ |
+| Review request cron + eligibility rules | ✅ |
+| No-show rebooking cron | ✅ |
+| CRM nudges cron (pattern + lapsed) | ✅ |
+| Sync customer profiles cron | ✅ |
+| Dashboard — calendar / day / week views | ✅ |
+| Dashboard — customers / appointments tab | ✅ |
+| Dashboard — feedback inbox | ✅ |
+| Admin panel — business list + per-business view | ✅ |
+| Feature gating (plan-based) | ✅ |
+| Twilio STOP webhook | ✅ |
+| Google Calendar connect / disconnect | ✅ |
+
+---
+
+## 16. Outstanding / Pending
 
 | Item | Status | Action Required |
 |------|--------|-----------------|
-| `014_migration_system.sql` | ✅ Done | Run in Supabase SQL Editor |
-| Google Calendar reconnect | ⚠️ Needed | Dashboard → Calendar Settings → Disconnect → Reconnect |
-| Business hours save | ⚠️ Needed | Dashboard → Calendar Settings → re-save hours |
-| `booking_enabled = true` | ⚠️ Needed | Dashboard → Booking Settings → Enable |
-| Booking slug set | ⚠️ Needed | Dashboard → Booking Settings → set slug |
-| Twilio live credentials | 🔲 Pending | SMS sends currently stubbed |
+| Twilio live credentials | 🔲 Pending | Confirm `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER` set in Vercel production env |
 | Google OAuth production | 🔲 Pending | Add production domain to Google Console allowed origins |
+| `PHONE_ENCRYPTION_KEY` in production env | ✅ Done | Set in Vercel env vars |
+| `029_phone_fingerprint.sql` applied in Supabase | ✅ Done | Column + index live in production |
+| `030_rate_limits.sql` applied in Supabase | ✅ Done | `rate_limits` table + RPC live in production |
+| Resend env vars in Vercel | ✅ Done | `RESEND_API_KEY`, `RESEND_FROM_ADDRESS`, `RESEND_REPLY_TO` set |
+| `SMS_UK_ENABLED=false` in Vercel | ✅ Done | UK SMS gated pending WhatsApp Business approval |
+| `mail.vomni.io` sending domain | ✅ Done | Verified in Resend; all customer emails sent from `hello@mail.vomni.io` |
+| Backfill phone fingerprints (production) | 🔲 Once | Call `POST /api/admin/backfill-phone-fingerprints` after first real bookings exist |
+| `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` | ✅ Done | Alerts confirmed firing in production |
+| Vercel Pro upgrade | 🔲 Pending | Required for hourly cron cadence (appointment reminders + review requests). On Hobby plan crons fire once daily. |
