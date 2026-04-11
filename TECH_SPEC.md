@@ -655,7 +655,7 @@ All crons that send SMS/WhatsApp **decrypt** `customer_phone_encrypted` via `dec
 | `/api/cron/sync-customer-profiles` | Daily 1am | Full rebuild of `customer_profiles` from all completed bookings; source of truth nightly |
 | `/api/cron/crm-nudges` | Daily 10am | Two passes: (1) pattern-based nudge for customers whose `predicted_next_visit_at` has passed; (2) lapsed single-visit customers. All via WhatsApp/SMS |
 | `/api/cron/no-show-rebooking` | Daily 10am | Find no-show bookings in last 24h; send rebooking SMS for all customers |
-| `/api/cron/cleanup-pii` | Daily | Anonymize names/phones of customers whose SMS was sent 30+ days ago |
+| `/api/cron/cleanup-pii` | Daily | Anonymize PII on bookings 2+ years old AND opted_out=true only. Truncates name, nulls phone/email, stores dedup fingerprint. Active/opted-in customers never touched. |
 | `/api/cron/cleanup-data` | Weekly | Delete old bookings per retention policy |
 | `/api/cron/waitlist-check` | Hourly | Check waitlist against newly available slots |
 | `/api/cron/reset-sms-counters` | Daily | Reset `top_up_credits` on billing anchor day |
