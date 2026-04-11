@@ -2,13 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendReviewRequest } from "@/lib/whatsapp";
 import { sendBookingMessage } from "@/lib/twilio";
+import { sendEmail, buildReviewRequestEmailHtml, buildUnsubscribeUrl } from "@/lib/email";
 import { canSendReviewRequest } from "@/lib/review-rules";
 import { fingerprintPhone, decryptPhone } from "@/lib/phone";
 import { withCronMonitoring } from "@/lib/telegram";
+import { shouldRouteToEmail, shouldSendSMS } from "@/lib/messaging";
 
 // GET /api/cron/review-requests
-// Runs hourly (schedule: "0 * * * *" in vercel.json)
-// Sends WhatsApp review requests for completed appointments 1-3 hours ago
+// Target schedule: "0 * * * *" (hourly) — set in vercel.json.
+// NOTE: Vercel Hobby plan only supports daily crons. This hourly schedule will only
+// activate once upgraded to Vercel Pro. On Hobby the cron fires once daily and the
+// 1.5–2.5h window will only catch appointments that completed shortly before that
+// single daily run. Upgrade to Pro to get correct real-time review timing.
 // Requires Authorization: Bearer ${CRON_SECRET}
 
 async function handler(req: NextRequest) {
@@ -18,13 +23,14 @@ async function handler(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const now           = new Date();
-  // Free-tier workaround: cron runs once daily so look back 24h to catch all of yesterday's appointments
-  // When upgraded to Vercel Pro (hourly crons), narrow this back to 1–3h
-  const oneDayAgo     = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-  const oneHourAgo    = new Date(now.getTime() - 1 * 60 * 60 * 1000).toISOString();
+  const now = new Date();
+  // Window: appointments completed 1.5–2.5 hours ago.
+  // Sends review request ~2 hours after the appointment — enough time for the
+  // customer to leave but still fresh in mind.
+  const twoAndHalfHoursAgo = new Date(now.getTime() - 2.5 * 60 * 60 * 1000).toISOString();
+  const oneAndHalfHoursAgo = new Date(now.getTime() - 1.5 * 60 * 60 * 1000).toISOString();
 
-  // Find completed bookings in the past 24h that haven't had a review request sent
+  // Find completed bookings in the 1.5–2.5h window that haven't had a review request sent
   const { data: bookings, error } = await supabaseAdmin
     .from("bookings")
     .select(`
@@ -33,6 +39,7 @@ async function handler(req: NextRequest) {
       customer_name,
       customer_phone,
       customer_phone_encrypted,
+      customer_email,
       appointment_at,
       service_name,
       cancellation_token,
@@ -40,8 +47,8 @@ async function handler(req: NextRequest) {
     `)
     .eq("status", "completed")
     .eq("review_request_sent", false)
-    .gte("appointment_at", oneDayAgo)
-    .lte("appointment_at", oneHourAgo);
+    .gte("appointment_at", twoAndHalfHoursAgo)
+    .lte("appointment_at", oneAndHalfHoursAgo);
 
   if (error) {
     console.error("[review-requests] DB query error:", error.message);
@@ -56,7 +63,7 @@ async function handler(req: NextRequest) {
   const businessIds = [...new Set(bookings.map((b) => b.business_id))];
   const { data: businesses } = await supabaseAdmin
     .from("businesses")
-    .select("id, name, booking_slug")
+    .select("id, name, booking_slug, booking_currency, locale")
     .in("id", businessIds);
 
   const businessMap = new Map((businesses ?? []).map((b) => [b.id, b]));
@@ -102,43 +109,80 @@ async function handler(req: NextRequest) {
       continue;
     }
 
-    const appUrl   = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
+    const appUrl    = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
     const reviewUrl = `${appUrl}/r/${booking.id}`;
     const firstName = booking.customer_name?.split(" ")[0] ?? "there";
+    const bizCurrency = (business as typeof business & { booking_currency?: string }).booking_currency ?? null;
+    const bizLocale   = (business as typeof business & { locale?: string }).locale ?? null;
+    const useEmail    = shouldRouteToEmail(twilioPhone, bizCurrency);
 
     try {
-      const smsFallbackBody = `Hi ${firstName}! Hope your visit at ${business.name} was great 😊 We'd really appreciate a quick review: ${reviewUrl}`;
-
-      if (booking.whatsapp_opt_in !== false) {
-        // WhatsApp path (with SMS fallback if disabled/failed)
-        const result = await sendReviewRequest(
-          { ...booking, customer_phone: twilioPhone },
-          business
-        );
-
-        if (result.success) {
-          sent++;
-          // Match profiles by masked display phone (customer_profiles.phone stores the display value)
-          await supabaseAdmin
-            .from("customer_profiles")
-            .update({ last_review_request_at: new Date().toISOString() })
-            .eq("business_id", booking.business_id)
-            .eq("phone", booking.customer_phone ?? twilioPhone);
-        } else if (result.reason === "opted_out") {
-          skipped++;
+      if (useEmail) {
+        // Israeli customer — send review request via Resend email
+        const customerEmail = (booking as typeof booking & { customer_email?: string }).customer_email;
+        if (!customerEmail) {
+          console.warn(`[review-requests] no email for ILS booking ${booking.id} — skipping`);
+          failed++;
         } else {
-          // WhatsApp disabled or failed — try SMS
-          const smsResult = await sendBookingMessage(twilioPhone, smsFallbackBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "review_request" });
-          if (smsResult.success) { sent++; } else { failed++; }
+          const unsubUrl = buildUnsubscribeUrl(customerEmail, booking.business_id);
+          const result = await sendEmail({
+            to:             customerEmail,
+            subject:        `${firstName}, how was your visit at ${business.name}? ⭐`,
+            type:           "review_request",
+            bookingId:      booking.id,
+            unsubscribeUrl: unsubUrl,
+            html: buildReviewRequestEmailHtml({
+              firstName,
+              businessName:    business.name,
+              reviewUrl,
+              locale:          bizLocale,
+              unsubscribeUrl:  unsubUrl,
+            }),
+          });
+          if (result.success) {
+            sent++;
+            await supabaseAdmin
+              .from("customer_profiles")
+              .update({ last_review_request_at: new Date().toISOString() })
+              .eq("business_id", booking.business_id)
+              .eq("phone", booking.customer_phone ?? twilioPhone);
+          } else {
+            failed++;
+          }
         }
       } else {
-        // Opted out of WhatsApp — send SMS directly
-        const smsResult = await sendBookingMessage(twilioPhone, smsFallbackBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "review_request" });
-        if (smsResult.success) {
-          sent++;
+        const smsFallbackBody = `Hi ${firstName}! Hope your visit at ${business.name} was great 😊 We'd really appreciate a quick review: ${reviewUrl}`;
+
+        if (booking.whatsapp_opt_in !== false) {
+          // WhatsApp path (with SMS fallback if disabled/failed)
+          const result = await sendReviewRequest(
+            { ...booking, customer_phone: twilioPhone },
+            business
+          );
+
+          if (result.success) {
+            sent++;
+            await supabaseAdmin
+              .from("customer_profiles")
+              .update({ last_review_request_at: new Date().toISOString() })
+              .eq("business_id", booking.business_id)
+              .eq("phone", booking.customer_phone ?? twilioPhone);
+          } else if (result.reason === "opted_out") {
+            skipped++;
+          } else if (shouldSendSMS(twilioPhone, bizCurrency)) {
+            const smsResult = await sendBookingMessage(twilioPhone, smsFallbackBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "review_request" });
+            if (smsResult.success) { sent++; } else { failed++; }
+          }
+        } else if (shouldSendSMS(twilioPhone, bizCurrency)) {
+          const smsResult = await sendBookingMessage(twilioPhone, smsFallbackBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "review_request" });
+          if (smsResult.success) {
+            sent++;
+          } else {
+            failed++;
+            console.warn(`[review-requests] SMS failed for booking ${booking.id}: ${smsResult.error}`);
+          }
         } else {
-          failed++;
-          console.warn(`[review-requests] SMS failed for booking ${booking.id}: ${smsResult.error}`);
+          skipped++; // UK SMS not yet enabled
         }
       }
     } catch (err) {

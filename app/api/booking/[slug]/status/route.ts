@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { requireAuth } from "@/lib/require-auth";
 import { sendBookingMessage } from "@/lib/twilio";
+import { upsertSingleCustomerProfile } from "@/lib/customer-profile-sync";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
@@ -57,6 +58,11 @@ export async function PATCH(
     actor: "business",
     details: { internal_notes },
   });
+
+  // Completed: upsert customer profile immediately so dashboard CRM is up to date (non-blocking)
+  if (status === "completed") {
+    void upsertSingleCustomerProfile(booking_id);
+  }
 
   // Trigger 4: no_show notification (non-blocking)
   if (status === "no_show") {

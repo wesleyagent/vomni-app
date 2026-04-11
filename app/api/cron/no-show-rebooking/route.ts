@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendBookingMessage } from "@/lib/twilio";
+import { sendEmail, buildNoShowEmailHtml, buildUnsubscribeUrl } from "@/lib/email";
 import { decryptPhone } from "@/lib/phone";
 import { withCronMonitoring } from "@/lib/telegram";
+import { shouldRouteToEmail, shouldSendSMS } from "@/lib/messaging";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
@@ -20,7 +22,7 @@ async function handler(req: NextRequest) {
 
   const { data: noShows, error } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_name, customer_phone, customer_phone_encrypted, business_id, service_name, appointment_at, sms_status")
+    .select("id, customer_name, customer_phone, customer_phone_encrypted, customer_email, business_id, service_name, appointment_at, sms_status")
     .eq("status", "no_show")
     .neq("sms_status", "noshow_sms_sent")
     .gte("appointment_at", oneDayAgo.toISOString())
@@ -43,7 +45,7 @@ async function handler(req: NextRequest) {
 
     const { data: biz } = await supabaseAdmin
       .from("businesses")
-      .select("name, booking_slug, whatsapp_enabled")
+      .select("name, booking_slug, whatsapp_enabled, booking_currency, locale")
       .eq("id", booking.business_id)
       .single();
 
@@ -60,12 +62,40 @@ async function handler(req: NextRequest) {
       ? (() => { try { return decryptPhone(enc); } catch { return booking.customer_phone ?? ""; } })()
       : (booking.customer_phone ?? "");
 
-    const result = await sendBookingMessage(
-      sendPhone,
-      body,
-      biz?.whatsapp_enabled ?? false,
-      { businessId: booking.business_id, bookingId: booking.id, messageType: "no_show" }
-    );
+    const bizCurrency = (biz as typeof biz & { booking_currency?: string })?.booking_currency ?? null;
+    const bizLocale   = (biz as typeof biz & { locale?: string })?.locale ?? null;
+    const useEmail    = shouldRouteToEmail(sendPhone, bizCurrency);
+    const customerEmail = (booking as typeof booking & { customer_email?: string }).customer_email;
+
+    let result: { success: boolean };
+    if (useEmail && customerEmail) {
+      const unsubUrl = buildUnsubscribeUrl(customerEmail, booking.business_id);
+      result = await sendEmail({
+        to:             customerEmail,
+        subject:        `${firstName}, we missed you at ${biz?.name ?? "us"} today 😊`,
+        type:           "no_show_follow_up",
+        bookingId:      booking.id,
+        unsubscribeUrl: unsubUrl,
+        html: buildNoShowEmailHtml({
+          firstName,
+          businessName:   biz?.name ?? "",
+          serviceName:    booking.service_name ?? "appointment",
+          rebookUrl,
+          locale:         bizLocale,
+          unsubscribeUrl: unsubUrl,
+        }),
+      });
+    } else if (!useEmail && shouldSendSMS(sendPhone, bizCurrency)) {
+      result = await sendBookingMessage(
+        sendPhone,
+        body,
+        biz?.whatsapp_enabled ?? false,
+        { businessId: booking.business_id, bookingId: booking.id, messageType: "no_show" }
+      );
+    } else {
+      // UK SMS not enabled, or ILS with no email — skip but still mark sent
+      result = { success: true };
+    }
 
     if (result.success || true) { // Always update to avoid re-sending
       await supabaseAdmin

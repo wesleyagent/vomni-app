@@ -3,8 +3,10 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generateCancellationToken, computeAvailableSlots } from "@/lib/booking-utils";
 import { sendBookingMessage } from "@/lib/twilio";
 import { sendAppointmentConfirmation } from "@/lib/whatsapp";
-import { checkRateLimit, getClientIP } from "@/lib/rate-limit";
+import { checkRateLimitGlobal, getClientIP } from "@/lib/rate-limit";
 import { sendEmail, buildOwnerNotifyHtml, buildCustomerConfirmHtml } from "@/lib/email";
+import { shouldRouteToEmail } from "@/lib/messaging";
+import { upsertSingleCustomerProfile } from "@/lib/customer-profile-sync";
 import { sendBusinessPushNotification } from "@/lib/push";
 import { normaliseToE164, encryptPhone, maskPhone, fingerprintPhone } from "@/lib/phone";
 import type { BusinessHours, StaffHours } from "@/types/booking";
@@ -18,9 +20,9 @@ export async function POST(
 ) {
   const { slug } = await params;
 
-  // Rate limit: 5 bookings per IP per hour
+  // Rate limit: 5 bookings per IP per hour (global — enforced across all instances)
   const ip = getClientIP(req);
-  if (!checkRateLimit(`booking:${ip}`, 5, 60 * 60 * 1000)) {
+  if (!await checkRateLimitGlobal(`booking:ip:${ip}`, 5, 3600)) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
@@ -78,8 +80,8 @@ export async function POST(
     return NextResponse.json({ error: "Invalid phone number format" }, { status: 400 });
   }
 
-  // Rate limit by phone fingerprint (prevent abuse) — use display for key
-  if (!checkRateLimit(`booking:phone:${phoneDisplay}`, 3, 60 * 60 * 1000)) {
+  // Rate limit by phone (prevent abuse) — global across all instances
+  if (!await checkRateLimitGlobal(`booking:phone:${phoneDisplay}`, 3, 3600)) {
     return NextResponse.json({ error: "Too many bookings for this phone number" }, { status: 429 });
   }
 
@@ -89,13 +91,33 @@ export async function POST(
   // Fetch business
   const { data: business } = await supabaseAdmin
     .from("businesses")
-    .select("id, name, booking_buffer_minutes, booking_timezone, booking_enabled, booking_slug, whatsapp_enabled, owner_email, notification_email")
+    .select("id, name, booking_buffer_minutes, booking_timezone, booking_enabled, booking_slug, whatsapp_enabled, owner_email, notification_email, booking_currency")
     .eq("booking_slug", slug)
     .single();
 
   if (!business || !business.booking_enabled) {
     return NextResponse.json({ error: "Business not found or booking disabled" }, { status: 404 });
   }
+
+  // Israeli businesses require a valid email — it is the primary communication channel
+  const isIsraeli = (business as typeof business & { booking_currency?: string }).booking_currency === "ILS";
+  if (isIsraeli) {
+    if (!email || !email.trim()) {
+      return NextResponse.json(
+        { error: "Email is required / כתובת אימייל נדרשת" },
+        { status: 400 }
+      );
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      return NextResponse.json(
+        { error: "Please enter a valid email address / כתובת אימייל אינה תקינה" },
+        { status: 400 }
+      );
+    }
+  }
+
+  // Determine channel routing early — needed for booking creation (sms_status) and sending
+  const useEmailChannel = shouldRouteToEmail(phoneE164, (business as typeof business & { booking_currency?: string }).booking_currency);
 
   // Now that we have the businessId, compute the dedup fingerprint
   phoneFingerprint = fingerprintPhone(phoneE164, business.id);
@@ -203,10 +225,13 @@ export async function POST(
 
     // Immediately overwrite customer_phone with display value and store encrypted
     // (the RPC stored the raw phone — we replace it now)
+    // For ILS businesses also suppress SMS so the SMS cron never picks this up —
+    // the customer receives email confirmation instead.
     await supabaseAdmin.from("bookings").update({
       customer_phone:           phoneDisplay,
       phone_display:            phoneDisplay,
       customer_phone_encrypted: phoneEncrypted,
+      ...(useEmailChannel ? { sms_status: "suppressed" } : {}),
     }).eq("id", bookingId);
   } else {
     // No staff — direct insert
@@ -227,7 +252,8 @@ export async function POST(
         appointment_at: appointmentAt,
         booking_source: "vomni",
         status: "confirmed",
-        sms_status: "pending",
+        // ILS businesses use email — suppress SMS so cron never picks this up
+        sms_status: useEmailChannel ? "suppressed" : "pending",
         notes: safeNotes,
         cancellation_token: cancellationToken,
         whatsapp_opt_in: whatsapp_opt_in !== false,
@@ -266,9 +292,11 @@ export async function POST(
     hour: "2-digit", minute: "2-digit",
   });
 
-  // Send WhatsApp confirmation (primary) or SMS fallback
+  // Israeli businesses → skip WhatsApp/SMS entirely; customer confirmation email is sent below
+
+  // Send WhatsApp confirmation (primary) or SMS fallback — skipped for ILS businesses
   const waOptIn = whatsapp_opt_in !== false;
-  if (waOptIn) {
+  if (!useEmailChannel && waOptIn) {
     const waResult = await sendAppointmentConfirmation(
       { id: bookingId, business_id: business.id, customer_name: customerName, customer_phone: safePhone, appointment_at: appointmentAt, service_name: service.name, cancellation_token: cancellationToken, whatsapp_opt_in: true },
       { id: business.id, name: business.name, booking_slug: business.booking_slug }
@@ -289,8 +317,8 @@ export async function POST(
         await supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId);
       }
     }
-  } else {
-    // Customer opted out of WhatsApp — send SMS
+  } else if (!useEmailChannel) {
+    // Customer opted out of WhatsApp — send SMS (non-ILS only)
     await supabaseAdmin.from("bookings").update({ whatsapp_opt_in: false, whatsapp_status: "opted_out" }).eq("id", bookingId);
     const smsBody = staffName
       ? `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time} with ${staffName}. Cancel: ${cancelUrl}`
@@ -332,6 +360,7 @@ export async function POST(
   }
 
   // Confirmation email to customer — if email provided
+  // For ILS businesses this is the primary channel; also marks confirmation_sent
   if (email) {
     sendEmail({
       to:        email,
@@ -351,7 +380,14 @@ export async function POST(
         address:      biz.address ?? null,
         manageUrl:    `${APP_URL}/manage/${cancellationToken}`,
       }),
-    }).catch(err => console.error("[booking/create] customer email failed:", err));
+    })
+      .then(result => {
+        if (result.success && useEmailChannel) {
+          supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId)
+            .then(() => {}, () => {});
+        }
+      })
+      .catch(err => console.error("[booking/create] customer email failed:", err));
   }
 
   // Notification: new booking (non-blocking, fire and forget)
@@ -421,6 +457,10 @@ export async function POST(
       }
     }
   }).catch(e => console.error("[booking/create] nudge tracking failed:", e));
+
+  // Sync customer profile in real time so the customer appears immediately in the dashboard CRM
+  // (the nightly full-rebuild cron is still the source of truth — this is just a fast-path upsert)
+  void upsertSingleCustomerProfile(bookingId);
 
   // Push to Google Calendar (non-blocking)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";

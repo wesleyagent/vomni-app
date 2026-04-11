@@ -3,7 +3,6 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@react-pdf/renderer"],
-  turbopack: {},
   experimental: {
     serverActions: {
       allowedOrigins: ["vomni.io", "www.vomni.io", "localhost:3000", "localhost:3001", "vomni-app-git-booking-platform-wesleyagents-projects.vercel.app"],

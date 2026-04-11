@@ -8,8 +8,19 @@
 
 import { supabaseAdmin } from "@/lib/supabase-admin";
 
-const FROM    = process.env.RESEND_FROM_ADDRESS ?? "bookings@vomni.app";
-const API_KEY = process.env.RESEND_API_KEY      ?? "";
+const FROM     = process.env.RESEND_FROM_ADDRESS ?? "Vomni <hello@mail.vomni.io>";
+const REPLY_TO = process.env.RESEND_REPLY_TO    ?? "hello@vomni.io";
+const API_KEY  = process.env.RESEND_API_KEY     ?? "";
+const APP_URL  = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
+
+/** Build a one-click unsubscribe URL for a customer.
+ *  Token = base64url(email|businessId) — decodable without a secret.
+ *  Worst case: someone unsubscribes themselves from a business's emails.
+ */
+export function buildUnsubscribeUrl(email: string, businessId: string): string {
+  const token = Buffer.from(`${email}|${businessId}`).toString("base64url");
+  return `${APP_URL}/api/email/unsubscribe?t=${token}`;
+}
 
 export type EmailType =
   | "booking_owner_notify"
@@ -17,15 +28,19 @@ export type EmailType =
   | "booking_reminder"
   | "booking_noshow_recovery"
   | "waitlist_notify"
-  | "limit_reached";
+  | "limit_reached"
+  | "review_request"
+  | "no_show_follow_up"
+  | "crm_nudge";
 
 interface SendEmailOpts {
-  to:        string | string[];
-  subject:   string;
-  html:      string;
-  type:      EmailType;
-  bookingId?: string | null;
-  meta?:     Record<string, unknown>;
+  to:             string | string[];
+  subject:        string;
+  html:           string;
+  type:           EmailType;
+  bookingId?:     string | null;
+  unsubscribeUrl?: string | null;
+  meta?:          Record<string, unknown>;
 }
 
 /**
@@ -61,10 +76,17 @@ export async function sendEmail(opts: SendEmailOpts): Promise<{ success: boolean
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from:    FROM,
-        to:      Array.isArray(opts.to) ? opts.to : [opts.to],
-        subject: opts.subject,
-        html:    opts.html,
+        from:     FROM,
+        to:       Array.isArray(opts.to) ? opts.to : [opts.to],
+        reply_to: REPLY_TO,
+        subject:  opts.subject,
+        html:     opts.html,
+        ...(opts.unsubscribeUrl ? {
+          headers: {
+            "List-Unsubscribe":      `<${opts.unsubscribeUrl}>`,
+            "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+          },
+        } : {}),
       }),
     });
 
@@ -246,4 +268,190 @@ export function buildCustomerConfirmHtml(opts: {
       </div>
     </td></tr>
   `);
+}
+
+// ── Teal header used for customer-facing ILS emails ───────────────────────────
+const tealHeader = `
+  <table width="520" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+    <tr><td style="background:#0B2D2A;padding:20px 32px;">
+      <span style="font-family:'Bricolage Grotesque',sans-serif;font-weight:700;font-size:20px;color:#fff;">vomni</span>
+    </td></tr>
+`;
+
+const tealFooter = (unsubUrl?: string | null) => `
+    <tr><td style="padding:16px 32px;border-top:1px solid #F0F0F0;text-align:center;">
+      <p style="font-size:12px;color:#D1D5DB;margin:0 0 6px;font-family:Inter,sans-serif;">
+        <a href="https://vomni.io" style="color:#9CA3AF;text-decoration:none;">vomni.io</a>
+        &nbsp;·&nbsp;
+        <a href="mailto:hello@vomni.io" style="color:#9CA3AF;text-decoration:none;">hello@vomni.io</a>
+      </p>
+      ${unsubUrl ? `<p style="font-size:11px;color:#D1D5DB;margin:0;font-family:Inter,sans-serif;">
+        <a href="${escHtml(unsubUrl)}" style="color:#D1D5DB;text-decoration:underline;">Unsubscribe · הסר מרשימה</a>
+      </p>` : ""}
+    </td></tr>
+  </table>
+`;
+
+const wrapTeal = (inner: string, unsubUrl?: string | null) =>
+  `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+  <body style="margin:0;padding:0;background:#F7F8FA;font-family:Inter,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#F7F8FA;padding:40px 20px;">
+    <tr><td align="center">${tealHeader}${inner}${tealFooter(unsubUrl)}</td></tr>
+  </table>
+  </body></html>`;
+
+/**
+ * Appointment reminder email — sent to Israeli customers instead of SMS.
+ * Bilingual: English + Hebrew.
+ */
+export function buildReminderEmailHtml(opts: {
+  firstName:      string;
+  businessName:   string;
+  serviceName:    string;
+  date:           string;
+  time:           string;
+  staffName?:     string | null;
+  cancelUrl?:     string | null;
+  locale?:        string | null;
+  unsubscribeUrl?: string | null;
+}) {
+  const he = opts.locale === "he";
+  const staffLine = opts.staffName
+    ? (he ? ` עם ${opts.staffName}` : ` with ${opts.staffName}`)
+    : "";
+
+  return wrapTeal(`
+    <tr><td style="padding:28px 32px;">
+      <p style="font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:#0A0F1E;margin:0 0 8px;">
+        ${he ? `תזכורת לתור שלך, ${escHtml(opts.firstName)}! 📅` : `Reminder: your appointment, ${escHtml(opts.firstName)}! 📅`}
+      </p>
+      <p style="font-family:Inter,sans-serif;font-size:14px;color:#6B7280;margin:0 0 24px;">
+        ${he
+          ? `תזכורת לתורך ב‑${escHtml(opts.businessName)} מחר.`
+          : `Your appointment at ${escHtml(opts.businessName)} is tomorrow.`}
+      </p>
+      <div style="background:#F0FDF9;border:1.5px solid #6EE7D0;border-radius:14px;padding:20px 24px;margin-bottom:24px;${he ? "direction:rtl;text-align:right;" : ""}">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:20px;font-weight:800;color:#0A0F1E;">
+          ${escHtml(opts.serviceName)}${staffLine}
+        </div>
+        <div style="font-family:Inter,sans-serif;font-size:16px;color:#374151;margin-top:6px;">
+          ${escHtml(opts.date)} · ${escHtml(opts.time)}
+        </div>
+      </div>
+      ${opts.cancelUrl ? `
+      <div style="text-align:center;margin-bottom:16px;">
+        <a href="${escHtml(opts.cancelUrl)}" style="display:inline-block;padding:12px 28px;background:#F7F8FA;color:#0A0F1E;border:1.5px solid #E5E7EB;text-decoration:none;border-radius:9999px;font-size:13px;font-weight:600;font-family:'Bricolage Grotesque',sans-serif;">
+          ${he ? "ביטול תור" : "Cancel appointment"}
+        </a>
+      </div>` : ""}
+      <div style="padding:16px;background:#FEF3C7;border-radius:10px;font-family:Inter,sans-serif;font-size:13px;color:#92400E;${he ? "direction:rtl;text-align:right;" : ""}">
+        ${he
+          ? "⏰ אנא הגיע/י כמה דקות לפני. לביטול, יש לעשות זאת לפחות 24 שעות מראש."
+          : "⏰ Please arrive a few minutes early. Cancel at least 24 hours in advance."}
+      </div>
+    </td></tr>
+  `, opts.unsubscribeUrl);
+}
+
+/**
+ * Review request email — sent to Israeli customers instead of WhatsApp/SMS.
+ * Links to /r/{bookingId} which handles 4-5 star → Google, 1-3 star → private feedback.
+ */
+export function buildReviewRequestEmailHtml(opts: {
+  firstName:       string;
+  businessName:    string;
+  reviewUrl:       string;
+  locale?:         string | null;
+  unsubscribeUrl?: string | null;
+}) {
+  const he = opts.locale === "he";
+
+  return wrapTeal(`
+    <tr><td style="padding:28px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">⭐</div>
+      <p style="font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:#0A0F1E;margin:0 0 12px;">
+        ${he ? `תודה על הביקור, ${escHtml(opts.firstName)}!` : `Thanks for your visit, ${escHtml(opts.firstName)}!`}
+      </p>
+      <p style="font-family:Inter,sans-serif;font-size:14px;color:#6B7280;margin:0 0 28px;max-width:360px;margin-left:auto;margin-right:auto;">
+        ${he
+          ? `מה דעתך על הביקור שלך ב‑${escHtml(opts.businessName)}? כמה שניות מספיקות 😊`
+          : `How was your experience at ${escHtml(opts.businessName)}? Takes just a few seconds 😊`}
+      </p>
+      <a href="${escHtml(opts.reviewUrl)}" style="display:inline-block;padding:16px 40px;background:#0B2D2A;color:#fff;text-decoration:none;border-radius:9999px;font-size:16px;font-weight:700;font-family:'Bricolage Grotesque',sans-serif;margin-bottom:20px;">
+        ${he ? "דרגו את החוויה שלכם ⭐" : "Rate your experience ⭐"}
+      </a>
+      <p style="font-family:Inter,sans-serif;font-size:12px;color:#9CA3AF;margin:0;">
+        ${he
+          ? "4-5 כוכבים → Google | 1-3 כוכבים → משוב פרטי אלינו ישירות"
+          : "4-5 stars → Google review · 1-3 stars → private feedback directly to us"}
+      </p>
+    </td></tr>
+  `, opts.unsubscribeUrl);
+}
+
+/**
+ * No-show follow-up email — sent to Israeli customers instead of SMS.
+ */
+export function buildNoShowEmailHtml(opts: {
+  firstName:       string;
+  businessName:    string;
+  serviceName:     string;
+  rebookUrl?:      string | null;
+  locale?:         string | null;
+  unsubscribeUrl?: string | null;
+}) {
+  const he = opts.locale === "he";
+
+  return wrapTeal(`
+    <tr><td style="padding:28px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">😊</div>
+      <p style="font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:#0A0F1E;margin:0 0 12px;">
+        ${he ? `פספסנו אותך, ${escHtml(opts.firstName)}!` : `We missed you, ${escHtml(opts.firstName)}!`}
+      </p>
+      <p style="font-family:Inter,sans-serif;font-size:14px;color:#6B7280;margin:0 0 28px;max-width:380px;margin-left:auto;margin-right:auto;">
+        ${he
+          ? `לא הגעת היום ל‑${escHtml(opts.businessName)}. נשמח לראות אותך בפעם הבאה!`
+          : `You missed your ${escHtml(opts.serviceName)} at ${escHtml(opts.businessName)} today. We'd love to see you next time!`}
+      </p>
+      ${opts.rebookUrl ? `
+      <a href="${escHtml(opts.rebookUrl)}" style="display:inline-block;padding:16px 40px;background:#0B2D2A;color:#fff;text-decoration:none;border-radius:9999px;font-size:15px;font-weight:700;font-family:'Bricolage Grotesque',sans-serif;">
+        ${he ? "קביעת תור חדש →" : "Book again →"}
+      </a>` : ""}
+    </td></tr>
+  `, opts.unsubscribeUrl);
+}
+
+/**
+ * CRM nudge email — sent to Israeli customers for pattern-based and lapsed re-engagement.
+ */
+export function buildNudgeEmailHtml(opts: {
+  firstName:       string;
+  businessName:    string;
+  weeksSince:      number;
+  bookingUrl:      string;
+  nudgeType:       "pattern" | "lapsed";
+  locale?:         string | null;
+  unsubscribeUrl?: string | null;
+}) {
+  const he = opts.locale === "he";
+  const weeks = opts.weeksSince;
+
+  const bodyText = he
+    ? `עברו ${weeks} שבוע${weeks !== 1 ? "ות" : ""} מאז הביקור האחרון שלך ב‑${escHtml(opts.businessName)}. נשמח לראות אותך שוב!`
+    : `It's been ${weeks} week${weeks !== 1 ? "s" : ""} since your last visit at ${escHtml(opts.businessName)}. We'd love to see you again!`;
+
+  return wrapTeal(`
+    <tr><td style="padding:28px 32px;text-align:center;">
+      <div style="font-size:48px;margin-bottom:16px;">👋</div>
+      <p style="font-family:'Bricolage Grotesque',sans-serif;font-size:22px;font-weight:800;color:#0A0F1E;margin:0 0 12px;">
+        ${he ? `היי ${escHtml(opts.firstName)}!` : `Hey ${escHtml(opts.firstName)}!`}
+      </p>
+      <p style="font-family:Inter,sans-serif;font-size:14px;color:#6B7280;margin:0 0 28px;max-width:380px;margin-left:auto;margin-right:auto;">
+        ${bodyText}
+      </p>
+      <a href="${escHtml(opts.bookingUrl)}" style="display:inline-block;padding:16px 40px;background:#0B2D2A;color:#fff;text-decoration:none;border-radius:9999px;font-size:15px;font-weight:700;font-family:'Bricolage Grotesque',sans-serif;">
+        ${he ? "קביעת תור →" : "Book now →"}
+      </a>
+    </td></tr>
+  `, opts.unsubscribeUrl);
 }

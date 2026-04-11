@@ -70,7 +70,8 @@ export async function GET(
       booking_currency: business.booking_currency ?? "ILS",
       booking_timezone: business.booking_timezone ?? "Asia/Jerusalem",
       require_phone: business.require_phone ?? true,
-      require_email: business.require_email ?? false,
+      // ILS businesses always require email (email is the fallback channel for Israeli customers)
+      require_email: business.booking_currency === "ILS" ? true : (business.require_email ?? false),
     },
     services: services ?? [],
     staff: staff ?? [],

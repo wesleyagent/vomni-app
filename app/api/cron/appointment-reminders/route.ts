@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
-import { sendEmail } from "@/lib/email";
+import { sendEmail, buildReminderEmailHtml, buildUnsubscribeUrl } from "@/lib/email";
 import { sendAppointmentReminder } from "@/lib/whatsapp";
 import { sendBookingMessage } from "@/lib/twilio";
 import { decryptPhone } from "@/lib/phone";
 import { withCronMonitoring } from "@/lib/telegram";
+import { shouldRouteToEmail, shouldSendSMS } from "@/lib/messaging";
 
 // GET /api/cron/appointment-reminders
-// Runs hourly via Vercel cron. Finds bookings 23-25h away and sends reminder email.
+// Target schedule: "0 * * * *" (hourly) — set in vercel.json.
+// NOTE: Vercel Hobby plan only supports daily crons. This hourly schedule will only
+// activate once upgraded to Vercel Pro. On Hobby the cron fires once daily and only
+// catches appointments in the 23–25h window relative to that single daily run time.
+// Upgrade to Pro to get correct same-day reminder coverage.
 async function handler(req: NextRequest) {
   if (req.headers.get("authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,7 +48,7 @@ async function handler(req: NextRequest) {
     // Get business info
     const { data: biz } = await supabaseAdmin
       .from("businesses")
-      .select("name, booking_slug, notification_email, owner_email")
+      .select("name, booking_slug, notification_email, owner_email, booking_currency, locale")
       .eq("id", booking.business_id)
       .single();
 
@@ -67,44 +72,45 @@ async function handler(req: NextRequest) {
     const enc = (booking as typeof booking & { customer_phone_encrypted?: string }).customer_phone_encrypted;
     const sendPhone: string = enc ? (() => { try { return decryptPhone(enc); } catch { return booking.customer_phone ?? ""; } })() : (booking.customer_phone ?? "");
 
-    // Send reminder: WhatsApp if opted-in, SMS otherwise (or if WhatsApp disabled/failed)
-    const waBooking  = booking as typeof booking & { whatsapp_opt_in?: boolean };
-    const staffLine  = staffName ? ` with ${staffName}` : "";
-    const cancelLine = cancelUrl ? ` Cancel: ${cancelUrl}` : "";
-    const smsBody    = `Hi ${firstName}! 📅 Reminder: your ${serviceName} at ${bizName} is tomorrow at ${time}${staffLine}.${cancelLine}`;
-    let smsSent      = false;
+    const bizCurrency = (biz as typeof biz & { booking_currency?: string })?.booking_currency ?? null;
+    const bizLocale   = (biz as typeof biz & { locale?: string })?.locale ?? null;
+    const useEmail    = shouldRouteToEmail(sendPhone, bizCurrency);
 
-    if (waBooking.whatsapp_opt_in !== false && biz) {
-      try {
-        const waResult = await sendAppointmentReminder(
-          { id: booking.id, business_id: booking.business_id, customer_name: booking.customer_name, customer_phone: sendPhone, appointment_at: booking.appointment_at ?? "", whatsapp_opt_in: true },
-          { id: booking.business_id, name: biz.name }
-        );
-        // Fall back to SMS if WhatsApp is disabled or failed
-        if (!waResult.success && sendPhone) {
-          await sendBookingMessage(sendPhone, smsBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "reminder" });
-          smsSent = true;
-        }
-      } catch (e) {
-        console.error(`[cron/reminders] WhatsApp reminder failed for ${booking.id}:`, e);
-        // Still try SMS
-        if (sendPhone) {
-          try {
+    if (useEmail) {
+      // Israeli customer — send email via Resend (WhatsApp Business pending approval)
+      // Email send happens below after the email guard; skip WhatsApp/SMS entirely
+    } else {
+      // Non-Israeli customer — WhatsApp if opted-in, SMS if enabled
+      const waBooking  = booking as typeof booking & { whatsapp_opt_in?: boolean };
+      const staffLine  = staffName ? ` with ${staffName}` : "";
+      const cancelLine = cancelUrl ? ` Cancel: ${cancelUrl}` : "";
+      const smsBody    = `Hi ${firstName}! 📅 Reminder: your ${serviceName} at ${bizName} is tomorrow at ${time}${staffLine}.${cancelLine}`;
+
+      if (waBooking.whatsapp_opt_in !== false && biz) {
+        try {
+          const waResult = await sendAppointmentReminder(
+            { id: booking.id, business_id: booking.business_id, customer_name: booking.customer_name, customer_phone: sendPhone, appointment_at: booking.appointment_at ?? "", whatsapp_opt_in: true },
+            { id: booking.business_id, name: biz.name }
+          );
+          if (!waResult.success && sendPhone && shouldSendSMS(sendPhone, bizCurrency)) {
             await sendBookingMessage(sendPhone, smsBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "reminder" });
-            smsSent = true;
-          } catch {}
+          }
+        } catch (e) {
+          console.error(`[cron/reminders] WhatsApp reminder failed for ${booking.id}:`, e);
+          if (sendPhone && shouldSendSMS(sendPhone, bizCurrency)) {
+            try {
+              await sendBookingMessage(sendPhone, smsBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "reminder" });
+            } catch {}
+          }
         }
-      }
-    } else if (sendPhone) {
-      // Opted out of WhatsApp — send SMS directly
-      try {
-        await sendBookingMessage(sendPhone, smsBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "reminder" });
-        smsSent = true;
-      } catch (e) {
-        console.error(`[cron/reminders] SMS reminder failed for ${booking.id}:`, e);
+      } else if (sendPhone && shouldSendSMS(sendPhone, bizCurrency)) {
+        try {
+          await sendBookingMessage(sendPhone, smsBody, false, { businessId: booking.business_id, bookingId: booking.id, messageType: "reminder" });
+        } catch (e) {
+          console.error(`[cron/reminders] SMS reminder failed for ${booking.id}:`, e);
+        }
       }
     }
-    void smsSent; // used for future logging if needed
 
     // Mark reminder_sent regardless of email presence to avoid retry loops
     if (!booking.customer_email) {
@@ -112,23 +118,39 @@ async function handler(req: NextRequest) {
         .from("bookings")
         .update({ reminder_sent: true, reminder_sent_at: new Date().toISOString() })
         .eq("id", booking.id);
-      errors.push(`${booking.id}: no customer email`);
+      if (!useEmail) errors.push(`${booking.id}: no customer email`);
       continue;
     }
 
-    const html = [
-      `<p>Hi ${firstName},</p>`,
-      `<p>Just a reminder that you have a <strong>${serviceName}</strong> appointment at <strong>${bizName}</strong> tomorrow at <strong>${time}</strong>${staffLine}.</p>`,
-      cancelUrl ? `<p>Need to cancel? <a href="${cancelUrl}">${cancelUrl}</a></p>` : "",
-    ].filter(Boolean).join("");
+    const staffLine = staffName ? ` with ${staffName}` : "";
+    const html = useEmail
+      ? buildReminderEmailHtml({
+          firstName,
+          businessName: bizName,
+          serviceName,
+          date: booking.appointment_at?.substring(0, 10) ?? "",
+          time,
+          staffName: staffName || null,
+          cancelUrl,
+          locale: bizLocale,
+          unsubscribeUrl: booking.customer_email ? buildUnsubscribeUrl(booking.customer_email, booking.business_id) : null,
+        })
+      : [
+          `<p>Hi ${firstName},</p>`,
+          `<p>Just a reminder that you have a <strong>${serviceName}</strong> appointment at <strong>${bizName}</strong> tomorrow at <strong>${time}</strong>${staffLine}.</p>`,
+          cancelUrl ? `<p>Need to cancel? <a href="${cancelUrl}">${cancelUrl}</a></p>` : "",
+        ].filter(Boolean).join("");
 
     try {
       await sendEmail({
         to: booking.customer_email,
-        subject: `Appointment Reminder — ${serviceName} at ${bizName}`,
+        subject: useEmail
+          ? `${firstName}, your ${serviceName} is tomorrow at ${time} 📅`
+          : `Appointment Reminder — ${serviceName} at ${bizName}`,
         type: "booking_reminder" as const,
         bookingId: booking.id,
         html,
+        unsubscribeUrl: useEmail && booking.customer_email ? buildUnsubscribeUrl(booking.customer_email, booking.business_id) : null,
       });
 
       await supabaseAdmin

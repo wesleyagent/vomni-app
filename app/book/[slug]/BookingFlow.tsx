@@ -91,6 +91,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
   const [sendReminder, setSendReminder] = useState(true);
   const [marketingConsent, setMarketingConsent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
   // Waitlist mode — set when user clicks "Join Waitlist" for a specific full slot
   const [waitlistMode, setWaitlistMode] = useState(false);
@@ -209,6 +210,19 @@ export default function BookingFlow({ slug }: { slug: string }) {
   // Submit booking (or waitlist join)
   async function handleSubmit() {
     if (!selectedService || !selectedDate || !selectedTime || !firstName || !lastName || !phone) return;
+
+    // Email validation for ILS (Israeli) businesses
+    if (business?.booking_currency === "ILS" || business?.require_email) {
+      if (!email.trim()) {
+        setEmailError(t("Email is required", "כתובת אימייל נדרשת", lang));
+        return;
+      }
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+        setEmailError(t("Please enter a valid email address", "כתובת אימייל אינה תקינה", lang));
+        return;
+      }
+    }
+    setEmailError(null);
     setSubmitting(true);
 
     if (waitlistMode) {
@@ -1012,19 +1026,24 @@ export default function BookingFlow({ slug }: { slug: string }) {
               {/* Email */}
               <div>
                 <label style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: SECONDARY, marginBottom: 6, display: "block" }}>
-                  {t("Email", "אימייל", lang)} {business.require_email ? "*" : t("(optional)", "(אופציונלי)", lang)}
+                  {t("Email", "אימייל", lang)} {(business.require_email || business.booking_currency === "ILS") ? "*" : t("(optional)", "(אופציונלי)", lang)}
                 </label>
                 <input
-                  value={email} onChange={e => setEmail(e.target.value)}
+                  value={email} onChange={e => { setEmail(e.target.value); setEmailError(null); }}
                   type="email"
                   style={{
                     width: "100%", padding: "12px 16px", borderRadius: 12,
-                    border: `1px solid ${BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 15,
+                    border: `1px solid ${emailError ? "#EF4444" : BORDER}`, fontFamily: "Inter, sans-serif", fontSize: 15,
                     color: N, outline: "none", boxSizing: "border-box", direction: "ltr",
                   }}
-                  onFocus={e => e.target.style.borderColor = G}
-                  onBlur={e => e.target.style.borderColor = BORDER}
+                  onFocus={e => e.target.style.borderColor = emailError ? "#EF4444" : G}
+                  onBlur={e => e.target.style.borderColor = emailError ? "#EF4444" : BORDER}
                 />
+                {emailError && (
+                  <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#EF4444", marginTop: 4 }}>
+                    {emailError}
+                  </p>
+                )}
               </div>
 
               {/* Notes */}
@@ -1100,7 +1119,7 @@ export default function BookingFlow({ slug }: { slug: string }) {
               {/* Submit button */}
               <button
                 onClick={handleSubmit}
-                disabled={submitting || !firstName || !lastName || !phone || (business.require_email && !email)}
+                disabled={submitting || !firstName || !lastName || !phone || ((business.require_email || business.booking_currency === "ILS") && !email)}
                 style={{
                   width: "100%", padding: "18px 24px", borderRadius: 9999,
                   background: (submitting || !firstName || !lastName || !phone)

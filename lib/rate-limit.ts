@@ -1,11 +1,13 @@
 // ============================================================================
-// Rate limiter — Upstash Redis (distributed).
-// Production: hard-fails (429) if Redis is unavailable or unconfigured.
-// Development: falls back to in-memory when Redis is not configured.
+// Rate limiter — Supabase-backed (global, distributed).
+// Uses the `check_rate_limit` RPC (030_rate_limits.sql migration) for atomic
+// fixed-window counting across all serverless instances.
+// Falls back to in-memory in development when supabaseAdmin is unavailable.
 // ============================================================================
 
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -128,6 +130,34 @@ export function getRateLimitInfo(
     return { remaining: limit, resetAt: Date.now() + 60 * 60 * 1000 };
   }
   return { remaining: Math.max(0, limit - entry.count), resetAt: entry.resetAt };
+}
+
+/**
+ * Global rate limit check backed by Supabase (works across all serverless instances).
+ * Uses the `check_rate_limit` RPC for atomic fixed-window counting.
+ * Falls back to in-memory in development if the RPC call fails.
+ *
+ * Returns true if the request is allowed, false if it should be denied (429).
+ */
+export async function checkRateLimitGlobal(
+  key: string,
+  limit: number,
+  windowSeconds: number
+): Promise<boolean> {
+  try {
+    const { data, error } = await supabaseAdmin.rpc("check_rate_limit", {
+      p_key: key,
+      p_limit: limit,
+      p_window_seconds: windowSeconds,
+    });
+    if (error) throw error;
+    return data === true;
+  } catch (err) {
+    console.error("[rate-limit] Supabase RPC error — falling back to in-memory:", err);
+    // In production, fail-open (allow) on Supabase errors to avoid blocking real users
+    // due to a transient DB issue. Adjust to `return false` if you prefer fail-closed.
+    return isDev ? checkInMemory(key, limit, windowSeconds * 1000) : true;
+  }
 }
 
 /** Extract client IP from Next.js request headers */
