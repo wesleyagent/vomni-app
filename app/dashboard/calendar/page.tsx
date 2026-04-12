@@ -140,10 +140,10 @@ export default function CalendarPage() {
     } else if (view === "fiveday") {
       const sun = new Date(currentDate);
       sun.setDate(sun.getDate() - sun.getDay());
-      const thu = new Date(sun);
-      thu.setDate(thu.getDate() + 4);
+      const sat = new Date(sun);
+      sat.setDate(sat.getDate() + 6);
       startDate = `${formatDateStr(sun)}T00:00:00`;
-      endDate = `${formatDateStr(thu)}T23:59:59`;
+      endDate = `${formatDateStr(sat)}T23:59:59`;
     } else {
       const y = currentDate.getFullYear();
       const m = currentDate.getMonth();
@@ -298,9 +298,9 @@ export default function CalendarPage() {
         const t = new Date();
         const sun = new Date(currentDate);
         sun.setDate(sun.getDate() - sun.getDay());
-        const thu = new Date(sun);
-        thu.setDate(thu.getDate() + 4);
-        return t < sun || t > thu;
+        const sat = new Date(sun);
+        sat.setDate(sat.getDate() + 6);
+        return t < sun || t > sat;
       })()
     : (() => {
         const t = new Date();
@@ -408,7 +408,7 @@ export default function CalendarPage() {
                   fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: view === v ? 600 : 500,
                   color: view === v ? N : SECONDARY, cursor: "pointer",
                 }}
-              >{v === "fiveday" ? "5-Day" : v === "month" ? "Month" : "Day"}</button>
+              >{v === "fiveday" ? "7-Day" : v === "month" ? "Month" : "Day"}</button>
             ))}
           </div>
         </div>
@@ -564,18 +564,17 @@ export default function CalendarPage() {
             </div>
           )}
 
-          {/* ── 5-DAY VIEW (Sun–Thu) ── */}
+          {/* ── 7-DAY VIEW (Sun–Sat) ── */}
           {view === "fiveday" && (() => {
             const sun = new Date(currentDate);
             sun.setDate(sun.getDate() - sun.getDay());
-            const DAY_NAMES_5 = ["Sun", "Mon", "Tue", "Wed", "Thu"];
-            const days = Array.from({ length: 5 }, (_, i) => {
+            const days = Array.from({ length: 7 }, (_, i) => {
               const d = new Date(sun);
               d.setDate(d.getDate() + i);
               return d;
             });
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 8 }}>
                 {days.map((d, i) => {
                   const ds = formatDateStr(d);
                   const dayBookings = filteredBookings.filter(b => b.appointment_at?.substring(0, 10) === ds);
@@ -590,7 +589,7 @@ export default function CalendarPage() {
                         background: isDayToday ? `${G}08` : "transparent", textAlign: "center",
                       }}>
                         <div style={{ fontFamily: "Inter, sans-serif", fontSize: 11, fontWeight: 600, color: MUTED, textTransform: "uppercase" }}>
-                          {DAY_NAMES_5[i]}
+                          {d.toLocaleDateString("en-GB", { weekday: "short" }).toUpperCase()}
                         </div>
                         <div style={{
                           fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 18, fontWeight: 700,
