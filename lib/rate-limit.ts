@@ -151,12 +151,19 @@ export async function checkRateLimitGlobal(
       p_window_seconds: windowSeconds,
     });
     if (error) throw error;
-    return data === true;
+    // Only deny when the RPC explicitly returns false (limit exceeded).
+    // Any other value (null, undefined, truthy-string from PostgREST) → fail-open
+    // so a Supabase glitch never blocks real bookings.
+    if (data === false) return false;
+    if (data !== true) {
+      console.warn("[rate-limit] Unexpected RPC response (failing open):", JSON.stringify(data));
+    }
+    return true;
   } catch (err) {
-    console.error("[rate-limit] Supabase RPC error — falling back to in-memory:", err);
-    // In production, fail-open (allow) on Supabase errors to avoid blocking real users
-    // due to a transient DB issue. Adjust to `return false` if you prefer fail-closed.
-    return isDev ? checkInMemory(key, limit, windowSeconds * 1000) : true;
+    console.error("[rate-limit] Supabase RPC error — failing open:", err);
+    // In production, fail-open (allow) so transient DB issues never block real bookings.
+    if (!isDev) return true;
+    return checkInMemory(key, limit, windowSeconds * 1000);
   }
 }
 
