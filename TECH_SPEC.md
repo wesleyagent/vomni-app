@@ -700,7 +700,7 @@ All admin routes verify TOTP session cookie via `requireAdmin()`.
 ### 4.9 Email Unsubscribe
 
 #### `GET /api/email/unsubscribe?token=...`
-One-click unsubscribe for Resend email recipients (Israeli customers).
+One-click unsubscribe for Resend email recipients.
 - Token is `base64url(email|businessId)` — no secret needed, decodable server-side
 - Sets `customer_profiles.opted_out=true`, `opted_out_at=now()` on the matching row
 - Returns bilingual HTML confirmation page (EN + HE)
@@ -1119,19 +1119,14 @@ Customer visits /book/[slug]
   → GET /api/booking/[slug] (business + services + staff + hours)
   → Customer selects service, staff, date
   → GET /api/booking/[slug]/availability?date=&service_id=&staff_id=
-  → Customer fills form (email required if ILS business), submits
+  → Customer fills form (email optional for all businesses), submits
   → POST /api/booking/[slug]/create
       Global rate limit check (Supabase RPC)
-      ILS: validate email present + valid format
       Re-validate availability
       create_booking_atomic() RPC
-      shouldRouteToEmail(phone, currency) → channel decision
-      → INSERT bookings
-          ILS: status=confirmed, sms_status=suppressed
-          Others: status=confirmed, sms_status=pending
+      → INSERT bookings: status=confirmed, sms_status=pending (all customers including ILS)
       → INSERT booking_audit_log
-      → ILS: send Resend confirmation email immediately (marks confirmation_sent=true)
-      → Others: send WhatsApp/SMS confirmation
+      → Send WhatsApp/SMS confirmation (all customers)
       → Send business notification email (async)
       → Push to Google Calendar (async)
       → void upsertSingleCustomerProfile(bookingId) — non-blocking CRM update
@@ -1146,8 +1141,7 @@ Customer visits /book/[slug]
   → Find bookings where appointment_at BETWEEN now()-2.5h AND now()-1.5h
     AND status = completed AND review_request_sent = false
   → Run canSendReviewRequest() eligibility (opted_out, already reviewed, 30-day dedup, SMS limit)
-  → ILS: send Resend review email with /r/[booking_id] link
-  → Others: send WhatsApp/SMS with review link
+  → Send WhatsApp/SMS review link to all customers (ILS and UK included)
   → UPDATE bookings SET review_request_sent=true
 
 Customer clicks link → /r/[booking_id] → /review/[id]
