@@ -10,6 +10,7 @@ export async function POST(req: NextRequest) {
     rating: number;
     feedback_text?: string | null;
     customer_name?: string | null;
+    customer_phone?: string | null;
   };
 
   try {
@@ -18,7 +19,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid body" }, { status: 400 });
   }
 
-  const { business_id, booking_id, rating, feedback_text, customer_name } = body;
+  const { business_id, booking_id, rating, feedback_text, customer_name, customer_phone } = body;
 
   if (!business_id || !rating || rating < 1 || rating > 5) {
     return NextResponse.json({ error: "Missing or invalid fields" }, { status: 400 });
@@ -26,11 +27,12 @@ export async function POST(req: NextRequest) {
 
   const { error } = await supabaseAdmin.from("feedback").insert({
     business_id,
-    booking_id:    booking_id  ?? null,
+    booking_id:     booking_id    ?? null,
     rating,
-    feedback_text: feedback_text ?? null,
-    customer_name: customer_name ?? null,
-    created_at:    new Date().toISOString(),
+    feedback_text:  feedback_text ?? null,
+    customer_name:  customer_name ?? null,
+    customer_phone: customer_phone ?? null,
+    created_at:     new Date().toISOString(),
   });
 
   if (error) {
