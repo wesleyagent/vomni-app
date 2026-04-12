@@ -249,6 +249,9 @@ export async function POST(
       .single();
 
     if (insertErr || !booking) {
+      if ((insertErr as any)?.code === "23505") {
+        return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
+      }
       console.error("[booking/create] insert error:", {
         message: insertErr?.message,
         code:    (insertErr as any)?.code,
