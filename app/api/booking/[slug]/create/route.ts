@@ -9,6 +9,8 @@ import { upsertSingleCustomerProfile } from "@/lib/customer-profile-sync";
 import { sendBusinessPushNotification } from "@/lib/push";
 import { sendTelegramAlert } from "@/lib/telegram";
 import { normaliseToE164, encryptPhone, maskPhone, fingerprintPhone } from "@/lib/phone";
+import { syncBookingToGoogle } from "@/lib/google-calendar-sync";
+import { syncBookingToMicrosoft } from "@/lib/microsoft-calendar-sync";
 import type { BusinessHours, StaffHours } from "@/types/booking";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
@@ -459,50 +461,45 @@ export async function POST(
   // (the nightly full-rebuild cron is still the source of truth — this is just a fast-path upsert)
   void upsertSingleCustomerProfile(bookingId);
 
-  // Push to Google Calendar (non-blocking — logs to Telegram on failure)
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
+  // Push to Google Calendar — call lib function directly (no HTTP hop, no network failure)
   Promise.resolve().then(async () => {
     try {
-      const res = await fetch(`${appUrl}/api/calendar/google/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        if (!body.includes("no_connection") && !body.includes("skipped")) {
-          await sendTelegramAlert(
-            `📅 <b>Google Calendar sync failed</b>\n` +
-            `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
-            `<b>Status:</b> ${res.status}\n<b>Error:</b> ${body.slice(0, 300)}`
-          );
-        }
+      const result = await syncBookingToGoogle(business.id, bookingId);
+      if (!result.success && !result.skipped) {
+        await sendTelegramAlert(
+          `📅 <b>Google Calendar sync failed</b>\n` +
+          `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+          `<b>Error:</b> ${result.error ?? "unknown"}`
+        );
       }
     } catch (err) {
       console.error("[booking/create] google sync failed:", err);
+      await sendTelegramAlert(
+        `📅 <b>Google Calendar sync exception</b>\n` +
+        `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+        `<b>Error:</b> ${String(err).slice(0, 300)}`
+      ).catch(() => {});
     }
   }).catch(() => {});
 
-  // Push to Microsoft Calendar (non-blocking — logs to Telegram on failure)
+  // Push to Microsoft Calendar — call lib function directly (no HTTP hop, no network failure)
   Promise.resolve().then(async () => {
     try {
-      const res = await fetch(`${appUrl}/api/calendar/microsoft/sync`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
-      });
-      if (!res.ok) {
-        const body = await res.text().catch(() => "");
-        if (!body.includes("no_connection") && !body.includes("skipped")) {
-          await sendTelegramAlert(
-            `📅 <b>Microsoft Calendar sync failed</b>\n` +
-            `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
-            `<b>Status:</b> ${res.status}\n<b>Error:</b> ${body.slice(0, 300)}`
-          );
-        }
+      const result = await syncBookingToMicrosoft(business.id, bookingId);
+      if (!result.success && !result.skipped) {
+        await sendTelegramAlert(
+          `📅 <b>Microsoft Calendar sync failed</b>\n` +
+          `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+          `<b>Error:</b> ${result.error ?? "unknown"}`
+        );
       }
     } catch (err) {
       console.error("[booking/create] microsoft sync failed:", err);
+      await sendTelegramAlert(
+        `📅 <b>Microsoft Calendar sync exception</b>\n` +
+        `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+        `<b>Error:</b> ${String(err).slice(0, 300)}`
+      ).catch(() => {});
     }
   }).catch(() => {});
 
