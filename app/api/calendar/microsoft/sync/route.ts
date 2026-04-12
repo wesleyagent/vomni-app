@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { decryptPhone } from "@/lib/phone";
 
 // POST /api/calendar/microsoft/sync
 // Push a Vomni booking to Microsoft Calendar
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
   // Get booking details
   const { data: booking } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_name, customer_phone, service_name, service_duration_minutes, appointment_at, notes, microsoft_event_id")
+    .select("id, customer_name, customer_phone, customer_phone_encrypted, service_name, service_duration_minutes, appointment_at, notes, microsoft_event_id")
     .eq("id", booking_id)
     .single();
 
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
       contentType: "text",
       content: [
         `Customer: ${booking.customer_name}`,
-        `Phone: ${booking.customer_phone}`,
+        `Phone: ${booking.customer_phone_encrypted ? (() => { try { return decryptPhone(booking.customer_phone_encrypted); } catch { return booking.customer_phone ?? ""; } })() : (booking.customer_phone ?? "")}`,
         booking.notes ? `Notes: ${booking.notes}` : null,
         ``,
         `Manage: ${appUrl}/dashboard/calendar`,

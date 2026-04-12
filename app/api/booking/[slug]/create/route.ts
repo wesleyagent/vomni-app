@@ -198,12 +198,11 @@ export async function POST(
       }
       bookingId = result.booking_id!;
 
-      // Immediately overwrite customer_phone with display value and store encrypted
+      // Immediately overwrite customer_phone with masked display value and store encrypted
       await supabaseAdmin.from("bookings").update({
         customer_phone:           phoneDisplay,
         phone_display:            phoneDisplay,
         customer_phone_encrypted: phoneEncrypted,
-        ...(useEmailChannel ? { sms_status: "suppressed" } : {}),
       }).eq("id", bookingId);
     } else {
       // RPC unavailable — fall back to direct insert.
@@ -233,7 +232,7 @@ export async function POST(
           appointment_at: appointmentAt,
           booking_source: "vomni",
           status: "confirmed",
-          sms_status: useEmailChannel ? "suppressed" : "pending",
+          sms_status: "pending",
           notes: safeNotes,
           cancellation_token: cancellationToken,
           whatsapp_opt_in: whatsapp_opt_in !== false,
@@ -278,8 +277,7 @@ export async function POST(
         appointment_at: appointmentAt,
         booking_source: "vomni",
         status: "confirmed",
-        // ILS businesses use email — suppress SMS so cron never picks this up
-        sms_status: useEmailChannel ? "suppressed" : "pending",
+        sms_status: "pending",
         notes: safeNotes,
         cancellation_token: cancellationToken,
         whatsapp_opt_in: whatsapp_opt_in !== false,
@@ -321,9 +319,7 @@ export async function POST(
     hour: "2-digit", minute: "2-digit",
   });
 
-  // Israeli businesses → skip WhatsApp/SMS entirely; customer confirmation email is sent below
-
-  // Send WhatsApp confirmation (primary) or SMS fallback — skipped for ILS businesses
+  // Send WhatsApp confirmation (primary) or SMS fallback
   const waOptIn = whatsapp_opt_in !== false;
   if (!useEmailChannel && waOptIn) {
     const waResult = await sendAppointmentConfirmation(
@@ -346,8 +342,8 @@ export async function POST(
         await supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId);
       }
     }
-  } else if (!useEmailChannel) {
-    // Customer opted out of WhatsApp — send SMS (non-ILS only)
+  } else {
+    // Customer opted out of WhatsApp — send SMS
     await supabaseAdmin.from("bookings").update({ whatsapp_opt_in: false, whatsapp_status: "opted_out" }).eq("id", bookingId);
     const smsBody = staffName
       ? `Hi ${safeFirst}! ✅ Your ${service.name} at ${business.name} is confirmed for ${date} at ${time} with ${staffName}. Cancel: ${cancelUrl}`
@@ -389,7 +385,6 @@ export async function POST(
   }
 
   // Confirmation email to customer — if email provided
-  // For ILS businesses this is the primary channel; also marks confirmation_sent
   if (email) {
     sendEmail({
       to:        email,
@@ -411,7 +406,7 @@ export async function POST(
       }),
     })
       .then(result => {
-        if (result.success && useEmailChannel) {
+        if (result.success) {
           supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId)
             .then(() => {}, () => {});
         }

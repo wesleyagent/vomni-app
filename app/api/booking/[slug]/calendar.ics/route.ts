@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { decryptPhone } from "@/lib/phone";
 
 // GET /api/booking/[slug]/calendar.ics?token=[calendar_token]
 // Returns an iCalendar feed of all confirmed bookings for a business.
@@ -33,7 +34,7 @@ export async function GET(
   const now = new Date().toISOString();
   const { data: bookings } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_name, service_name, service_duration_minutes, appointment_at, notes, staff_id")
+    .select("id, customer_name, customer_phone, customer_phone_encrypted, service_name, service_duration_minutes, appointment_at, notes, staff_id")
     .eq("business_id", business.id)
     .eq("status", "confirmed")
     .gte("appointment_at", now)
@@ -47,12 +48,22 @@ export async function GET(
     const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
     const escape = (s: string) => s.replace(/[\\;,]/g, "\\$&").replace(/\n/g, "\\n");
 
+    let phone = b.customer_phone ?? "";
+    if (b.customer_phone_encrypted) {
+      try { phone = decryptPhone(b.customer_phone_encrypted); } catch { /* keep masked */ }
+    }
+
+    const descParts = [
+      `Phone: ${phone}`,
+      b.notes ? `Notes: ${b.notes}` : null,
+    ].filter(Boolean).join("\\n");
+
     return [
       "BEGIN:VEVENT",
       `DTSTART:${fmt(start)}`,
       `DTEND:${fmt(end)}`,
       `SUMMARY:${escape(`${b.service_name ?? "Appointment"} — ${b.customer_name ?? "Customer"}`)}`,
-      b.notes ? `DESCRIPTION:${escape(b.notes)}` : null,
+      `DESCRIPTION:${escape(descParts)}`,
       `UID:${b.id}@vomni.io`,
       "STATUS:CONFIRMED",
       "END:VEVENT",

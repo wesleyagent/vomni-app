@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { decryptPhone } from "@/lib/phone";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ business_id: string }> }) {
   const { business_id } = await params;
@@ -15,19 +16,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ busi
   }
 
   const { data: bookings } = await supabaseAdmin.from("bookings")
-    .select("id, customer_name, service_name, appointment_at, service_duration_minutes, notes, cancellation_token")
+    .select("id, customer_name, customer_phone, customer_phone_encrypted, service_name, appointment_at, service_duration_minutes, notes, cancellation_token")
     .eq("business_id", business_id)
     .eq("status", "confirmed")
     .gte("appointment_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
     .order("appointment_at");
 
-  const events = (bookings ?? []).map(b => ({
-    id: b.id,
-    summary: `${b.customer_name} — ${b.service_name ?? "Appointment"}`,
-    start: b.appointment_at,
-    duration: b.service_duration_minutes ?? 30,
-    description: b.notes ?? "",
-  }));
+  const events = (bookings ?? []).map(b => {
+    let phone = b.customer_phone ?? "";
+    if (b.customer_phone_encrypted) {
+      try { phone = decryptPhone(b.customer_phone_encrypted); } catch { /* keep masked */ }
+    }
+    const descParts = [`Phone: ${phone}`, b.notes ? `Notes: ${b.notes}` : null].filter(Boolean).join("\n");
+    return {
+      id: b.id,
+      summary: `${b.customer_name} — ${b.service_name ?? "Appointment"}`,
+      start: b.appointment_at,
+      duration: b.service_duration_minutes ?? 30,
+      description: descParts,
+    };
+  });
 
   // Build ICS manually (simple, no library needed)
   const lines = [
