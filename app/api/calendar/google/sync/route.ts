@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { decryptPhone } from "@/lib/phone";
+import { logCalendarDisconnect } from "@/lib/telegram";
 
 // POST /api/calendar/google/sync
 // Push a Vomni booking to Google Calendar
@@ -201,7 +202,15 @@ async function getValidAccessToken(
     }),
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    // Refresh failed — mark connection inactive + alert via Telegram
+    await supabaseAdmin.from("calendar_connections")
+      .update({ is_active: false })
+      .eq("business_id", businessId)
+      .eq("provider", "google");
+    void logCalendarDisconnect("google", businessId, null, `Token refresh failed: HTTP ${res.status}`);
+    return null;
+  }
 
   const data = await res.json();
   const newExpiry = new Date(Date.now() + (data.expires_in ?? 3600) * 1000).toISOString();

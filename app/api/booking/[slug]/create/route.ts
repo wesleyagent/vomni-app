@@ -7,6 +7,7 @@ import { checkRateLimitGlobal, getClientIP } from "@/lib/rate-limit";
 import { sendEmail, buildOwnerNotifyHtml, buildCustomerConfirmHtml } from "@/lib/email";
 import { upsertSingleCustomerProfile } from "@/lib/customer-profile-sync";
 import { sendBusinessPushNotification } from "@/lib/push";
+import { sendTelegramAlert } from "@/lib/telegram";
 import { normaliseToE164, encryptPhone, maskPhone, fingerprintPhone } from "@/lib/phone";
 import type { BusinessHours, StaffHours } from "@/types/booking";
 
@@ -486,20 +487,52 @@ export async function POST(
   // (the nightly full-rebuild cron is still the source of truth — this is just a fast-path upsert)
   void upsertSingleCustomerProfile(bookingId);
 
-  // Push to Google Calendar (non-blocking)
+  // Push to Google Calendar (non-blocking — logs to Telegram on failure)
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
-  fetch(`${appUrl}/api/calendar/google/sync`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
-  }).catch(err => console.error("[booking/create] google sync failed:", err));
+  Promise.resolve().then(async () => {
+    try {
+      const res = await fetch(`${appUrl}/api/calendar/google/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        if (!body.includes("no_connection") && !body.includes("skipped")) {
+          await sendTelegramAlert(
+            `📅 <b>Google Calendar sync failed</b>\n` +
+            `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+            `<b>Status:</b> ${res.status}\n<b>Error:</b> ${body.slice(0, 300)}`
+          );
+        }
+      }
+    } catch (err) {
+      console.error("[booking/create] google sync failed:", err);
+    }
+  }).catch(() => {});
 
-  // Push to Microsoft Calendar (non-blocking)
-  fetch(`${appUrl}/api/calendar/microsoft/sync`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
-  }).catch(err => console.error("[booking/create] microsoft sync failed:", err));
+  // Push to Microsoft Calendar (non-blocking — logs to Telegram on failure)
+  Promise.resolve().then(async () => {
+    try {
+      const res = await fetch(`${appUrl}/api/calendar/microsoft/sync`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: business.id, booking_id: bookingId }),
+      });
+      if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        if (!body.includes("no_connection") && !body.includes("skipped")) {
+          await sendTelegramAlert(
+            `📅 <b>Microsoft Calendar sync failed</b>\n` +
+            `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+            `<b>Status:</b> ${res.status}\n<b>Error:</b> ${body.slice(0, 300)}`
+          );
+        }
+      }
+    } catch (err) {
+      console.error("[booking/create] microsoft sync failed:", err);
+    }
+  }).catch(() => {});
 
   return NextResponse.json({
     booking: {
