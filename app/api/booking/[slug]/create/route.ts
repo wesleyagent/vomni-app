@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { generateCancellationToken, computeAvailableSlots } from "@/lib/booking-utils";
 import { sendBookingMessage } from "@/lib/twilio";
@@ -461,14 +461,18 @@ export async function POST(
   // (the nightly full-rebuild cron is still the source of truth — this is just a fast-path upsert)
   void upsertSingleCustomerProfile(bookingId);
 
-  // Push to Google Calendar — call lib function directly (no HTTP hop, no network failure)
-  Promise.resolve().then(async () => {
+  // Push to Google Calendar — after() keeps the function alive until sync completes
+  // after() is the Next.js-native way to run post-response work in serverless environments.
+  // Promise.resolve().then() was previously used but gets killed when Vercel terminates
+  // the function after the response is sent.
+  const bizId = business.id;
+  after(async () => {
     try {
-      const result = await syncBookingToGoogle(business.id, bookingId);
+      const result = await syncBookingToGoogle(bizId, bookingId);
       if (!result.success && !result.skipped) {
         await sendTelegramAlert(
           `📅 <b>Google Calendar sync failed</b>\n` +
-          `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+          `<b>Business:</b> ${bizId}\n<b>Booking:</b> ${bookingId}\n` +
           `<b>Error:</b> ${result.error ?? "unknown"}`
         );
       }
@@ -476,20 +480,20 @@ export async function POST(
       console.error("[booking/create] google sync failed:", err);
       await sendTelegramAlert(
         `📅 <b>Google Calendar sync exception</b>\n` +
-        `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+        `<b>Business:</b> ${bizId}\n<b>Booking:</b> ${bookingId}\n` +
         `<b>Error:</b> ${String(err).slice(0, 300)}`
       ).catch(() => {});
     }
-  }).catch(() => {});
+  });
 
-  // Push to Microsoft Calendar — call lib function directly (no HTTP hop, no network failure)
-  Promise.resolve().then(async () => {
+  // Push to Microsoft Calendar
+  after(async () => {
     try {
-      const result = await syncBookingToMicrosoft(business.id, bookingId);
+      const result = await syncBookingToMicrosoft(bizId, bookingId);
       if (!result.success && !result.skipped) {
         await sendTelegramAlert(
           `📅 <b>Microsoft Calendar sync failed</b>\n` +
-          `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+          `<b>Business:</b> ${bizId}\n<b>Booking:</b> ${bookingId}\n` +
           `<b>Error:</b> ${result.error ?? "unknown"}`
         );
       }
@@ -497,11 +501,11 @@ export async function POST(
       console.error("[booking/create] microsoft sync failed:", err);
       await sendTelegramAlert(
         `📅 <b>Microsoft Calendar sync exception</b>\n` +
-        `<b>Business:</b> ${business.id}\n<b>Booking:</b> ${bookingId}\n` +
+        `<b>Business:</b> ${bizId}\n<b>Booking:</b> ${bookingId}\n` +
         `<b>Error:</b> ${String(err).slice(0, 300)}`
       ).catch(() => {});
     }
-  }).catch(() => {});
+  });
 
   return NextResponse.json({
     booking: {
