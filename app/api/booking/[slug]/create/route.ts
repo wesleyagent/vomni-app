@@ -251,7 +251,9 @@ export async function POST(
           return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
         }
         console.error("[booking/create] fallback insert also failed:", fbErr?.message);
-        return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
+        // Temporarily surface DB error to diagnose production failure (remove after fix)
+        const dbg = fbErr ? `[${(fbErr as any).code}] ${fbErr.message}` : "no data returned";
+        return NextResponse.json({ error: `Failed to create booking: ${dbg}` }, { status: 500 });
       }
       bookingId = fallback.id;
     }
@@ -298,7 +300,8 @@ export async function POST(
         details: (insertErr as any)?.details,
         hint:    (insertErr as any)?.hint,
       });
-      return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
+      const dbg2 = insertErr ? `[${(insertErr as any).code}] ${insertErr.message}` : "no data returned";
+      return NextResponse.json({ error: `Failed to create booking: ${dbg2}` }, { status: 500 });
     }
     bookingId = booking.id;
   }
