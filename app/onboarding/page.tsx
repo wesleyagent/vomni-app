@@ -720,12 +720,14 @@ function Step5Discover({
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 12px", lineHeight: 1.5 }}>
             Add your booking link so customers can book directly from Google Maps & Search.
           </p>
-          <input
-            value={googleMapsUrl}
-            onChange={e => setGoogleMapsUrl(e.target.value)}
-            placeholder="https://maps.google.com/..."
-            style={{ ...inputStyle, fontSize: 13, marginBottom: 10 }}
-          />
+          {bookingUrl && (
+            <div style={{ marginBottom: 12 }}>
+              <CopyBtn text={bookingUrl} label="Copy booking link" />
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#374151", margin: "8px 0 0", lineHeight: 1.6 }}>
+                Paste this link in the <strong>Website</strong> field of your Google Business Profile. Google will show a <strong>&ldquo;Book&rdquo;</strong> button on your Maps listing and Search results within 24 hours.
+              </p>
+            </div>
+          )}
           <div style={{ background: "#F8FAFF", borderRadius: 10, padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#374151", lineHeight: 1.7 }}>
             <div style={{ fontWeight: 700, marginBottom: 6, color: N }}>How to add your booking link:</div>
             {[
@@ -766,19 +768,18 @@ function Step5Discover({
             </svg>
           </div>
           <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: N, margin: "0 0 6px" }}>Instagram</h3>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 14px", lineHeight: 1.5 }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 12px", lineHeight: 1.5 }}>
             Add your booking link to your Instagram bio and share a post to let followers book instantly.
           </p>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#9CA3AF" }}>@</span>
-            <input
-              value={instagramHandle}
-              onChange={e => setInstagramHandle(e.target.value.replace(/^@/, ""))}
-              placeholder="yourbusiness"
-              style={{ ...inputStyle, fontSize: 13 }}
-            />
-          </div>
-          {bookingUrl && instagramHandle && (
+          {bookingUrl && (
+            <div style={{ marginBottom: 12 }}>
+              <CopyBtn text={bookingUrl} label="Copy booking link" />
+              <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#374151", margin: "8px 0 0", lineHeight: 1.6 }}>
+                Paste this link in your <strong>Instagram bio</strong>. In the app, tap <strong>Edit profile → Website</strong>.
+              </p>
+            </div>
+          )}
+          {bookingUrl && (
             <a
               href={`https://www.instagram.com/?caption=${igCaption}`}
               target="_blank"
@@ -836,19 +837,30 @@ function Step5Discover({
 // ── Step 6: Connect Calendar ──────────────────────────────────────────────
 
 function Step6Calendar({
+  bizId,
   onNext, onSkip, saving,
 }: {
+  bizId: string;
   onNext: () => void;
   onSkip: () => void;
   saving: boolean;
 }) {
+  const [gcalConnected, setGcalConnected] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get("calendar_connected") === "google") setGcalConnected(true);
+    }
+  }, []);
+
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 32 }}>
-        <StepCircle n={6} active={true} done={false} />
+        <StepCircle n={7} active={true} done={false} />
         <div>
           <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 700, color: N, margin: 0 }}>Connect your calendar</h2>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "4px 0 0" }}>Step 6 of 7 — sync bookings to Google or Outlook</p>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", margin: "4px 0 0" }}>Step 7 of 8 — sync bookings to Google or Outlook</p>
         </div>
       </div>
 
@@ -860,20 +872,30 @@ function Step6Calendar({
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
         {/* Google Calendar */}
-        <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 24 }}>
+        <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${gcalConnected ? G : BD}`, padding: 24, boxShadow: gcalConnected ? `0 0 0 3px rgba(0,200,150,0.12)` : "none", transition: "all 0.2s" }}>
           <div style={{ width: 44, height: 44, borderRadius: 10, background: "#E8F0FE", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, fontSize: 24 }}>📅</div>
           <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: N, margin: "0 0 6px" }}>Google Calendar</h3>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.5 }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 14px", lineHeight: 1.5 }}>
             Sync Vomni bookings directly to your Google Calendar.
           </p>
+          {gcalConnected ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(0,200,150,0.08)", border: `1px solid rgba(0,200,150,0.3)`, fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: G, marginBottom: 12 }}>
+              <Check size={15} /> Google Calendar connected!
+            </div>
+          ) : (
+            <button
+              onClick={() => { window.location.href = `/api/auth/google-calendar?business_id=${bizId}&return_to=/onboarding`; }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px 16px", borderRadius: 9999, background: G, color: "#fff", border: "none", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 14 }}
+            >
+              Connect Google Calendar
+            </button>
+          )}
           <div style={{ background: "#F8FAFF", borderRadius: 10, padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#374151", lineHeight: 1.8 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: N }}>How to connect:</div>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: N }}>What happens after connecting:</div>
             {[
-              "Go to Dashboard → Settings → Calendar",
-              "Click \"Connect Google Calendar\"",
-              "Sign in with your Google account",
-              "Allow Vomni to create calendar events",
-              "New bookings will appear automatically",
+              "New bookings appear in your Google Calendar automatically",
+              "Google events block your availability in Vomni",
+              "No double-bookings ever",
             ].map((step, i) => (
               <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
                 <span style={{ minWidth: 18, height: 18, borderRadius: "50%", background: G, color: "#fff", fontWeight: 700, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>
@@ -1138,13 +1160,6 @@ export default function OnboardingPage() {
           />
         )}
         {step === 6 && (
-          <Step6Calendar
-            onNext={() => advance(7)}
-            onSkip={() => advance(7)}
-            saving={saving}
-          />
-        )}
-        {step === 7 && (
           <Step6Logo
             bizId={bizId}
             logoFile={logoFile}
@@ -1154,8 +1169,16 @@ export default function OnboardingPage() {
             logoUploading={logoUploading}
             setLogoUploading={setLogoUploading}
             saving={saving}
+            onNext={() => advance(7)}
+            onSkip={() => advance(7)}
+          />
+        )}
+        {step === 7 && (
+          <Step6Calendar
+            bizId={bizId}
             onNext={() => advance(8)}
             onSkip={() => advance(8)}
+            saving={saving}
           />
         )}
         {step === 8 && (

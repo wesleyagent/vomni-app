@@ -4,14 +4,29 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const USERINFO_URL = "https://www.googleapis.com/calendar/v3/calendarList/primary";
 
-// GET /api/auth/callback/google-calendar?code=xxx&state=business_id
+// GET /api/auth/callback/google-calendar?code=xxx&state=<json|business_id>
 export async function GET(req: NextRequest) {
-  const code = req.nextUrl.searchParams.get("code");
-  const businessId = req.nextUrl.searchParams.get("state");
-  const error = req.nextUrl.searchParams.get("error");
+  const code      = req.nextUrl.searchParams.get("code");
+  const stateRaw  = req.nextUrl.searchParams.get("state") ?? "";
+  const error     = req.nextUrl.searchParams.get("error");
 
-  const appUrl = req.nextUrl.origin;
+  const appUrl      = req.nextUrl.origin;
   const settingsUrl = `${appUrl}/dashboard/calendar/settings`;
+
+  // State may be a plain business_id (legacy) or JSON { b, r } (with return_to)
+  let businessId: string;
+  let returnTo: string | null = null;
+  try {
+    const parsed = JSON.parse(stateRaw);
+    businessId = parsed.b;
+    returnTo   = parsed.r ?? null;
+  } catch {
+    businessId = stateRaw;
+  }
+
+  const successUrl = returnTo
+    ? `${appUrl}${returnTo}?calendar_connected=google`
+    : `${settingsUrl}?calendar_connected=google`;
 
   if (error || !code || !businessId) {
     return NextResponse.redirect(`${settingsUrl}?calendar_error=${error ?? "missing_params"}`);
@@ -92,7 +107,7 @@ export async function GET(req: NextRequest) {
     // Don't fail the whole flow — sync still works without push notifications
   }
 
-  return NextResponse.redirect(`${settingsUrl}?calendar_connected=google`);
+  return NextResponse.redirect(successUrl);
 }
 
 async function registerGoogleWebhook(

@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import { db, getMyBusiness } from "@/lib/db";
 import { BusinessContext } from "./_context";
 import { getPlanName } from "@/lib/planFeatures";
+import { localeFromCountry } from "@/lib/localeFromCountry";
 
 const ChatWidget = dynamic(() => import("@/components/ChatWidget"), { ssr: false });
 
@@ -90,8 +91,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const step = biz.onboarding_step ?? 5;
         if (step < 5) { router.replace("/onboarding"); return; }
         const bizAny = biz as unknown as Record<string, unknown>;
-        const tz = (bizAny.booking_timezone as string | null) ?? "Asia/Jerusalem";
-        const cur = (bizAny.booking_currency as string | null) ?? "ILS";
+        const tz      = (bizAny.booking_timezone as string | null) ?? "Asia/Jerusalem";
+        // Derive currency from the business's country setting; fall back to
+        // booking_currency if country is absent, then default to ILS.
+        const country = (bizAny.country as string | null) ?? "";
+        const cur     = country
+          ? localeFromCountry(country).currency
+          : ((bizAny.booking_currency as string | null) ?? "ILS");
         setCtx({ businessId: biz.id, businessName: biz.name ?? "My Business", ownerName: biz.owner_name ?? "", email: user.email, timezone: tz, currency: cur });
         // Show invoice onboarding banner for IL businesses that haven't set up their legal details
         if (tz === "Asia/Jerusalem") {

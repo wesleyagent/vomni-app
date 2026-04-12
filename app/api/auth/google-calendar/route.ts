@@ -24,6 +24,13 @@ export async function GET(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const redirectUri = `${origin}/api/auth/callback/google-calendar`;
 
+  // Encode return_to alongside business_id in the OAuth state so the callback
+  // can redirect back to the correct page (e.g. /onboarding) after success.
+  const returnTo = req.nextUrl.searchParams.get("return_to");
+  const state = returnTo
+    ? JSON.stringify({ b: businessId, r: returnTo })
+    : businessId;
+
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: redirectUri,
@@ -31,7 +38,7 @@ export async function GET(req: NextRequest) {
     scope: SCOPES,
     access_type: "offline",
     prompt: "consent",
-    state: businessId, // pass business_id through OAuth state
+    state,
   });
 
   return NextResponse.redirect(`${GOOGLE_AUTH_URL}?${params.toString()}`);
