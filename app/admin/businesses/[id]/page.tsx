@@ -102,11 +102,12 @@ export default function AdminBusinessView() {
   const router  = useRouter();
   const id      = params.id as string;
 
-  const [biz,      setBiz]      = useState<Business | null>(null);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [stats,    setStats]    = useState<Stats | null>(null);
-  const [loading,  setLoading]  = useState(true);
-  const [search,   setSearch]   = useState("");
+  const [biz,          setBiz]          = useState<Business | null>(null);
+  const [bookings,     setBookings]     = useState<Booking[]>([]);
+  const [stats,        setStats]        = useState<Stats | null>(null);
+  const [loading,      setLoading]      = useState(true);
+  const [search,       setSearch]       = useState("");
+  const [impersonating, setImpersonating] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/businesses/${id}`)
@@ -141,6 +142,29 @@ export default function AdminBusinessView() {
     );
   }
 
+  async function handleImpersonate() {
+    if (!biz) return;
+    setImpersonating(true);
+    try {
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ business_id: biz.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.link) {
+        alert(data.error ?? "Failed to generate access link");
+        return;
+      }
+      // Open the magic link in a new tab — logs in as the customer
+      window.open(data.link, "_blank");
+    } catch {
+      alert("Failed to generate access link");
+    } finally {
+      setImpersonating(false);
+    }
+  }
+
   const planLabel = biz.plan === "pro" ? "Pro ★" : biz.plan === "growth" ? "Growth" : biz.plan === "starter" ? "Starter" : (biz.plan ?? "Unknown");
   const planBg    = biz.plan === "pro" ? "rgba(245,166,35,0.15)" : biz.plan === "growth" ? "rgba(0,200,150,0.12)" : "#F3F4F6";
   const planColor = biz.plan === "pro" ? "#F5A623" : biz.plan === "growth" ? "#00C896" : "#6B7280";
@@ -163,6 +187,19 @@ export default function AdminBusinessView() {
             <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 26, fontWeight: 800, color: N, margin: 0 }}>
               {biz.name ?? "Unnamed Business"}
             </h1>
+            <button
+              onClick={handleImpersonate}
+              disabled={impersonating}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "6px 14px", borderRadius: 9999,
+                background: impersonating ? "#D1D5DB" : N,
+                color: "#fff", border: "none", cursor: impersonating ? "not-allowed" : "pointer",
+                fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600,
+              }}
+            >
+              {impersonating ? "Opening…" : "🔑 Access Account"}
+            </button>
             <span style={{ padding: "4px 12px", borderRadius: 9999, fontSize: 12, fontWeight: 600, background: planBg, color: planColor }}>
               {planLabel}
             </span>
