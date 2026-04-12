@@ -49,7 +49,7 @@ interface Props {
 
 function fmtDate(iso: string, tz: string): string {
   try {
-    return new Date(iso).toLocaleDateString("en-GB", {
+    return new Date(iso.substring(0, 19)).toLocaleDateString("en-GB", {
       weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: tz,
     });
   } catch {
@@ -59,7 +59,7 @@ function fmtDate(iso: string, tz: string): string {
 
 function fmtDateHe(iso: string, tz: string): string {
   try {
-    return new Date(iso).toLocaleDateString("he-IL", {
+    return new Date(iso.substring(0, 19)).toLocaleDateString("he-IL", {
       weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: tz,
     });
   } catch {
@@ -69,7 +69,7 @@ function fmtDateHe(iso: string, tz: string): string {
 
 function fmtTime(iso: string, tz: string): string {
   try {
-    return new Date(iso).toLocaleTimeString("en-GB", {
+    return new Date(iso.substring(0, 19)).toLocaleTimeString("en-GB", {
       hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz,
     });
   } catch {
