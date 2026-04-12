@@ -45,7 +45,8 @@ function AlreadyCancelled({ businessName }: { businessName: string }) {
   );
 }
 
-function ReviewOnly({ businessName, googleReviewLink }: { businessName: string; googleReviewLink: string | null }) {
+function ReviewOnly({ businessId, businessName, customerName }: { businessId: string; businessName: string; customerName: string }) {
+  const reviewUrl = `/review-invite/${businessId}?name=${encodeURIComponent(customerName)}`;
   return (
     <Shell>
       <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
@@ -53,22 +54,18 @@ function ReviewOnly({ businessName, googleReviewLink }: { businessName: string; 
         We hope you enjoyed your visit!
       </h1>
       <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280", marginBottom: 24 }}>
-        מקווים שנהנית מהביקור ב-{businessName}!
+        We&apos;d love to hear how it went at {businessName}.
       </p>
-      {googleReviewLink && (
-        <a
-          href={googleReviewLink}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            display: "inline-block", background: G, color: "#fff", textDecoration: "none",
-            fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700,
-            padding: "14px 28px", borderRadius: 9999,
-          }}
-        >
-          Leave us a review →
-        </a>
-      )}
+      <a
+        href={reviewUrl}
+        style={{
+          display: "inline-block", background: G, color: "#fff", textDecoration: "none",
+          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700,
+          padding: "14px 28px", borderRadius: 9999,
+        }}
+      >
+        Leave us a review →
+      </a>
     </Shell>
   );
 }
@@ -84,7 +81,7 @@ export default async function ManagePage({
 
   const { data: booking } = await supabaseAdmin
     .from("bookings")
-    .select("id, customer_name, service_name, service_duration_minutes, appointment_at, status, staff_id, service_id, services(name, name_he), staff(name, name_he), businesses(name, google_review_link, booking_slug, booking_timezone, booking_buffer_minutes)")
+    .select("id, business_id, customer_name, service_name, service_duration_minutes, appointment_at, status, staff_id, service_id, services(name, name_he), staff(name, name_he), businesses(name, google_review_link, booking_slug, booking_timezone, booking_buffer_minutes)")
     .eq("cancellation_token", token)
     .maybeSingle();
 
@@ -108,8 +105,9 @@ export default async function ManagePage({
   if (booking.status === "completed" || booking.status === "no_show") {
     return (
       <ReviewOnly
+        businessId={(booking.business_id as string) ?? ""}
         businessName={biz?.name ?? ""}
-        googleReviewLink={biz?.google_review_link ?? null}
+        customerName={booking.customer_name ?? ""}
       />
     );
   }
