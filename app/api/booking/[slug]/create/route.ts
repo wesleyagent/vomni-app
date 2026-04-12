@@ -461,17 +461,19 @@ export async function POST(
   // (the nightly full-rebuild cron is still the source of truth — this is just a fast-path upsert)
   void upsertSingleCustomerProfile(bookingId);
 
-  // Push to Google Calendar — after() keeps the function alive until sync completes
-  // after() is the Next.js-native way to run post-response work in serverless environments.
-  // Promise.resolve().then() was previously used but gets killed when Vercel terminates
-  // the function after the response is sent.
+  // Push to Google Calendar — after() keeps the function alive until sync completes.
+  // On transient failure, retries once after 2s before alerting via Telegram.
   const bizId = business.id;
   after(async () => {
     try {
-      const result = await syncBookingToGoogle(bizId, bookingId);
+      let result = await syncBookingToGoogle(bizId, bookingId);
+      if (!result.success && !result.skipped) {
+        await new Promise(r => setTimeout(r, 2000));
+        result = await syncBookingToGoogle(bizId, bookingId);
+      }
       if (!result.success && !result.skipped) {
         await sendTelegramAlert(
-          `📅 <b>Google Calendar sync failed</b>\n` +
+          `📅 <b>Google Calendar sync failed (2/2 attempts)</b>\n` +
           `<b>Business:</b> ${bizId}\n<b>Booking:</b> ${bookingId}\n` +
           `<b>Error:</b> ${result.error ?? "unknown"}`
         );
@@ -486,13 +488,17 @@ export async function POST(
     }
   });
 
-  // Push to Microsoft Calendar
+  // Push to Microsoft Calendar — same retry pattern
   after(async () => {
     try {
-      const result = await syncBookingToMicrosoft(bizId, bookingId);
+      let result = await syncBookingToMicrosoft(bizId, bookingId);
+      if (!result.success && !result.skipped) {
+        await new Promise(r => setTimeout(r, 2000));
+        result = await syncBookingToMicrosoft(bizId, bookingId);
+      }
       if (!result.success && !result.skipped) {
         await sendTelegramAlert(
-          `📅 <b>Microsoft Calendar sync failed</b>\n` +
+          `📅 <b>Microsoft Calendar sync failed (2/2 attempts)</b>\n` +
           `<b>Business:</b> ${bizId}\n<b>Booking:</b> ${bookingId}\n` +
           `<b>Error:</b> ${result.error ?? "unknown"}`
         );
