@@ -191,32 +191,70 @@ export async function POST(
       p_service_price: service.price ?? null,
     });
 
-    if (rpcErr) {
-      console.error("[booking/create] RPC error:", {
+    if (!rpcErr) {
+      const result = rpcResult as { success: boolean; error?: string; booking_id?: string };
+      if (!result.success) {
+        return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
+      }
+      bookingId = result.booking_id!;
+
+      // Immediately overwrite customer_phone with display value and store encrypted
+      await supabaseAdmin.from("bookings").update({
+        customer_phone:           phoneDisplay,
+        phone_display:            phoneDisplay,
+        customer_phone_encrypted: phoneEncrypted,
+        ...(useEmailChannel ? { sms_status: "suppressed" } : {}),
+      }).eq("id", bookingId);
+    } else {
+      // RPC unavailable — fall back to direct insert.
+      // The unique index (bookings_slot_unique) still prevents double-booking.
+      console.error("[booking/create] RPC error — falling back to direct insert:", {
         message: rpcErr.message,
         code:    (rpcErr as any).code,
         details: (rpcErr as any).details,
         hint:    (rpcErr as any).hint,
       });
-      return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
-    }
 
-    const result = rpcResult as { success: boolean; error?: string; booking_id?: string };
-    if (!result.success) {
-      return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
-    }
-    bookingId = result.booking_id!;
+      const { data: fallback, error: fbErr } = await supabaseAdmin
+        .from("bookings")
+        .insert({
+          business_id: business.id,
+          staff_id: resolvedStaffId,
+          service_id: service.id,
+          customer_name: customerName,
+          customer_phone:           phoneDisplay,
+          phone_display:            phoneDisplay,
+          customer_phone_encrypted: phoneEncrypted,
+          customer_email: email || null,
+          service: service.name,
+          service_name: service.name,
+          service_duration_minutes: service.duration_minutes,
+          service_price: service.price,
+          appointment_at: appointmentAt,
+          booking_source: "vomni",
+          status: "confirmed",
+          sms_status: useEmailChannel ? "suppressed" : "pending",
+          notes: safeNotes,
+          cancellation_token: cancellationToken,
+          whatsapp_opt_in: whatsapp_opt_in !== false,
+          marketing_consent: marketing_consent === true,
+          whatsapp_status: "pending",
+          reminder_sent: false,
+          confirmation_sent: false,
+          created_at: new Date().toISOString(),
+        })
+        .select("id")
+        .single();
 
-    // Immediately overwrite customer_phone with display value and store encrypted
-    // (the RPC stored the raw phone — we replace it now)
-    // For ILS businesses also suppress SMS so the SMS cron never picks this up —
-    // the customer receives email confirmation instead.
-    await supabaseAdmin.from("bookings").update({
-      customer_phone:           phoneDisplay,
-      phone_display:            phoneDisplay,
-      customer_phone_encrypted: phoneEncrypted,
-      ...(useEmailChannel ? { sms_status: "suppressed" } : {}),
-    }).eq("id", bookingId);
+      if (fbErr || !fallback) {
+        if ((fbErr as any)?.code === "23505") {
+          return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
+        }
+        console.error("[booking/create] fallback insert also failed:", fbErr?.message);
+        return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
+      }
+      bookingId = fallback.id;
+    }
   } else {
     // No staff — direct insert
     const { data: booking, error: insertErr } = await supabaseAdmin
