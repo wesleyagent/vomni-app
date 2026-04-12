@@ -20,11 +20,12 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${settingsUrl}?error=outlook_cancelled`);
   }
 
-  let businessId: string; let staffId: string | null = null;
+  let businessId: string; let staffId: string | null = null; let returnTo: string | null = null;
   try {
     const parsed = JSON.parse(Buffer.from(state, "base64url").toString());
     businessId = parsed.business_id;
-    staffId    = parsed.staff_id ?? null;
+    staffId    = parsed.staff_id  ?? null;
+    returnTo   = parsed.return_to ?? null;
     if (!businessId) throw new Error();
   } catch {
     return NextResponse.redirect(`${settingsUrl}?error=invalid_state`);
@@ -81,5 +82,6 @@ export async function GET(req: NextRequest) {
     outlook_calendar_email:     email,
   }).eq("id", businessId);
 
-  return NextResponse.redirect(`${settingsUrl}?connected=outlook`);
+  const successUrl = returnTo ? `${APP_URL}${returnTo}?connected=outlook` : `${settingsUrl}?connected=outlook`;
+  return NextResponse.redirect(successUrl);
 }

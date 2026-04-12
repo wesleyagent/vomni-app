@@ -846,11 +846,13 @@ function Step6Calendar({
   saving: boolean;
 }) {
   const [gcalConnected, setGcalConnected] = useState(false);
+  const [msConnected,   setMsConnected]   = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const p = new URLSearchParams(window.location.search);
       if (p.get("calendar_connected") === "google") setGcalConnected(true);
+      if (p.get("connected") === "outlook")          setMsConnected(true);
     }
   }, []);
 
@@ -906,20 +908,30 @@ function Step6Calendar({
         </div>
 
         {/* Microsoft Calendar */}
-        <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${BD}`, padding: 24 }}>
+        <div style={{ background: "#fff", borderRadius: 20, border: `1px solid ${msConnected ? "#0072C6" : BD}`, padding: 24, boxShadow: msConnected ? "0 0 0 3px rgba(0,114,198,0.12)" : "none", transition: "all 0.2s" }}>
           <div style={{ width: 44, height: 44, borderRadius: 10, background: "#EFF6FF", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 14, fontSize: 24 }}>🗓️</div>
           <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 16, fontWeight: 700, color: N, margin: "0 0 6px" }}>Microsoft / Outlook</h3>
-          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 16px", lineHeight: 1.5 }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", margin: "0 0 14px", lineHeight: 1.5 }}>
             Sync Vomni bookings to Outlook or Microsoft 365.
           </p>
+          {msConnected ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(0,114,198,0.08)", border: "1px solid rgba(0,114,198,0.3)", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: "#0072C6", marginBottom: 12 }}>
+              <Check size={15} /> Microsoft Calendar connected!
+            </div>
+          ) : (
+            <button
+              onClick={() => { window.location.href = `/api/calendar/outlook/connect?business_id=${bizId}&return_to=/onboarding`; }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, width: "100%", padding: "11px 16px", borderRadius: 9999, background: "#0072C6", color: "#fff", border: "none", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, cursor: "pointer", marginBottom: 14 }}
+            >
+              Connect Microsoft Calendar
+            </button>
+          )}
           <div style={{ background: "#F0F4FF", borderRadius: 10, padding: "12px 14px", fontFamily: "Inter, sans-serif", fontSize: 12, color: "#374151", lineHeight: 1.8 }}>
-            <div style={{ fontWeight: 700, marginBottom: 6, color: N }}>How to connect:</div>
+            <div style={{ fontWeight: 700, marginBottom: 6, color: N }}>What happens after connecting:</div>
             {[
-              "Go to Dashboard → Settings → Calendar",
-              "Click \"Connect Microsoft Calendar\"",
-              "Sign in with your Microsoft account",
-              "Allow Vomni to create calendar events",
-              "New bookings will appear automatically",
+              "New bookings appear in your Outlook calendar automatically",
+              "Outlook events block your availability in Vomni",
+              "No double-bookings ever",
             ].map((step, i) => (
               <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
                 <span style={{ minWidth: 18, height: 18, borderRadius: "50%", background: "#0072C6", color: "#fff", fontWeight: 700, fontSize: 10, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{i + 1}</span>

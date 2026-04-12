@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
   if (!businessId) return NextResponse.json({ error: "Missing business_id" }, { status: 400 });
   if (!CLIENT_ID)  return NextResponse.redirect(`${APP_URL}/dashboard/calendar/settings?error=outlook_not_configured`);
 
-  const state = Buffer.from(JSON.stringify({ business_id: businessId, staff_id: staffId })).toString("base64url");
+  const returnTo = searchParams.get("return_to") ?? null;
+  const state = Buffer.from(JSON.stringify({ business_id: businessId, staff_id: staffId, return_to: returnTo })).toString("base64url");
 
   const url = new URL(`https://login.microsoftonline.com/${TENANT_ID}/oauth2/v2.0/authorize`);
   url.searchParams.set("client_id",     CLIENT_ID);
