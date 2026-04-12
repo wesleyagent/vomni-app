@@ -26,10 +26,10 @@ export default async function ReviewInvitePage({
       .is("clicked_at", null);
   }
 
-  // Fetch business data
+  // Fetch business data — google_review_link is the correct column
   const { data: biz } = await supabaseAdmin
     .from("businesses")
-    .select("name, google_maps_url")
+    .select("name, google_review_link, owner_name, booking_slug, booking_enabled")
     .eq("id", business_id)
     .single();
 
@@ -37,7 +37,10 @@ export default async function ReviewInvitePage({
     <ReviewGatingClient
       businessId={business_id}
       businessName={biz?.name ?? ""}
-      googleMapsUrl={biz?.google_maps_url ?? null}
+      googleReviewLink={biz?.google_review_link ?? null}
+      ownerName={biz?.owner_name ?? null}
+      bookingSlug={biz?.booking_slug ?? null}
+      bookingEnabled={biz?.booking_enabled ?? false}
       customerName={name ?? null}
       bookingId={booking_id ?? null}
     />

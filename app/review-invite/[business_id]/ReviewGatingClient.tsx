@@ -2,236 +2,374 @@
 
 import { useState } from "react";
 
-const G = "#00C896";
-const N = "#0A0F1E";
+const G  = "#00C896";
+const N  = "#0A0F1E";
+const BD = "#E5E7EB";
 
 interface Props {
-  businessId:    string;
-  businessName:  string;
-  googleMapsUrl: string | null;
-  customerName:  string | null;
-  bookingId:     string | null;
+  businessId:     string;
+  businessName:   string;
+  googleReviewLink: string | null;
+  ownerName:      string | null;
+  bookingSlug:    string | null;
+  bookingEnabled: boolean;
+  customerName:   string | null;  // pre-filled if passed via URL
+  bookingId:      string | null;
 }
 
-type Stage = "rating" | "feedback" | "done";
+type Screen = "name_phone" | "rating" | "google" | "private" | "done";
+
+function first(name: string | null | undefined) {
+  return name?.trim().split(" ")[0] || "there";
+}
+
+const card: React.CSSProperties = {
+  background: "#fff",
+  borderRadius: 20,
+  padding: "32px 24px 28px",
+  boxShadow: "0 2px 20px rgba(0,0,0,0.07)",
+};
+
+function Tick() {
+  return (
+    <div style={{ display: "flex", justifyContent: "center", marginBottom: 20 }}>
+      <div style={{ width: 68, height: 68, borderRadius: "50%", background: "rgba(0,200,150,0.1)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+          <path d="M7 17l6.5 6.5 12.5-12.5" stroke={G} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      </div>
+    </div>
+  );
+}
 
 export default function ReviewGatingClient({
   businessId,
   businessName,
-  googleMapsUrl,
-  customerName,
+  googleReviewLink,
+  ownerName,
+  bookingSlug,
+  bookingEnabled,
+  customerName: initialName,
   bookingId,
 }: Props) {
-  const [stage, setStage]               = useState<Stage>("rating");
-  const [hoveredStar, setHoveredStar]   = useState(0);
-  const [selectedRating, setRating]     = useState(0);
-  const [feedbackText, setFeedbackText] = useState("");
-  const [feedbackSaved, setFeedbackSaved] = useState(false);
-  const [saving, setSaving]             = useState(false);
+  // If name was passed via URL, skip the name/phone screen
+  const [screen, setScreen]     = useState<Screen>(initialName ? "rating" : "name_phone");
+  const [name,   setName]       = useState(initialName ?? "");
+  const [phone,  setPhone]      = useState("");
+  const [hover,  setHover]      = useState(0);
+  const [rating, setRating]     = useState(0);
+  const [message, setMessage]   = useState("");
+  const [sending, setSending]   = useState(false);
+  const [doneMsg, setDoneMsg]   = useState("");
 
-  const firstName = customerName?.split(" ")[0] ?? null;
+  const fname    = first(name);
+  const ownerFirst = first(ownerName);
 
-  async function saveFeedback(rating: number, text?: string) {
+  const labels: Record<number, string> = {
+    1: "We are sorry to hear that",
+    2: "That is not good enough",
+    3: "Thanks for letting us know",
+    4: "Great to hear!",
+    5: "Amazing — thank you!",
+  };
+
+  // Save feedback via API
+  async function saveFeedback(r: number, text?: string) {
     try {
       await fetch("/api/feedback", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           business_id:   businessId,
-          booking_id:    bookingId,
-          rating,
+          booking_id:    bookingId ?? null,
+          rating:        r,
           feedback_text: text ?? null,
-          customer_name: customerName,
+          customer_name: name || null,
+          customer_phone: phone || null,
         }),
       });
-    } catch {
-      // Non-fatal
-    }
+    } catch { /* non-fatal */ }
   }
 
-  async function handleStarClick(rating: number) {
-    setRating(rating);
+  async function handleSubmitRating() {
+    if (!rating) return;
     await saveFeedback(rating);
-    if (rating <= 3) {
-      // Show feedback form for low ratings — but Google button still available after
-      setStage("feedback");
+    if (rating >= 4) {
+      setScreen("google");
     } else {
-      // High rating — go straight to done (Google button shown)
-      setStage("done");
+      setScreen("private");
     }
   }
 
-  async function handleFeedbackSubmit() {
-    if (!feedbackText.trim()) return;
-    setSaving(true);
-    await saveFeedback(selectedRating, feedbackText.trim());
-    setSaving(false);
-    setFeedbackSaved(true);
-    setStage("done");
-  }
-
-  function GoogleButton() {
-    if (!googleMapsUrl) return null;
-    return (
-      <a
-        href={googleMapsUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        style={{
-          display: "inline-flex", alignItems: "center", gap: 8,
-          background: G, color: "#fff", textDecoration: "none",
-          fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700,
-          padding: "14px 28px", borderRadius: 9999, marginTop: 20,
-        }}
-      >
-        <svg width={18} height={18} viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-        Leave a Google Review
-      </a>
-    );
+  async function handleSubmitPrivate() {
+    if (!message.trim()) return;
+    setSending(true);
+    await saveFeedback(rating, message.trim());
+    setSending(false);
+    setDoneMsg(`Sent. ${ownerName || "The team"} at ${businessName} will be in touch.`);
+    setScreen("done");
   }
 
   return (
-    <div style={{
-      fontFamily: "Inter, sans-serif",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      minHeight: "100vh", margin: 0, background: "#F7F8FA", padding: "24px 16px",
-    }}>
-      <div style={{ textAlign: "center", maxWidth: 420, width: "100%" }}>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Inter:wght@400;500;600&display=swap');
+        *, *::before, *::after { box-sizing: border-box; }
+        body { margin: 0; background: #F7F8FA; }
+        .star { transition: color 0.1s, transform 0.1s; cursor: pointer; background: none; border: none; padding: 0; line-height: 1; display: inline-block; }
+        .star:hover  { transform: scale(1.2); }
+        .star:active { transform: scale(0.9); }
+        .btn { transition: opacity 0.15s, transform 0.12s; }
+        .btn:not(:disabled):hover  { opacity: 0.88; transform: translateY(-1px); }
+        .btn:not(:disabled):active { opacity: 1;    transform: translateY(0); }
+        textarea { font-family: Inter,sans-serif; font-size: 15px; resize: vertical; outline: none; }
+        textarea:focus { border-color: ${G} !important; box-shadow: 0 0 0 3px rgba(0,200,150,0.12) !important; }
+        input { font-family: Inter,sans-serif; font-size: 15px; outline: none; }
+        input:focus { border-color: ${G} !important; box-shadow: 0 0 0 3px rgba(0,200,150,0.12) !important; }
+      `}</style>
 
-        {/* Logo */}
-        <div style={{
-          width: 48, height: 48, borderRadius: 12, background: G,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 12px", fontSize: 20, fontWeight: 800, color: "#fff",
-        }}>V</div>
-        <p style={{ fontSize: 11, fontWeight: 600, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: 1, margin: "0 0 32px" }}>
-          Powered by Vomni
-        </p>
+      <div style={{ minHeight: "100vh", background: "#F7F8FA", display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "40px 16px 60px" }}>
+        <div style={{ width: "100%", maxWidth: 480 }}>
 
-        {/* ── Step 1: Star rating ── */}
-        {stage === "rating" && (
-          <>
-            <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800, color: N, margin: "0 0 8px" }}>
-              How was your experience{firstName ? `, ${firstName}` : ""}?
-            </h1>
-            <p style={{ fontSize: 14, color: "#6B7280", margin: "0 0 32px" }}>
-              at {businessName} — tap a star to rate
-            </p>
-            <div style={{ display: "flex", justifyContent: "center", gap: 12 }}>
-              {[1, 2, 3, 4, 5].map(star => (
-                <button
-                  key={star}
-                  onClick={() => handleStarClick(star)}
-                  onMouseEnter={() => setHoveredStar(star)}
-                  onMouseLeave={() => setHoveredStar(0)}
+          {/* ── NAME + PHONE ── */}
+          {screen === "name_phone" && (
+            <div style={card}>
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <p style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, margin: 0 }}>{businessName}</p>
+              </div>
+              <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 6px" }}>
+                How was your visit?
+              </h1>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 24px" }}>
+                Please enter your details so we can follow up if needed.
+              </p>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ display: "block", fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 6 }}>Your name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  placeholder="First and last name"
+                  autoFocus
+                  style={{ width: "100%", padding: "13px 16px", borderRadius: 12, border: `1.5px solid ${BD}`, color: "#111827", background: "#FAFAFA", display: "block" }}
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: "block", fontFamily: "Inter,sans-serif", fontSize: 13, fontWeight: 600, color: N, marginBottom: 6 }}>Your phone number</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  placeholder="+44 7700 000000"
+                  style={{ width: "100%", padding: "13px 16px", borderRadius: 12, border: `1.5px solid ${BD}`, color: "#111827", background: "#FAFAFA", display: "block" }}
+                />
+              </div>
+
+              <button
+                type="button"
+                className="btn"
+                onClick={() => { if (name.trim() && phone.trim()) setScreen("rating"); }}
+                disabled={!name.trim() || !phone.trim()}
+                style={{
+                  width: "100%", padding: "15px", borderRadius: 9999,
+                  background: name.trim() && phone.trim() ? G : "#D1D5DB",
+                  color: "#fff", border: "none",
+                  fontFamily: "Inter,sans-serif", fontSize: 16, fontWeight: 600,
+                  cursor: name.trim() && phone.trim() ? "pointer" : "not-allowed", minHeight: 52,
+                }}
+              >
+                Continue →
+              </button>
+            </div>
+          )}
+
+          {/* ── RATING ── */}
+          {screen === "rating" && (
+            <div style={card}>
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <p style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, margin: 0 }}>{businessName}</p>
+              </div>
+              <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 6px" }}>
+                How was your visit{fname !== "there" ? `, ${fname}` : ""}?
+              </h1>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 28px" }}>
+                Tap the stars to rate your experience
+              </p>
+
+              <div style={{ display: "flex", justifyContent: "center", gap: 4, marginBottom: 16 }}>
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    className="star"
+                    onClick={() => setRating(s)}
+                    onMouseEnter={() => setHover(s)}
+                    onMouseLeave={() => setHover(0)}
+                    style={{ fontSize: 44, color: (hover || rating) >= s ? G : "#D1D5DB" }}
+                  >★</button>
+                ))}
+              </div>
+
+              {rating > 0 && (
+                <>
+                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: rating >= 4 ? G : "#6B7280", textAlign: "center", margin: "0 0 20px" }}>
+                    {labels[rating]}
+                  </p>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleSubmitRating}
+                    style={{ width: "100%", padding: "15px", borderRadius: 9999, background: G, color: "#fff", border: "none", fontFamily: "Inter,sans-serif", fontSize: 16, fontWeight: 600, cursor: "pointer", minHeight: 52 }}
+                  >
+                    Submit →
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── GOOGLE (4–5★) ── */}
+          {screen === "google" && (
+            <div style={card}>
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <p style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, margin: 0 }}>{businessName}</p>
+              </div>
+              <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 26, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 8px" }}>
+                Thank you, {fname}! 🙏
+              </h1>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 15, color: "#6B7280", textAlign: "center", margin: "0 0 28px", lineHeight: 1.5 }}>
+                We are so glad you had a great experience.
+              </p>
+
+              {googleReviewLink && (
+                <a
+                  href={googleReviewLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn"
                   style={{
-                    background: "none", border: "none", cursor: "pointer", padding: 4,
-                    transform: hoveredStar >= star ? "scale(1.15)" : "scale(1)",
-                    transition: "transform 0.15s ease",
+                    display: "block", width: "100%", padding: "16px",
+                    backgroundColor: G, color: "#fff", border: "none",
+                    textAlign: "center", borderRadius: "9999px",
+                    fontSize: "16px", fontWeight: "700",
+                    fontFamily: "'Bricolage Grotesque', sans-serif",
+                    textDecoration: "none", boxSizing: "border-box",
                   }}
                 >
-                  <svg width={48} height={48} viewBox="0 0 24 24" fill="none">
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      fill={star <= (hoveredStar || selectedRating) ? "#FBBF24" : "#E5E7EB"}
-                      stroke={star <= (hoveredStar || selectedRating) ? "#F59E0B" : "#D1D5DB"}
-                      strokeWidth={1}
-                    />
-                  </svg>
-                </button>
-              ))}
+                  Leave us a Google review ★
+                </a>
+              )}
+
+              <div style={{ marginTop: "16px", textAlign: "center" }}>
+                <a
+                  href="#"
+                  onClick={e => { e.preventDefault(); setScreen("private"); }}
+                  style={{ fontSize: "11px", color: "#9CA3AF", textDecoration: "underline", fontFamily: "Inter, sans-serif", cursor: "pointer" }}
+                >
+                  Send us a private message instead
+                </a>
+              </div>
+
+              {bookingEnabled && bookingSlug && (
+                <div style={{ marginTop: 24, paddingTop: 20, borderTop: `1px solid ${BD}` }}>
+                  <a
+                    href={`/book/${bookingSlug}`}
+                    style={{ display: "block", textAlign: "center", fontFamily: "Inter,sans-serif", fontSize: 14, color: G, fontWeight: 600, textDecoration: "none" }}
+                  >
+                    📅 Book your next visit →
+                  </a>
+                </div>
+              )}
             </div>
-          </>
-        )}
+          )}
 
-        {/* ── Step 2: Feedback form (1–3 stars only) ── */}
-        {stage === "feedback" && (
-          <>
-            <div style={{
-              width: 64, height: 64, borderRadius: "50%", background: "#FEF3C7",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 20px", fontSize: 28,
-            }}>😕</div>
-            <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 800, color: N, margin: "0 0 8px" }}>
-              We&apos;re sorry to hear that.
-            </h2>
-            <p style={{ fontSize: 14, color: "#6B7280", margin: "0 0 20px" }}>
-              Tell us what happened so we can improve — then you can also leave a Google review below.
-            </p>
-            <textarea
-              value={feedbackText}
-              onChange={e => setFeedbackText(e.target.value)}
-              placeholder="Tell us what happened..."
-              rows={4}
-              autoFocus
-              style={{
-                width: "100%", borderRadius: 12, border: "1px solid #D1D5DB",
-                padding: "12px 14px", fontSize: 14, resize: "none", boxSizing: "border-box",
-                fontFamily: "Inter, sans-serif", outline: "none",
-              }}
-            />
-            <button
-              onClick={handleFeedbackSubmit}
-              disabled={!feedbackText.trim() || saving}
-              style={{
-                marginTop: 12, width: "100%",
-                background: feedbackText.trim() && !saving ? N : "#D1D5DB",
-                color: "#fff", border: "none", borderRadius: 9999,
-                padding: "14px 0", fontSize: 15, fontWeight: 700,
-                cursor: feedbackText.trim() && !saving ? "pointer" : "not-allowed",
-                fontFamily: "'Bricolage Grotesque', sans-serif", transition: "background 0.15s",
-              }}
-            >
-              {saving ? "Sending…" : "Send Feedback"}
-            </button>
-
-            {/* Google button always available even before submitting feedback */}
-            <div style={{ marginTop: 8, borderTop: "1px solid #E5E7EB", paddingTop: 20 }}>
-              <p style={{ fontSize: 12, color: "#9CA3AF", margin: "0 0 4px" }}>
-                Or skip straight to Google:
+          {/* ── PRIVATE (1–3★ or chose private from positive) ── */}
+          {screen === "private" && (
+            <div style={card}>
+              <div style={{ textAlign: "center", marginBottom: 24 }}>
+                <p style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, margin: 0 }}>{businessName}</p>
+              </div>
+              <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 8px" }}>
+                I&apos;d like to personally make this right.
+              </h1>
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
+                Your message goes directly to my personal inbox. I aim to resolve all concerns within 24 business hours.
               </p>
-              <GoogleButton />
-            </div>
-          </>
-        )}
 
-        {/* ── Step 3: Done ── */}
-        {stage === "done" && (
-          <>
-            <div style={{
-              width: 64, height: 64, borderRadius: "50%",
-              background: selectedRating >= 4 ? "#ECFDF5" : "#F0FDF4",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              margin: "0 auto 20px",
-            }}>
-              {selectedRating >= 4
-                ? <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-                : <span style={{ fontSize: 28 }}>🙏</span>
-              }
+              <textarea
+                value={message}
+                onChange={e => setMessage(e.target.value)}
+                placeholder="Please tell me what happened and how I can fix it for you today..."
+                style={{ width: "100%", minHeight: 140, padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${BD}`, color: "#111827", background: "#FAFAFA", display: "block", marginBottom: 16 }}
+              />
+
+              <button
+                type="button"
+                className="btn"
+                onClick={handleSubmitPrivate}
+                disabled={sending || !message.trim()}
+                style={{
+                  width: "100%", padding: "15px", borderRadius: 9999,
+                  background: message.trim() ? N : "#D1D5DB",
+                  color: "#fff", border: "none",
+                  fontFamily: "Inter,sans-serif", fontSize: 16, fontWeight: 600,
+                  cursor: message.trim() ? "pointer" : "not-allowed",
+                  minHeight: 52, opacity: sending ? 0.7 : 1,
+                }}
+              >
+                {sending ? "Sending..." : `Send directly to ${ownerFirst} →`}
+              </button>
+
+              {/* Google review option — always available */}
+              {googleReviewLink && (
+                <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: `1px solid ${BD}` }}>
+                  <a
+                    href={googleReviewLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn"
+                    style={{
+                      display: "block", width: "100%", padding: "16px",
+                      backgroundColor: G, color: "#fff", border: "none",
+                      textAlign: "center", borderRadius: "9999px",
+                      fontSize: "16px", fontWeight: "700",
+                      fontFamily: "'Bricolage Grotesque', sans-serif",
+                      textDecoration: "none", boxSizing: "border-box",
+                    }}
+                  >
+                    Leave us a Google review ★
+                  </a>
+                </div>
+              )}
             </div>
-            <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 800, color: N, margin: "0 0 8px" }}>
-              {selectedRating >= 4 ? `Glad you enjoyed it${firstName ? `, ${firstName}` : ""}!` : "Thank you for your feedback."}
-            </h2>
-            <p style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6, margin: "0 0 4px" }}>
-              {selectedRating >= 4
-                ? `Would you mind sharing your experience on Google? It helps others find ${businessName}.`
-                : feedbackSaved
-                  ? `We've received your feedback and will look into it. You can also share your experience on Google below.`
-                  : `You can share your experience on Google below.`
-              }
-            </p>
-            <GoogleButton />
-            {!googleMapsUrl && (
-              <p style={{ fontSize: 13, color: "#9CA3AF", marginTop: 16 }}>
-                We really appreciate your visit to {businessName}!
+          )}
+
+          {/* ── DONE ── */}
+          {screen === "done" && (
+            <div style={{ ...card, textAlign: "center", padding: "52px 24px" }}>
+              <Tick />
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 16, color: "#374151", margin: "0 0 24px", lineHeight: 1.7 }}>
+                {doneMsg}
               </p>
-            )}
-          </>
-        )}
+              {bookingEnabled && bookingSlug && (
+                <a
+                  href={`/book/${bookingSlug}`}
+                  style={{ display: "inline-block", padding: "13px 28px", background: G, color: "#fff", borderRadius: 9999, fontFamily: "Inter,sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none" }}
+                >
+                  Book your next visit →
+                </a>
+              )}
+            </div>
+          )}
 
+          <p style={{ textAlign: "right", fontSize: 11, color: "rgba(0,0,0,0.08)", marginTop: 16, fontFamily: "Inter,sans-serif" }}>
+            Powered by Vomni
+          </p>
+
+        </div>
       </div>
-    </div>
+    </>
   );
 }
