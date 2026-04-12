@@ -215,8 +215,6 @@ export async function POST(
         hint:    (rpcErr as any).hint,
       });
 
-      // Use only columns guaranteed to exist in every production schema.
-      // Encrypted phone / display are patched in a follow-up update (below).
       const { data: fallback, error: fbErr } = await supabaseAdmin
         .from("bookings")
         .insert({
@@ -224,7 +222,9 @@ export async function POST(
           staff_id: resolvedStaffId,
           service_id: service.id,
           customer_name: customerName,
-          customer_phone: phoneDisplay,
+          customer_phone:           phoneDisplay,
+          phone_display:            phoneDisplay,
+          customer_phone_encrypted: phoneEncrypted,
           customer_email: email || null,
           service: service.name,
           service_name: service.name,
@@ -236,6 +236,9 @@ export async function POST(
           sms_status: useEmailChannel ? "suppressed" : "pending",
           notes: safeNotes,
           cancellation_token: cancellationToken,
+          whatsapp_opt_in: whatsapp_opt_in !== false,
+          marketing_consent: marketing_consent === true,
+          whatsapp_status: "pending",
           reminder_sent: false,
           confirmation_sent: false,
           created_at: new Date().toISOString(),
@@ -247,18 +250,14 @@ export async function POST(
         if ((fbErr as any)?.code === "23505") {
           return NextResponse.json({ error: "This time slot is no longer available" }, { status: 409 });
         }
-        console.error("[booking/create] fallback insert also failed:", fbErr?.message);
-        const dbg = fbErr ? `[${(fbErr as any).code}] ${fbErr.message}` : "no data returned";
-        return NextResponse.json({ error: `Failed to create booking: ${dbg}` }, { status: 500 });
+        console.error("[booking/create] fallback insert also failed:", {
+          message: fbErr?.message,
+          code:    (fbErr as any)?.code,
+          details: (fbErr as any)?.details,
+        });
+        return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
       }
       bookingId = fallback.id;
-
-      // Best-effort: patch encrypted phone columns if they exist in the schema
-      await supabaseAdmin.from("bookings").update({
-        customer_phone:           phoneDisplay,
-        phone_display:            phoneDisplay,
-        customer_phone_encrypted: phoneEncrypted,
-      }).eq("id", bookingId).then(() => {}, () => {});
     }
   } else {
     // No staff — direct insert
@@ -303,8 +302,7 @@ export async function POST(
         details: (insertErr as any)?.details,
         hint:    (insertErr as any)?.hint,
       });
-      const dbg2 = insertErr ? `[${(insertErr as any).code}] ${insertErr.message}` : "no data returned";
-      return NextResponse.json({ error: `Failed to create booking: ${dbg2}` }, { status: 500 });
+      return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
     }
     bookingId = booking.id;
   }
