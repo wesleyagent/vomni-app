@@ -19,9 +19,11 @@ export async function POST(
 ) {
   const { slug } = await params;
 
-  // Rate limit: 5 bookings per IP per hour (global — enforced across all instances)
+  // Rate limit per IP — raised to 50/hr to avoid false positives on mobile
+  // networks where thousands of users share a single IP via CGNAT.
+  // The per-phone limit (3/hr) is the real abuse gate.
   const ip = getClientIP(req);
-  if (!await checkRateLimitGlobal(`booking:ip:${ip}`, 5, 3600)) {
+  if (!await checkRateLimitGlobal(`booking:ip:${ip}`, 50, 3600)) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
