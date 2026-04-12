@@ -45,8 +45,7 @@ function AlreadyCancelled({ businessName }: { businessName: string }) {
   );
 }
 
-function ReviewOnly({ businessId, businessName, customerName }: { businessId: string; businessName: string; customerName: string }) {
-  const reviewUrl = `/review-invite/${businessId}?name=${encodeURIComponent(customerName)}`;
+function ReviewOnly({ bookingId, businessName }: { bookingId: string; businessName: string }) {
   return (
     <Shell>
       <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
@@ -57,7 +56,7 @@ function ReviewOnly({ businessId, businessName, customerName }: { businessId: st
         We&apos;d love to hear how it went at {businessName}.
       </p>
       <a
-        href={reviewUrl}
+        href={`/r/${bookingId}`}
         style={{
           display: "inline-block", background: G, color: "#fff", textDecoration: "none",
           fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 15, fontWeight: 700,
@@ -105,9 +104,8 @@ export default async function ManagePage({
   if (booking.status === "completed" || booking.status === "no_show") {
     return (
       <ReviewOnly
-        businessId={(booking.business_id as string) ?? ""}
+        bookingId={booking.id}
         businessName={biz?.name ?? ""}
-        customerName={booking.customer_name ?? ""}
       />
     );
   }
