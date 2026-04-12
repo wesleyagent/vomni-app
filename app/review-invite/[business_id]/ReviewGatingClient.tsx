@@ -106,6 +106,15 @@ export default function ReviewGatingClient({
     }
   }
 
+  function handleGoogleClick() {
+    // Fire-and-forget — track redirect for dashboard analytics
+    fetch("/api/feedback", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ business_id: businessId, customer_name: name || null }),
+    }).catch(() => null);
+  }
+
   async function handleSubmitPrivate() {
     if (!message.trim()) return;
     setSending(true);
@@ -254,6 +263,7 @@ export default function ReviewGatingClient({
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn"
+                  onClick={handleGoogleClick}
                   style={{
                     display: "block", width: "100%", padding: "16px",
                     backgroundColor: G, color: "#fff", border: "none",
@@ -348,6 +358,7 @@ export default function ReviewGatingClient({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn"
+                    onClick={handleGoogleClick}
                     style={{
                       display: "block", width: "100%", padding: "16px",
                       backgroundColor: G, color: "#fff", border: "none",
