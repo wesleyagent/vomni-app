@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   // 1. Call atomic RPC — re-checks availability server-side at the moment of submission
   const rpcParams: Record<string, unknown> = {
     p_old_token:          token,
-    p_new_appointment_at: new_appointment_at,
+    p_new_appointment_at: `${new_appointment_at}+00:00`,
     p_buffer_minutes:     bufferMinutes,
   };
   if (new_staff_id) rpcParams.p_new_staff_id = new_staff_id;

@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendBusinessPushNotification } from "@/lib/push";
+import { removeBookingFromGoogle } from "@/lib/google-calendar-sync";
+import { removeBookingFromMicrosoft } from "@/lib/microsoft-calendar-sync";
 
 // POST /api/booking/cancel-manage
 // Body: { token: string }
@@ -82,6 +84,21 @@ export async function POST(req: NextRequest) {
       data: { type: "cancellation", id: booking.id },
     })
   ).catch(e => console.error("[cancel-manage] push failed:", e));
+
+  // Remove from Google Calendar (non-blocking)
+  const cancelledBookingId = booking.id;
+  const cancelledBusinessId = booking.business_id;
+  after(async () => {
+    await removeBookingFromGoogle(cancelledBusinessId, cancelledBookingId).catch(
+      err => console.error("[cancel-manage] google calendar removal failed:", err)
+    );
+  });
+
+  after(async () => {
+    await removeBookingFromMicrosoft(cancelledBusinessId, cancelledBookingId).catch(
+      err => console.error("[cancel-manage] microsoft calendar removal failed:", err)
+    );
+  });
 
   return NextResponse.json({ success: true });
 }

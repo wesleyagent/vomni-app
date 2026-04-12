@@ -190,7 +190,7 @@ export default function ManageClient({ token, booking, business }: Props) {
         setRescheduleError("Sorry, that slot was just taken. Please choose another time.");
         setSelSlot(null);
       } else if (res.ok && data.success) {
-        setRescheduledAt(data.new_appointment_at ?? newAt);
+        setRescheduledAt(newAt);
         setNewToken(data.new_token ?? null);
         setView("rescheduled");
       } else {
