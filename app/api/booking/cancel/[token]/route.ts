@@ -1,8 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendBookingMessage } from "@/lib/twilio";
 import { decryptPhone } from "@/lib/phone";
 import { sendEmail } from "@/lib/email";
+import { removeBookingFromGoogle } from "@/lib/google-calendar-sync";
+import { removeBookingFromMicrosoft } from "@/lib/microsoft-calendar-sync";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
@@ -218,6 +220,21 @@ export async function POST(
       await sendBookingMessage(next.customer_phone, wMsg, business?.whatsapp_enabled ?? false, { businessId: booking.business_id, messageType: "waitlist_notify" });
     }
   }
+
+  // Remove from Google Calendar (non-blocking, with retry suppressed — deletion is best-effort)
+  const cancelledBookingId  = booking.id;
+  const cancelledBusinessId = booking.business_id;
+  after(async () => {
+    await removeBookingFromGoogle(cancelledBusinessId, cancelledBookingId).catch(
+      err => console.error("[booking/cancel] google calendar removal failed:", err)
+    );
+  });
+
+  after(async () => {
+    await removeBookingFromMicrosoft(cancelledBusinessId, cancelledBookingId).catch(
+      err => console.error("[booking/cancel] microsoft calendar removal failed:", err)
+    );
+  });
 
   return NextResponse.json({ success: true });
 }

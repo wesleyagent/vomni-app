@@ -1,10 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendAppointmentConfirmation } from "@/lib/whatsapp";
 import { sendBookingMessage } from "@/lib/twilio";
 import { sendBusinessPushNotification } from "@/lib/push";
 import { decryptPhone } from "@/lib/phone";
 import { sendEmail } from "@/lib/email";
+import { syncBookingToGoogle, removeBookingFromGoogle } from "@/lib/google-calendar-sync";
+import { syncBookingToMicrosoft, removeBookingFromMicrosoft } from "@/lib/microsoft-calendar-sync";
+import { sendTelegramAlert } from "@/lib/telegram";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
@@ -55,6 +58,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Booking not found or not eligible for rescheduling" }, { status: 404 });
   }
 
+  const oldBookingId  = existing.id;
+  const oldBusinessId = existing.business_id;
   const biz = existing.businesses as unknown as { booking_buffer_minutes: number | null } | null;
   const bufferMinutes = biz?.booking_buffer_minutes ?? 0;
 
@@ -202,7 +207,58 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // 6. Manage link for the new booking
+  // 6. Calendar sync — delete old event, create new one (with retry)
+  after(async () => {
+    // Remove old Google event first
+    await removeBookingFromGoogle(oldBusinessId, oldBookingId).catch(() => {});
+    // Create new Google event — retry once on failure
+    try {
+      let result = await syncBookingToGoogle(oldBusinessId, newBookingId);
+      if (!result.success && !result.skipped) {
+        await new Promise(r => setTimeout(r, 2000));
+        result = await syncBookingToGoogle(oldBusinessId, newBookingId);
+      }
+      if (!result.success && !result.skipped) {
+        await sendTelegramAlert(
+          `📅 <b>Google Calendar sync failed after reschedule (2/2 attempts)</b>\n` +
+          `<b>Business:</b> ${oldBusinessId}\n<b>New booking:</b> ${newBookingId}\n` +
+          `<b>Error:</b> ${result.error ?? "unknown"}`
+        );
+      }
+    } catch (err) {
+      await sendTelegramAlert(
+        `📅 <b>Google Calendar reschedule sync exception</b>\n` +
+        `<b>Business:</b> ${oldBusinessId}\n<b>Error:</b> ${String(err).slice(0, 300)}`
+      ).catch(() => {});
+    }
+  });
+
+  after(async () => {
+    // Remove old Microsoft event first
+    await removeBookingFromMicrosoft(oldBusinessId, oldBookingId).catch(() => {});
+    // Create new Microsoft event — retry once on failure
+    try {
+      let result = await syncBookingToMicrosoft(oldBusinessId, newBookingId);
+      if (!result.success && !result.skipped) {
+        await new Promise(r => setTimeout(r, 2000));
+        result = await syncBookingToMicrosoft(oldBusinessId, newBookingId);
+      }
+      if (!result.success && !result.skipped) {
+        await sendTelegramAlert(
+          `📅 <b>Microsoft Calendar sync failed after reschedule (2/2 attempts)</b>\n` +
+          `<b>Business:</b> ${oldBusinessId}\n<b>New booking:</b> ${newBookingId}\n` +
+          `<b>Error:</b> ${result.error ?? "unknown"}`
+        );
+      }
+    } catch (err) {
+      await sendTelegramAlert(
+        `📅 <b>Microsoft Calendar reschedule sync exception</b>\n` +
+        `<b>Business:</b> ${oldBusinessId}\n<b>Error:</b> ${String(err).slice(0, 300)}`
+      ).catch(() => {});
+    }
+  });
+
+  // 7. Manage link for the new booking
   const newManageUrl = `${APP_URL}/manage/${newToken}`;
 
   return NextResponse.json({
