@@ -371,7 +371,7 @@ export async function POST(
       bookingId,
       html: buildOwnerNotifyHtml({
         customerName,
-        phone:       phoneDisplay,
+        phone:       phoneE164,
         service:     service.name,
         duration:    service.duration_minutes,
         price:       service.price ?? null,
@@ -385,35 +385,7 @@ export async function POST(
     }).catch(err => console.error("[booking/create] owner email failed:", err));
   }
 
-  // Confirmation email to customer — if email provided
-  if (email) {
-    sendEmail({
-      to:        email,
-      subject:   `Booking confirmed — ${service.name} at ${business.name}`,
-      type:      "booking_customer_confirm",
-      bookingId,
-      html: buildCustomerConfirmHtml({
-        firstName:    safeFirst,
-        businessName: business.name ?? "your appointment",
-        service:      service.name,
-        duration:     service.duration_minutes,
-        staffName,
-        apptLabel,
-        date, time,
-        icalUrl,
-        cancelUrl,
-        address:      biz.address ?? null,
-        manageUrl:    `${APP_URL}/manage/${cancellationToken}`,
-      }),
-    })
-      .then(result => {
-        if (result.success) {
-          supabaseAdmin.from("bookings").update({ confirmation_sent: true }).eq("id", bookingId)
-            .then(() => {}, () => {});
-        }
-      })
-      .catch(err => console.error("[booking/create] customer email failed:", err));
-  }
+  // Customer confirmation is sent via SMS/WhatsApp — no email to customer
 
   // Notification: new booking (non-blocking, fire and forget)
   void supabaseAdmin.from("notifications").insert({
