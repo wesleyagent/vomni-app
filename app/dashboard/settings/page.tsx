@@ -118,11 +118,16 @@ export default function SettingsPage() {
     e.preventDefault();
     if (!businessId) return;
     setSaving(true);
+    // Normalise Google review link — ensure it has a protocol so it opens externally
+    const normalisedGoogleLink = googleLink.trim()
+      ? googleLink.trim().match(/^https?:\/\//i) ? googleLink.trim() : `https://${googleLink.trim()}`
+      : "";
+
     const ok = await updateBusiness(businessId, {
       name,
       business_type:      bizType,
       owner_name:         ownerName,
-      google_review_link: googleLink,
+      google_review_link: normalisedGoogleLink,
       notification_email: notifEmail,
     });
     showToast(ok ? "Settings saved successfully" : "Failed to save settings", ok ? "success" : "error");

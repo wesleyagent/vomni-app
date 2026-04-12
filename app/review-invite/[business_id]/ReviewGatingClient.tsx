@@ -52,6 +52,11 @@ export default function ReviewGatingClient({
   customerName: initialName,
   bookingId,
 }: Props) {
+  // Normalise google review link — add https:// if protocol is missing
+  const safeGoogleLink = googleReviewLink
+    ? googleReviewLink.match(/^https?:\/\//i) ? googleReviewLink : `https://${googleReviewLink}`
+    : null;
+
   // If name was passed via URL, skip the name/phone screen
   const [screen, setScreen]     = useState<Screen>(initialName ? "rating" : "name_phone");
   const [name,   setName]       = useState(initialName ?? "");
@@ -243,9 +248,9 @@ export default function ReviewGatingClient({
                 We are so glad you had a great experience.
               </p>
 
-              {googleReviewLink && (
+              {safeGoogleLink && (
                 <a
-                  href={googleReviewLink}
+                  href={safeGoogleLink}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn"
@@ -323,10 +328,10 @@ export default function ReviewGatingClient({
               </button>
 
               {/* Google review option — always available */}
-              {googleReviewLink && (
+              {safeGoogleLink && (
                 <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: `1px solid ${BD}` }}>
                   <a
-                    href={googleReviewLink}
+                    href={safeGoogleLink}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn"

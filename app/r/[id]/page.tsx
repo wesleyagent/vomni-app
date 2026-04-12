@@ -108,7 +108,13 @@ export default function RatingPage() {
         }
 
         if (bk)  setBooking(bk);
-        if (biz) setBusiness(biz);
+        if (biz) {
+          // Normalise google_review_link — add https:// if protocol missing
+          if (biz.google_review_link && !biz.google_review_link.match(/^https?:\/\//i)) {
+            biz.google_review_link = `https://${biz.google_review_link}`;
+          }
+          setBusiness(biz);
+        }
         setScreen("rating");
       })
       .catch((err) => {
