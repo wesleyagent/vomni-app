@@ -290,23 +290,36 @@ export default function ReviewGatingClient({
             </div>
           )}
 
-          {/* ── PRIVATE (1–3★ or chose private from positive) ── */}
+          {/* ── PRIVATE (1–3★ = make it right / 4–5★ = positive feedback) ── */}
           {screen === "private" && (
             <div style={card}>
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <p style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, margin: 0 }}>{businessName}</p>
               </div>
-              <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 8px" }}>
-                I&apos;d like to personally make this right.
-              </h1>
-              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
-                Your message goes directly to my personal inbox. I aim to resolve all concerns within 24 business hours.
-              </p>
+              {rating >= 4 ? (
+                <>
+                  <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 8px" }}>
+                    We&apos;d love to hear more! 😊
+                  </h1>
+                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
+                    Your feedback goes directly to {ownerFirst}. Every word helps us keep doing what we love.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 8px" }}>
+                    I&apos;d like to personally make this right.
+                  </h1>
+                  <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
+                    Your message goes directly to my personal inbox. I aim to resolve all concerns within 24 business hours.
+                  </p>
+                </>
+              )}
 
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                placeholder="Please tell me what happened and how I can fix it for you today..."
+                placeholder={rating >= 4 ? "Tell us what you enjoyed or anything we could make even better..." : "Please tell me what happened and how I can fix it for you today..."}
                 style={{ width: "100%", minHeight: 140, padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${BD}`, color: "#111827", background: "#FAFAFA", display: "block", marginBottom: 16 }}
               />
 
@@ -324,7 +337,7 @@ export default function ReviewGatingClient({
                   minHeight: 52, opacity: sending ? 0.7 : 1,
                 }}
               >
-                {sending ? "Sending..." : `Send directly to ${ownerFirst} →`}
+                {sending ? "Sending..." : rating >= 4 ? `Send to ${ownerFirst} →` : `Send directly to ${ownerFirst} →`}
               </button>
 
               {/* Google review option — always available */}

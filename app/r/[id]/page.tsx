@@ -455,16 +455,16 @@ export default function RatingPage() {
             <div style={card}>
               <BizHeader business={business} bizName={bizName} />
               <h1 style={{ fontFamily: "'Bricolage Grotesque',sans-serif", fontSize: 22, fontWeight: 700, color: N, textAlign: "center", margin: "0 0 8px" }}>
-                Send us a message
+                We&apos;d love to hear more! 😊
               </h1>
-              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.5 }}>
-                We will read every word.
+              <p style={{ fontFamily: "Inter,sans-serif", fontSize: 14, color: "#6B7280", textAlign: "center", margin: "0 0 20px", lineHeight: 1.6 }}>
+                Your feedback goes directly to {first(business?.owner_name)}. Every word helps us keep doing what we love.
               </p>
 
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                placeholder="Tell us about your experience..."
+                placeholder="Tell us what you enjoyed or anything we could make even better..."
                 style={{ width: "100%", minHeight: 140, padding: "14px 16px", borderRadius: 12, border: `1.5px solid ${BD}`, color: "#111827", background: "#FAFAFA", display: "block", marginBottom: 16 }}
               />
 
@@ -482,7 +482,7 @@ export default function RatingPage() {
                   minHeight: 52, opacity: sending ? 0.7 : 1,
                 }}
               >
-                {sending ? "Sending..." : "Send message →"}
+                {sending ? "Sending..." : `Send to ${first(business?.owner_name)} →`}
               </button>
             </div>
           )}
