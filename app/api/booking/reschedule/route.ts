@@ -3,6 +3,8 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendAppointmentConfirmation } from "@/lib/whatsapp";
 import { sendBookingMessage } from "@/lib/twilio";
 import { sendBusinessPushNotification } from "@/lib/push";
+import { decryptPhone } from "@/lib/phone";
+import { sendEmail } from "@/lib/email";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://vomni.io";
 
@@ -102,7 +104,7 @@ export async function POST(req: NextRequest) {
   // 2. Fetch new booking + business for notifications
   const { data: newBooking } = await supabaseAdmin
     .from("bookings")
-    .select("id, business_id, customer_name, customer_phone, service_name, appointment_at, whatsapp_opt_in, businesses(name, booking_slug, booking_timezone)")
+    .select("id, business_id, customer_name, customer_phone, customer_phone_encrypted, service_name, appointment_at, whatsapp_opt_in, businesses(name, booking_slug, booking_timezone, owner_email, notification_email)")
     .eq("id", newBookingId)
     .maybeSingle();
 
@@ -111,6 +113,8 @@ export async function POST(req: NextRequest) {
       name: string | null;
       booking_slug: string | null;
       booking_timezone: string | null;
+      owner_email?: string | null;
+      notification_email?: string | null;
     } | null;
 
     const businessName = business?.name ?? "";
@@ -121,10 +125,17 @@ export async function POST(req: NextRequest) {
     // 3. Send confirmation to customer (WhatsApp or SMS fallback) — non-blocking
     const cancelUrl = `${APP_URL}/cancel/${newToken}`;
     const firstName = (newBooking.customer_name ?? "there").split(" ")[0];
+
+    // Decrypt real phone — customer_phone stores masked display value, unusable for Twilio
+    const encPhone = (newBooking as typeof newBooking & { customer_phone_encrypted?: string }).customer_phone_encrypted;
+    const realPhone = encPhone
+      ? (() => { try { return decryptPhone(encPhone); } catch { return newBooking.customer_phone ?? ""; } })()
+      : (newBooking.customer_phone ?? "");
+
     const smsFallback = () => {
-      if (!newBooking.customer_phone) return;
+      if (!realPhone) return;
       const smsBody = `Hi ${firstName}! ✅ Your ${newBooking.service_name ?? "appointment"} at ${businessName} has been rescheduled to ${date} at ${time}. Cancel: ${cancelUrl}`;
-      void sendBookingMessage(newBooking.customer_phone!, smsBody, false, { businessId: newBooking.business_id, bookingId: newBooking.id, messageType: "reschedule" });
+      void sendBookingMessage(realPhone, smsBody, false, { businessId: newBooking.business_id, bookingId: newBooking.id, messageType: "reschedule" });
     };
 
     if (newBooking.whatsapp_opt_in !== false) {
@@ -134,7 +145,7 @@ export async function POST(req: NextRequest) {
             id:                  newBooking.id,
             business_id:         newBooking.business_id,
             customer_name:       newBooking.customer_name ?? "",
-            customer_phone:      newBooking.customer_phone ?? "",
+            customer_phone:      realPhone,
             appointment_at:      newApptAt,
             service_name:        newBooking.service_name ?? "",
             cancellation_token:  newToken,
@@ -169,6 +180,18 @@ export async function POST(req: NextRequest) {
         data:  { type: "new_booking", id: newBookingId },
       })
     ).catch(e => console.error("[reschedule] push failed:", e));
+
+    // Email business owner
+    const ownerEmail = business?.notification_email ?? business?.owner_email;
+    if (ownerEmail) {
+      sendEmail({
+        to: ownerEmail,
+        subject: `Booking rescheduled: ${newBooking.customer_name} — ${newBooking.service_name} → ${date} at ${time}`,
+        type: "booking_owner_notify",
+        bookingId: newBookingId,
+        html: `<div style="font-family:Inter,sans-serif;background:#F9FAFB;padding:24px;"><div style="max-width:520px;margin:0 auto;"><div style="background:#0A0F1E;border-radius:16px 16px 0 0;padding:20px 32px;"><span style="font-weight:700;font-size:20px;color:#fff;">vomni</span></div><div style="background:#fff;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 16px 16px;padding:28px 32px;"><div style="background:#F59E0B;border-radius:12px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:4px;">Appointment Rescheduled</div><div style="font-size:14px;color:rgba(255,255,255,0.85);">New time: ${date} at ${time}</div></div><table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-size:14px;"><tr><td style="color:#6B7280;border-top:1px solid #F0F0F0;">Customer</td><td style="font-weight:600;border-top:1px solid #F0F0F0;">${newBooking.customer_name ?? ""}</td></tr><tr><td style="color:#6B7280;border-top:1px solid #F0F0F0;">Service</td><td style="font-weight:600;border-top:1px solid #F0F0F0;">${newBooking.service_name ?? ""}</td></tr><tr><td style="color:#6B7280;border-top:1px solid #F0F0F0;">New date</td><td style="font-weight:600;border-top:1px solid #F0F0F0;">${date} at ${time}</td></tr></table></div></div></div>`,
+      }).catch(err => console.error("[reschedule] owner email failed:", err));
+    }
 
     // 5. Audit log
     await supabaseAdmin.from("booking_audit_log").insert({

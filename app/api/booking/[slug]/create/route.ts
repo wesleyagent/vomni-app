@@ -313,7 +313,7 @@ export async function POST(
     .single();
 
   const cancelUrl = `${APP_URL}/cancel/${cancellationToken}`;
-  const icalUrl   = `${APP_URL}/api/booking/${slug}/calendar.ics?booking_id=${bookingId}`;
+  const icalUrl   = `${APP_URL}/api/booking/${slug}/calendar.ics?ct=${cancellationToken}`;
   const apptLabel = new Date(`${appointmentAt}Z`).toLocaleString("en-GB", {
     weekday: "short", year: "numeric", month: "short", day: "numeric",
     hour: "2-digit", minute: "2-digit",

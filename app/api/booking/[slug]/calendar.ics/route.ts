@@ -11,6 +11,58 @@ export async function GET(
 ) {
   const { slug } = await params;
   const token = req.nextUrl.searchParams.get("token");
+  const ct    = req.nextUrl.searchParams.get("ct"); // cancellation token — single-booking customer ICS
+
+  // Single-booking ICS download (customer "Add to Calendar" flow)
+  if (ct) {
+    const { data: b } = await supabaseAdmin
+      .from("bookings")
+      .select("id, customer_name, service_name, service_duration_minutes, appointment_at, notes, customer_phone, customer_phone_encrypted, businesses(name, booking_timezone)")
+      .eq("cancellation_token", ct)
+      .single();
+
+    if (!b) return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+
+    const biz = b.businesses as unknown as { name?: string; booking_timezone?: string } | null;
+    const start = new Date(b.appointment_at);
+    const end   = new Date(start.getTime() + (b.service_duration_minutes ?? 30) * 60000);
+    const fmt = (d: Date) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+    const escape = (s: string) => s.replace(/[\\;,]/g, "\\$&").replace(/\n/g, "\\n");
+
+    let phone = b.customer_phone ?? "";
+    if (b.customer_phone_encrypted) {
+      try { phone = decryptPhone(b.customer_phone_encrypted); } catch { /* keep display value */ }
+    }
+
+    const descParts = [`Phone: ${phone}`, b.notes ? `Notes: ${b.notes}` : null].filter(Boolean).join("\\n");
+
+    const singleIcs = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//Vomni//Appointment//EN",
+      `X-WR-CALNAME:${escape(biz?.name ?? "Appointment")}`,
+      `X-WR-TIMEZONE:${biz?.booking_timezone ?? "Asia/Jerusalem"}`,
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `DTSTART:${fmt(start)}`,
+      `DTEND:${fmt(end)}`,
+      `SUMMARY:${escape(`${b.service_name ?? "Appointment"} — ${biz?.name ?? ""}`.trim())}`,
+      `DESCRIPTION:${escape(descParts)}`,
+      `UID:${b.id}@vomni.io`,
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+
+    return new NextResponse(singleIcs, {
+      headers: {
+        "Content-Type": "text/calendar; charset=utf-8",
+        "Content-Disposition": `attachment; filename="appointment.ics"`,
+        "Cache-Control": "no-cache, no-store",
+      },
+    });
+  }
 
   if (!token) {
     return NextResponse.json({ error: "Missing token" }, { status: 401 });

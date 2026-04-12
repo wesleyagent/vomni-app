@@ -45,7 +45,7 @@ async function handler(req: NextRequest) {
 
     const { data: biz } = await supabaseAdmin
       .from("businesses")
-      .select("name, booking_slug, whatsapp_enabled, booking_currency, locale")
+      .select("name, booking_slug, whatsapp_enabled, booking_currency, locale, owner_email, notification_email")
       .eq("id", booking.business_id)
       .single();
 
@@ -102,6 +102,21 @@ async function handler(req: NextRequest) {
         .from("bookings")
         .update({ sms_status: "noshow_sms_sent" })
         .eq("id", booking.id);
+
+      // Email business owner — non-blocking
+      const ownerEmail = (biz as typeof biz & { notification_email?: string; owner_email?: string })?.notification_email
+        ?? (biz as typeof biz & { owner_email?: string })?.owner_email;
+      if (ownerEmail) {
+        const apptDate = booking.appointment_at?.substring(0, 10) ?? "";
+        const apptTime = booking.appointment_at?.substring(11, 16) ?? "";
+        sendEmail({
+          to: ownerEmail,
+          subject: `No-show: ${booking.customer_name} — ${booking.service_name} on ${apptDate} at ${apptTime}`,
+          type: "booking_owner_notify",
+          bookingId: booking.id,
+          html: `<div style="font-family:Inter,sans-serif;background:#F9FAFB;padding:24px;"><div style="max-width:520px;margin:0 auto;"><div style="background:#0A0F1E;border-radius:16px 16px 0 0;padding:20px 32px;"><span style="font-weight:700;font-size:20px;color:#fff;">vomni</span></div><div style="background:#fff;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 16px 16px;padding:28px 32px;"><div style="background:#6B7280;border-radius:12px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:4px;">No-Show</div><div style="font-size:14px;color:rgba(255,255,255,0.85);">${apptDate} at ${apptTime}</div></div><table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-size:14px;"><tr><td style="color:#6B7280;border-top:1px solid #F0F0F0;">Customer</td><td style="font-weight:600;border-top:1px solid #F0F0F0;">${booking.customer_name ?? ""}</td></tr><tr><td style="color:#6B7280;border-top:1px solid #F0F0F0;">Service</td><td style="font-weight:600;border-top:1px solid #F0F0F0;">${booking.service_name ?? ""}</td></tr></table><p style="font-size:13px;color:#6B7280;margin-top:16px;">A re-engagement SMS has been sent to the customer.</p></div></div></div>`,
+        }).catch(err => console.error("[cron/no-show] owner email failed:", err));
+      }
 
       await supabaseAdmin.from("booking_audit_log").insert({
         booking_id: booking.id,
