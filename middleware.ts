@@ -46,23 +46,6 @@ export function middleware(request: NextRequest) {
         "[middleware] cf-ipcountry header absent — Cloudflare proxy may not be active. " +
         "Falling back to Accept-Language for Hebrew detection."
       );
-      // Fire-and-forget: log warning to DB + Telegram (rate-limited to once/hr)
-      const secret = process.env.CRON_SECRET ?? "";
-      if (secret) {
-        const origin = request.nextUrl.origin;
-        fetch(`${origin}/api/internal/system-warn`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${secret}`,
-          },
-          body: JSON.stringify({
-            name: "cf-ipcountry-missing",
-            detail: "cf-ipcountry header absent — Cloudflare proxy may not be active. Locale detection fell back to Accept-Language.",
-            path: pathname,
-          }),
-        }).catch(() => { /* never block the response */ });
-      }
     }
 
     // Determine if user is in Israel:
