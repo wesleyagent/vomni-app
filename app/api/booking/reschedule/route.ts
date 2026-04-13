@@ -124,8 +124,8 @@ export async function POST(req: NextRequest) {
 
     const businessName = business?.name ?? "";
     const tz = business?.booking_timezone ?? "Asia/Jerusalem";
-    const date = new Date(newApptAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: tz });
-    const time = new Date(newApptAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz });
+    const date = new Date(newApptAt.substring(0, 19)).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: tz });
+    const time = new Date(newApptAt.substring(0, 19)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz });
 
     // 3. Send confirmation to customer (WhatsApp or SMS fallback) — non-blocking
     const manageUrl = `${APP_URL}/manage/${newToken}`;
