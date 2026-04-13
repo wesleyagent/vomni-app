@@ -75,6 +75,11 @@ export default function PrivacyPage() {
         <h1 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 40, fontWeight: 800, color: N, marginBottom: 16 }}>
           Privacy Policy
         </h1>
+        {process.env.NEXT_PUBLIC_SHOW_META_LEGAL === "true" && (
+          <P>
+            Vomni is a trading name of Daniel Omri (עוסק פטור / Sole Proprietor, Registration #204630206), registered at Zlatopolsky 12, Tel Aviv-Yafo, Israel.
+          </P>
+        )}
         <P>
           Vomni (&ldquo;we&rdquo;, &ldquo;us&rdquo;, &ldquo;our&rdquo;) operates the platform at vomni.io. This policy explains what personal data we collect, why, and your rights over it.
         </P>

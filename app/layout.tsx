@@ -91,6 +91,16 @@ export default async function RootLayout({
           <TranslateWidget />
           <Analytics />
         </LocaleProvider>
+        {process.env.NEXT_PUBLIC_SHOW_META_LEGAL === "true" && (
+          <div style={{ background: "#F9FAFB", borderTop: "1px solid #E5E7EB", padding: "16px 24px", textAlign: "center" }}>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: "0 0 4px" }}>
+              Vomni is owned and operated by Daniel Omri (Osek Patur #204630206). Registered address: Zlatopolsky 12, Tel Aviv-Yafo, Israel.
+            </p>
+            <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: 0, direction: "rtl" }}>
+              Vomni בבעלות ומופעלת על ידי דניאל עמרי (עוסק פטור מס׳ 204630206). כתובת רשומה: זלטופולסקי 12, תל אביב-יפו, ישראל.
+            </p>
+          </div>
+        )}
       </body>
     </html>
   );

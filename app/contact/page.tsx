@@ -11,6 +11,7 @@ export default function ContactPage() {
   const [errors, setErrors]   = useState<Record<string, string>>({});
   const [sending, setSending] = useState(false);
   const [done, setDone]       = useState(false);
+  const [waConsent, setWaConsent] = useState(false);
 
   function set(k: string, v: string) {
     setForm(f => ({ ...f, [k]: v }));
@@ -129,6 +130,22 @@ export default function ContactPage() {
                 <textarea id="cmessage" value={form.message} onChange={e => set("message", e.target.value)} placeholder="What can we help with?" />
                 {errors.message && <span className="cerr">{errors.message}</span>}
               </div>
+
+              {process.env.NEXT_PUBLIC_SHOW_META_LEGAL === "true" && (
+                <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 16 }}>
+                  <input
+                    type="checkbox"
+                    id="wa-consent-contact"
+                    checked={waConsent}
+                    onChange={(e) => setWaConsent(e.target.checked)}
+                    style={{ marginTop: 3, flexShrink: 0, accentColor: G, width: 16, height: 16, cursor: "pointer" }}
+                  />
+                  <label htmlFor="wa-consent-contact" style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", lineHeight: 1.5, cursor: "pointer" }}>
+                    I agree to receive automated notifications and updates via WhatsApp from Vomni. I can opt-out at any time.<br />
+                    <span style={{ direction: "rtl", display: "block", marginTop: 2 }}>אני מסכים/ה לקבל עדכונים והתראות אוטומטיות דרך WhatsApp מ-Vomni. ניתן לבטל בכל עת.</span>
+                  </label>
+                </div>
+              )}
 
               <button
                 type="submit"

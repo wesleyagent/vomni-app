@@ -490,6 +490,7 @@ export default function SignupPage() {
   const [plan,             setPlan]             = useState<Plan>("growth");
   const [submitting,       setSubmitting]       = useState(false);
   const [error,            setError]            = useState("");
+  const [waConsent,        setWaConsent]        = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -590,6 +591,7 @@ export default function SignupPage() {
       country,
       locale,
       currency,
+      whatsapp_marketing_consent: waConsent,
     };
     if (isTrial) {
       bizRow.trial_start_date = new Date().toISOString();
@@ -911,6 +913,23 @@ export default function SignupPage() {
 
               </div>
             </div>
+            )}
+
+            {/* WhatsApp marketing consent — shown only when NEXT_PUBLIC_SHOW_META_LEGAL=true */}
+            {process.env.NEXT_PUBLIC_SHOW_META_LEGAL === "true" && (
+              <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                <input
+                  type="checkbox"
+                  id="wa-consent"
+                  checked={waConsent}
+                  onChange={(e) => setWaConsent(e.target.checked)}
+                  style={{ marginTop: 3, flexShrink: 0, accentColor: G, width: 16, height: 16, cursor: "pointer" }}
+                />
+                <label htmlFor="wa-consent" style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#6B7280", lineHeight: 1.5, cursor: "pointer" }}>
+                  I agree to receive automated notifications and updates via WhatsApp from Vomni. I can opt-out at any time.<br />
+                  <span style={{ direction: "rtl", display: "block", marginTop: 2 }}>אני מסכים/ה לקבל עדכונים והתראות אוטומטיות דרך WhatsApp מ-Vomni. ניתן לבטל בכל עת.</span>
+                </label>
+              </div>
             )}
 
             {/* Submit */}
