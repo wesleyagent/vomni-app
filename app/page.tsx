@@ -1477,6 +1477,8 @@ export default function LandingPage() {
             <a href="/contact" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Contact</a>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "8px 20px", marginBottom: 20 }}>
+            <a href="/terms" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Terms</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/privacy" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Privacy Policy</a>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/acceptable-use" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Acceptable Use</a>
@@ -1484,6 +1486,12 @@ export default function LandingPage() {
             <a href="/cookies" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Cookies</a>
             <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
             <a href="/refunds" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Refunds</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/dpa" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>DPA</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/data-ownership" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Data Ownership</a>
+            <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+            <a href="/complaints" style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TM, textDecoration: "none" }}>Complaints</a>
           </div>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: TM, margin: 0 }}>Vomni - hello@vomni.io</p>
         </div>
