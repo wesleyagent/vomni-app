@@ -113,41 +113,16 @@ export function withCronMonitoring(
       } catch { /* ignore */ }
 
       if (response.status >= 500) {
-        await Promise.all([
-          sendTelegramAlert(
-            `❌ <b>Cron FAILED — ${name}</b>\n` +
-            `<b>Status:</b> ${response.status}\n` +
-            `<b>Detail:</b> ${body}\n` +
-            `<b>Duration:</b> ${ms}ms\n` +
-            `<b>Time:</b> ${new Date().toISOString()}`
-          ),
-          logAlert("cron", name, "failure", body, ms),
-        ]);
+        await logAlert("cron", name, "failure", body, ms);
       } else {
-        await Promise.all([
-          sendTelegramAlert(
-            `✅ <b>Cron OK — ${name}</b>\n` +
-            `<b>Result:</b> ${body}\n` +
-            `<b>Duration:</b> ${ms}ms\n` +
-            `<b>Time:</b> ${new Date().toISOString()}`
-          ),
-          logAlert("cron", name, "success", body, ms),
-        ]);
+        await logAlert("cron", name, "success", body, ms);
       }
 
       return response;
     } catch (err) {
       const ms = Date.now() - start;
       const msg = err instanceof Error ? err.message : String(err);
-      await Promise.all([
-        sendTelegramAlert(
-          `❌ <b>Cron CRASHED — ${name}</b>\n` +
-          `<b>Error:</b> ${msg}\n` +
-          `<b>Duration:</b> ${ms}ms\n` +
-          `<b>Time:</b> ${new Date().toISOString()}`
-        ),
-        logAlert("cron", name, "failure", msg, ms),
-      ]);
+      await logAlert("cron", name, "failure", msg, ms);
       throw err;
     }
   };
