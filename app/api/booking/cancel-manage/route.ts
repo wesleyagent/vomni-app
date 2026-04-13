@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 import { sendBusinessPushNotification } from "@/lib/push";
+import { sendEmail } from "@/lib/email";
 import { removeBookingFromGoogle } from "@/lib/google-calendar-sync";
 import { removeBookingFromMicrosoft } from "@/lib/microsoft-calendar-sync";
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
   // 1. Fetch booking
   const { data: booking } = await supabaseAdmin
     .from("bookings")
-    .select("id, business_id, customer_name, service_name, appointment_at, status")
+    .select("id, business_id, customer_name, service_name, appointment_at, status, businesses(name, booking_timezone, owner_email, notification_email)")
     .eq("cancellation_token", token)
     .maybeSingle();
 
@@ -84,6 +85,22 @@ export async function POST(req: NextRequest) {
       data: { type: "cancellation", id: booking.id },
     })
   ).catch(e => console.error("[cancel-manage] push failed:", e));
+
+  // Email owner (non-blocking)
+  const business = (booking as typeof booking & { businesses?: { name?: string | null; booking_timezone?: string | null; owner_email?: string | null; notification_email?: string | null } | null }).businesses;
+  const ownerEmail = business?.notification_email ?? business?.owner_email;
+  if (ownerEmail) {
+    const tz = business?.booking_timezone ?? "Asia/Jerusalem";
+    const fmtDate = new Date(booking.appointment_at.substring(0, 19)).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: tz });
+    const fmtTime = new Date(booking.appointment_at.substring(0, 19)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz });
+    sendEmail({
+      to: ownerEmail,
+      subject: `Booking cancelled: ${booking.customer_name} — ${booking.service_name} on ${fmtDate} at ${fmtTime}`,
+      type: "booking_owner_notify",
+      bookingId: booking.id,
+      html: `<div style="font-family:Inter,sans-serif;background:#F9FAFB;padding:24px;"><div style="max-width:520px;margin:0 auto;"><div style="background:#0A0F1E;border-radius:16px 16px 0 0;padding:20px 32px;"><span style="font-weight:700;font-size:20px;color:#fff;">vomni</span></div><div style="background:#fff;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 16px 16px;padding:28px 32px;"><div style="background:#EF4444;border-radius:12px;padding:20px 24px;margin-bottom:24px;"><div style="font-size:18px;font-weight:800;color:#fff;margin-bottom:4px;">Booking Cancelled</div><div style="font-size:14px;color:rgba(255,255,255,0.85);">The customer has cancelled their appointment.</div></div><table width="100%" cellpadding="8" cellspacing="0" style="border-collapse:collapse;font-size:14px;"><tr><td style="color:#6B7280;border-top:1px solid #F0F0F0;">Customer</td><td style="font-weight:600;border-top:1px solid #F0F0F0;">${booking.customer_name ?? ""}</td></tr><tr><td style="color:#6B7280;border-top:1px solid #F0F0F0;">Service</td><td style="font-weight:600;border-top:1px solid #F0F0F0;">${booking.service_name ?? ""}</td></tr><tr><td style="color:#6B7280;border-top:1px solid #F0F0F0;">Was booked for</td><td style="font-weight:600;border-top:1px solid #F0F0F0;">${fmtDate} at ${fmtTime}</td></tr></table></div></div></div>`,
+    }).catch(err => console.error("[cancel-manage] owner email failed:", err));
+  }
 
   // Remove from Google Calendar (non-blocking)
   const cancelledBookingId = booking.id;

@@ -128,7 +128,7 @@ export async function POST(req: NextRequest) {
     const time = new Date(newApptAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: tz });
 
     // 3. Send confirmation to customer (WhatsApp or SMS fallback) — non-blocking
-    const cancelUrl = `${APP_URL}/cancel/${newToken}`;
+    const manageUrl = `${APP_URL}/manage/${newToken}`;
     const firstName = (newBooking.customer_name ?? "there").split(" ")[0];
 
     // Decrypt real phone — customer_phone stores masked display value, unusable for Twilio
@@ -139,7 +139,7 @@ export async function POST(req: NextRequest) {
 
     const smsFallback = () => {
       if (!realPhone) return;
-      const smsBody = `Hi ${firstName}! ✅ Your ${newBooking.service_name ?? "appointment"} at ${businessName} has been rescheduled to ${date} at ${time}. Cancel: ${cancelUrl}`;
+      const smsBody = `Hi ${firstName}! ✅ Your ${newBooking.service_name ?? "appointment"} at ${businessName} has been rescheduled to ${date} at ${time}. Manage: ${manageUrl}`;
       void sendBookingMessage(realPhone, smsBody, false, { businessId: newBooking.business_id, bookingId: newBooking.id, messageType: "reschedule" });
     };
 
