@@ -5,7 +5,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const posts = getAllPosts();
   const blogUrls: MetadataRoute.Sitemap = posts.map((post) => ({
     url: `https://vomni.io/blog/${post.slug}`,
-    lastModified: new Date(post.updatedAt),
+    lastModified: post.updatedAt ? new Date(post.updatedAt) : new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.7,
   }));
