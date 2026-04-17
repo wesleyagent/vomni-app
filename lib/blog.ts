@@ -11,8 +11,8 @@ export interface PostMeta {
   title: string
   slug: string
   description: string
-  publishedAt: string
-  updatedAt: string
+  publishedAt?: string
+  updatedAt?: string
   primaryKeyword: string
   secondaryKeywords: string[]
   readingTime: string
@@ -35,10 +35,11 @@ export function getAllPosts(): PostMeta[] {
     const { data } = matter(raw)
     return data as PostMeta
   })
-  return posts.sort(
-    (a, b) =>
-      new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
-  )
+  return posts.sort((a, b) => {
+    const ta = a.publishedAt ? new Date(a.publishedAt).getTime() : Date.now()
+    const tb = b.publishedAt ? new Date(b.publishedAt).getTime() : Date.now()
+    return tb - ta
+  })
 }
 
 export function getPost(slug: string): Post | null {
