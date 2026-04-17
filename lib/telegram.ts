@@ -11,26 +11,9 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? "";
 
-export async function sendTelegramAlert(message: string): Promise<void> {
-  if (!BOT_TOKEN || !CHAT_ID) {
-    console.warn("[telegram] Missing TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID — alert not sent");
-    return;
-  }
-
-  try {
-    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        chat_id: CHAT_ID,
-        text: message,
-        parse_mode: "HTML",
-      }),
-    });
-  } catch (err) {
-    // Never throw — alerting must never crash the app
-    console.error("[telegram] Failed to send alert:", err);
-  }
+export async function sendTelegramAlert(_message: string): Promise<void> {
+  // Telegram notifications disabled — alerts are logged to DB (admin panel) only
+  return;
 }
 
 /** Log an alert to the system_alerts table for the admin dashboard */
