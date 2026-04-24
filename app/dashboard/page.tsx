@@ -177,10 +177,11 @@ export default function DashboardOverview() {
           .order("created_at", { ascending: false })
           .limit(5),
 
-        // 6 — This-month review funnel
+        // 6 — This-month review funnel (only bookings where a request was actually sent)
         db.from("bookings")
           .select("id, review_status")
           .eq("business_id", businessId)
+          .eq("review_request_sent", true)
           .gte("created_at", monthStart),
 
         // 7 — Customer profiles

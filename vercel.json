@@ -46,7 +46,7 @@
     },
     {
       "path": "/api/cron/auto-complete-appointments",
-      "schedule": "0 23 * * *"
+      "schedule": "0 * * * *"
     }
   ]
 }
