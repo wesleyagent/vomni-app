@@ -177,12 +177,12 @@ export default function DashboardOverview() {
           .order("created_at", { ascending: false })
           .limit(5),
 
-        // 6 — This-month review funnel (only bookings where a request was actually sent)
+        // 6 — Rolling 30-day review funnel (only bookings where a request was actually sent)
         db.from("bookings")
           .select("id, review_status")
           .eq("business_id", businessId)
           .eq("review_request_sent", true)
-          .gte("created_at", monthStart),
+          .gte("appointment_at", new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
 
         // 7 — Customer profiles
         db.from("customer_profiles")

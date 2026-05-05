@@ -63,7 +63,6 @@ const PLATFORMS = [
   },
   {
     name: "Calmark",
-    nameHe: "קאלמארק",
     slug: "calmark",
     tagline: "Great booking calendar. No Google reviews. No re-engagement.",
     href: "/migrate/calmark",

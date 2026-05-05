@@ -2,7 +2,7 @@
 
 import Script from "next/script";
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 
 declare global {
   interface Window {
@@ -363,6 +363,9 @@ function CustomerViewTab() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const isUK = pathname.startsWith("/uk");
+  const wa   = isUK ? "SMS" : "WhatsApp";
   const [scrolled,  setScrolled]  = useState(false);
   const [menuOpen,  setMenuOpen]  = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -705,7 +708,7 @@ export default function LandingPage() {
               More bookings.<br /><span style={{ color: G }}>Fewer surprises.</span>
             </h1>
             <p className="hero-sub" style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TS, lineHeight: 1.6, maxWidth: 460, marginTop: 24 }}>
-              Put your business on autopilot. Vomni handles your bookings, follows up with every customer after their visit, and brings back regulars who've gone quiet — all via WhatsApp, without you lifting a finger.
+              Put your business on autopilot. Vomni handles your bookings, follows up with every customer after their visit, and brings back regulars who've gone quiet — all via {wa}, without you lifting a finger.
             </p>
             <div className="hero-buttons" style={{ marginTop: 40, display: "flex", gap: 16, alignItems: "center" }}>
               <a href="/signup" className="cta-primary" style={{ background: G, color: "#fff", borderRadius: 9999, padding: "18px 36px", fontFamily: "Inter, sans-serif", fontSize: 16, fontWeight: 600, textDecoration: "none" }}>
@@ -725,7 +728,7 @@ export default function LandingPage() {
               <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS }}>Trusted by businesses that value every customer</span>
             </div>
             <div className="trust-pills" style={{ marginTop: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {["✓ WhatsApp-first", "✓ Live in 5 minutes", "✓ Switch in an afternoon"].map((t) => (
+              {[`✓ ${wa}-first`, "✓ Live in 5 minutes", "✓ Switch in an afternoon"].map((t) => (
                 <span key={t} style={{ background: OW, borderRadius: 9999, padding: "8px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 500, color: TS }}>{t}</span>
               ))}
             </div>
@@ -754,7 +757,7 @@ export default function LandingPage() {
                 <p style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: "0.1em", color: TM, marginTop: 16, marginBottom: 10 }}>RECENT ACTIVITY</p>
                 {[
                   { name: "Yoni K.", status: "Confirmed booking",        color: G },
-                  { name: "Dana M.", status: "Rebooked via WhatsApp",     color: G },
+                  { name: "Dana M.", status: `Rebooked via ${wa}`,     color: G },
                   { name: "Lior T.", status: "Left a 5-star review",      color: G },
                   { name: "Ron S.",  status: "Reminder sent",             color: TM },
                 ].map((a, i, arr) => (
@@ -776,7 +779,7 @@ export default function LandingPage() {
               </div>
               <div>
                 <p style={{ fontFamily: "Inter, sans-serif", fontSize: 13, fontWeight: 600, color: N }}>Maya K. just rebooked</p>
-                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: TM, marginTop: 2 }}>Last visit 11 weeks ago · via WhatsApp</p>
+                <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: TM, marginTop: 2 }}>Last visit 11 weeks ago · via {wa}</p>
               </div>
             </div>
           </div>
@@ -900,7 +903,7 @@ export default function LandingPage() {
               {
                 num: "02",
                 title: "After every visit, every customer hears from you.",
-                body: "After every appointment, every customer gets a personal WhatsApp at exactly the right time. It reads like it came from you — because it does.",
+                body: `After every appointment, every customer gets a personal ${wa} at exactly the right time. It reads like it came from you — because it does.`,
                 icon: (
                   <svg width={32} height={32} viewBox="0 0 24 24" fill="none" stroke={G} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
@@ -962,7 +965,7 @@ export default function LandingPage() {
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500 }}>Yoni K. just rebooked — via WhatsApp · just now</span>
+              <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: N, fontWeight: 500 }}>Yoni K. just rebooked — via {wa} · just now</span>
             </div>
           </div>
           <div style={{ marginTop: 60, textAlign: "center" }}>
@@ -986,7 +989,7 @@ export default function LandingPage() {
             Turn every customer into a regular.
           </h2>
           <p style={{ fontFamily: "Inter, sans-serif", fontSize: 20, color: TM, textAlign: "center", marginTop: 16, maxWidth: 720, margin: "16px auto 0" }}>
-            Vomni detects when customers are overdue and sends a perfectly timed, personalized WhatsApp with a ready to book slot.
+            Vomni detects when customers are overdue and sends a perfectly timed, personalized {wa} with a ready to book slot.
           </p>
 
           {/* Stats row */}
@@ -1003,7 +1006,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          {/* Two-column: bullets left, WhatsApp bubble right */}
+          {/* Two-column: bullets left, message bubble right */}
           <div className="re-engagement-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 64, marginTop: 80, alignItems: "center" }}>
             {/* Left — feature bullets */}
             <div style={{ display: "flex", flexDirection: "column", gap: 36 }}>
@@ -1049,12 +1052,12 @@ export default function LandingPage() {
 
             </div>
 
-            {/* Right — WhatsApp bubble */}
+            {/* Right — message bubble */}
             <div style={{ display: "flex", justifyContent: "center" }}>
               <div className="sms-mockup" style={{ background: "#fff", borderRadius: 24, boxShadow: "0 20px 60px rgba(0,0,0,0.25)", maxWidth: 420, width: "100%", padding: 32 }}>
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
                   <span style={{ background: "#f0fdf4", borderRadius: 9999, padding: "6px 16px", fontFamily: "Inter, sans-serif", fontSize: 13, color: "#16a34a", fontWeight: 600 }}>
-                    WhatsApp · Kings Cuts
+                    {wa} · Kings Cuts
                   </span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
@@ -1069,7 +1072,7 @@ export default function LandingPage() {
                   <svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12 19.79 19.79 0 0 1 1.61 3.43 2 2 0 0 1 3.6 1.27h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.95a16 16 0 0 0 6 6l.95-.95a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 21.73 16.92z"/>
                   </svg>
-                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#166534", fontWeight: 500 }}>Lior K. rebooked — 14 minutes later · via WhatsApp</span>
+                  <span style={{ fontFamily: "Inter, sans-serif", fontSize: 13, color: "#166534", fontWeight: 500 }}>Lior K. rebooked — 14 minutes later · via {wa}</span>
                 </div>
               </div>
             </div>
@@ -1375,7 +1378,7 @@ export default function LandingPage() {
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: G, fontWeight: 600, margin: "6px 0 0" }}>or £299/year - save £121</p>
               <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Booking page, live in 5 minutes", "Automated WhatsApp review requests after every visit", "Basic dashboard", "Email support"].map(f => (
+                {["Booking page, live in 5 minutes", `Automated ${wa} review requests after every visit`, "Basic dashboard", "Email support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="#E5E7EB"/><path d="M5 8l2 2 4-4" stroke="#6B7280" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#6B7280" }}>{f}</span>
@@ -1401,7 +1404,7 @@ export default function LandingPage() {
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: G, fontWeight: 600, margin: "6px 0 0" }}>or £699/year - save £249</p>
               <hr style={{ border: "none", borderTop: "1px solid #E5E7EB", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Everything in Starter", "Automated follow-ups after every visit", "Lapsed customer re-engagement via WhatsApp", "Full analytics + weekly email reports", "Priority support"].map(f => (
+                {["Everything in Starter", "Automated follow-ups after every visit", `Lapsed customer re-engagement via ${wa}`, "Full analytics + weekly email reports", "Priority support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(0,200,150,0.15)"/><path d="M5 8l2 2 4-4" stroke="#00C896" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#374151" }}>{f}</span>
@@ -1424,7 +1427,7 @@ export default function LandingPage() {
               <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "#F5A623", fontWeight: 600, margin: "6px 0 0" }}>or £1,499/year - save £289</p>
               <hr style={{ border: "none", borderTop: "1px solid rgba(255,255,255,0.1)", margin: "24px 0" }} />
               <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-                {["Everything in Growth", "Dedicated WhatsApp number", "Same-day support"].map(f => (
+                {["Everything in Growth", `Dedicated ${wa} number`, "Same-day support"].map(f => (
                   <div key={f} style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" fill="rgba(245,166,35,0.2)"/><path d="M5 8l2 2 4-4" stroke="#F5A623" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                     <span style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{f}</span>
@@ -1504,6 +1507,18 @@ export default function LandingPage() {
           <button className="sticky-mobile-cta-dismiss" type="button" aria-label="Dismiss">×</button>
         </div>
       </div>
+
+      {/* ── META LEGAL FOOTER - homepage only, never on /uk ─────────────────── */}
+      {process.env.NEXT_PUBLIC_SHOW_META_LEGAL === "true" && !pathname.startsWith("/uk") && (
+        <div style={{ background: "#F9FAFB", borderTop: "1px solid #E5E7EB", padding: "16px 24px", textAlign: "center" }}>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: "0 0 4px" }}>
+            Vomni is owned and operated by Daniel Omri (Osek Patur #204630206). Registered address: Zlatopolsky 12, Tel Aviv-Yafo, Israel.
+          </p>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 12, color: "#9CA3AF", margin: 0, direction: "rtl" }}>
+            Vomni בבעלות ומופעלת על ידי דניאל עמרי (עוסק פטור מס׳ 204630206). כתובת רשומה: זלטופולסקי 12, תל אביב-יפו, ישראל.
+          </p>
+        </div>
+      )}
     </>
   );
 }
