@@ -230,7 +230,7 @@ export default function MigratePage() {
                   </span>
                 </div>
                 <h3 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 22, fontWeight: 800, color: N, marginBottom: 4 }}>
-                  {p.name}{p.nameHe ? ` / ${p.nameHe}` : ""}
+                  {p.name}
                 </h3>
                 <p style={{ fontFamily: "Inter, sans-serif", fontSize: 14, color: TS, lineHeight: 1.6, marginBottom: 28 }}>
                   {p.tagline}
