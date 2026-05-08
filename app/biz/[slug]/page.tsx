@@ -23,12 +23,13 @@ export default async function BizProfilePage({
 
   const { data: biz } = await supabaseAdmin
     .from("businesses")
-    .select("id, name, booking_slug, google_maps_url, instagram_handle, address, city, postcode, bio, primary_color, logo_url, average_rating, total_reviews")
+    .select("id, name, booking_slug, google_maps_url, instagram_handle, address, city, postcode, bio, primary_color, logo_url, average_rating, total_reviews, plan")
     .eq("booking_slug", slug)
     .eq("booking_enabled", true)
     .single();
 
   if (!biz) notFound();
+  if ((biz as typeof biz & { plan?: string }).plan === "trial_expired") notFound();
 
   const { data: services } = await supabaseAdmin
     .from("services")

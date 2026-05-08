@@ -33,12 +33,16 @@ export async function GET(
   // Fetch business
   const { data: business } = await supabaseAdmin
     .from("businesses")
-    .select("id, booking_buffer_minutes, booking_advance_days, booking_timezone, booking_enabled")
+    .select("id, booking_buffer_minutes, booking_advance_days, booking_timezone, booking_enabled, plan")
     .eq("booking_slug", slug)
     .single();
 
   if (!business || !business.booking_enabled) {
     return NextResponse.json({ error: "Business not found" }, { status: 404 });
+  }
+
+  if (business.plan === "trial_expired") {
+    return NextResponse.json({ error: "Booking is currently unavailable" }, { status: 403 });
   }
 
   const timezone = business.booking_timezone ?? "Asia/Jerusalem";

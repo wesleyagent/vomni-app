@@ -95,12 +95,16 @@ export async function POST(
   // Fetch business
   const { data: business } = await supabaseAdmin
     .from("businesses")
-    .select("id, name, booking_buffer_minutes, booking_timezone, booking_enabled, booking_slug, whatsapp_enabled, owner_email, notification_email, booking_currency")
+    .select("id, name, booking_buffer_minutes, booking_timezone, booking_enabled, booking_slug, whatsapp_enabled, owner_email, notification_email, booking_currency, plan")
     .eq("booking_slug", slug)
     .single();
 
   if (!business || !business.booking_enabled) {
     return NextResponse.json({ error: "Business not found or booking disabled" }, { status: 404 });
+  }
+
+  if (business.plan === "trial_expired") {
+    return NextResponse.json({ error: "Booking is currently unavailable" }, { status: 403 });
   }
 
   // All customers use SMS/WhatsApp — no email requirement

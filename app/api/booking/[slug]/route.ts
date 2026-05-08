@@ -11,7 +11,7 @@ export async function GET(
   // Fetch business by booking slug
   const { data: business, error: bizErr } = await supabaseAdmin
     .from("businesses")
-    .select("id, name, logo_url, booking_slug, booking_enabled, booking_buffer_minutes, booking_advance_days, booking_cancellation_hours, booking_confirmation_message, booking_confirmation_message_he, booking_currency, booking_timezone, require_phone, require_email")
+    .select("id, name, logo_url, booking_slug, booking_enabled, booking_buffer_minutes, booking_advance_days, booking_cancellation_hours, booking_confirmation_message, booking_confirmation_message_he, booking_currency, booking_timezone, require_phone, require_email, plan")
     .eq("booking_slug", slug)
     .single();
 
@@ -21,6 +21,10 @@ export async function GET(
 
   if (!business.booking_enabled) {
     return NextResponse.json({ error: "Booking is not enabled for this business" }, { status: 404 });
+  }
+
+  if (business.plan === "trial_expired") {
+    return NextResponse.json({ error: "Booking is currently unavailable" }, { status: 403 });
   }
 
   // Fetch active services
