@@ -330,7 +330,7 @@ export default function PricingPage() {
               <tbody>
                 {[
                   ["Monthly cost", "£79", "£79+", "£30+"],
-                  ["Commission on new clients", "None", "20%", "~30% (Boost)"],
+                  ["Commission on new clients", "None", "20%", "30%"],
                   ["Per staff charge", "None", "£10/staff", "£20/staff"],
                   ["Reputation management", "Included", "Not included", "Not included"],
                   ["Hidden fees", "None", "Yes", "Yes"],
