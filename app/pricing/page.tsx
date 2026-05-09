@@ -330,19 +330,24 @@ export default function PricingPage() {
               <tbody>
                 {[
                   ["Monthly cost", "£79", "£79+", "£30+"],
-                  ["Commission on new clients", "None", "20%", "None"],
+                  ["Commission on new clients", "None", "20%", "~30% (Boost)"],
                   ["Per staff charge", "None", "£10/staff", "£20/staff"],
                   ["Reputation management", "Included", "Not included", "Not included"],
-                  ["Hebrew support", "Native", "Limited", "Limited"],
                   ["Hidden fees", "None", "Yes", "Yes"],
+                  ["Estimated monthly total †", "£79", "~£169+", "~£120+"],
                 ].map((row, ri) => (
                   <tr key={ri}>
                     {row.map((cell, ci) => (
                       <td key={ci} style={{
                         padding: "14px 20px", textAlign: ci === 0 ? "left" : "center",
-                        fontSize: 14, color: ci === 1 && (cell === "None" || cell === "Included" || cell === "Native" || cell === "£79") ? G : "rgba(255,255,255,0.6)",
-                        fontWeight: ci === 0 ? 500 : 400,
+                        fontSize: ri === 5 ? 13 : 14,
+                        color: ri === 5 && ci === 1 ? G
+                          : ri === 5 ? "rgba(255,255,255,0.5)"
+                          : ci === 1 && (cell === "None" || cell === "Included" || cell === "£79") ? G
+                          : "rgba(255,255,255,0.6)",
+                        fontWeight: ci === 0 ? (ri === 5 ? 600 : 500) : ri === 5 ? 700 : 400,
                         borderBottom: ri < 5 ? "1px solid rgba(255,255,255,0.05)" : "none",
+                        background: ri === 5 ? "rgba(255,255,255,0.03)" : "transparent",
                       }}>{cell}</td>
                     ))}
                   </tr>
@@ -350,6 +355,9 @@ export default function PricingPage() {
               </tbody>
             </table>
           </div>
+          <p style={{ fontFamily: "Inter, sans-serif", fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", margin: "12px 0 0" }}>
+            † Estimate based on 3 staff, 10 new clients/month at £35 avg service. Fresha includes base + staff fees + 20% commission. Booksy includes base + staff fees + 30% Boost commission.
+          </p>
         </div>
       </section>
 
