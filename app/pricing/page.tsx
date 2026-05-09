@@ -307,51 +307,6 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Competitor Comparison Table */}
-      <section style={{ padding: "0 0 80px" }}>
-        <div style={{ maxWidth: 800, margin: "0 auto", padding: "0 48px" }}>
-          <h2 style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 28, fontWeight: 800, color: "#fff", textAlign: "center", margin: "0 0 40px" }}>
-            How Vomni compares
-          </h2>
-          <div style={{ background: "rgba(255,255,255,0.05)", borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "Inter, sans-serif" }}>
-              <thead>
-                <tr>
-                  {["", "Vomni Growth", "Fresha Team", "Booksy"].map((h, i) => (
-                    <th key={i} style={{
-                      padding: "16px 20px", textAlign: i === 0 ? "left" : "center",
-                      fontWeight: 700, fontSize: 14,
-                      color: i === 1 ? G : "rgba(255,255,255,0.5)",
-                      borderBottom: "1px solid rgba(255,255,255,0.08)",
-                    }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {[
-                  ["Monthly cost", "£79", "£79+", "£30+"],
-                  ["Commission on new clients", "None", "20%", "30%"],
-                  ["Per staff charge", "None", "£10/staff", "£20/staff"],
-                  ["Reputation management", "Included", "Not included", "Not included"],
-                  ["Hidden fees", "None", "Yes", "Yes"],
-                ].map((row, ri) => (
-                  <tr key={ri}>
-                    {row.map((cell, ci) => (
-                      <td key={ci} style={{
-                        padding: "14px 20px", textAlign: ci === 0 ? "left" : "center",
-                        fontSize: 14,
-                        color: ci === 1 && (cell === "None" || cell === "Included" || cell === "£79") ? G : "rgba(255,255,255,0.6)",
-                        fontWeight: ci === 0 ? 500 : 400,
-                        borderBottom: ri < 4 ? "1px solid rgba(255,255,255,0.05)" : "none",
-                      }}>{cell}</td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
 
       {/* Footer */}
       <footer style={{ borderTop: "1px solid rgba(255,255,255,0.08)", padding: "32px 48px", textAlign: "center" }}>
